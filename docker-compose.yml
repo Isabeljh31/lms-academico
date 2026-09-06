@@ -1,0 +1,36 @@
+﻿services:
+  laravel.test:
+    image: 'serversideup/php:8.3-fpm-nginx'
+    ports:
+      - '80:8080'
+    environment:
+      - AUTORUN_LARAVEL_STORAGE_LINK=true
+      - PHP_OPCACHE_ENABLE=0
+    volumes:
+      - '.:/var/www/html'
+    networks:
+      - sail
+    depends_on:
+      - redis
+      - mailpit
+  redis:
+    image: 'redis:alpine'
+    ports:
+      - '6379:6379'
+    volumes:
+      - 'sail-redis:/data'
+    networks:
+      - sail
+  mailpit:
+    image: 'axllent/mailpit:latest'
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+    networks:
+      - sail
+networks:
+  sail:
+    driver: bridge
+volumes:
+  sail-redis:
+    driver: local
