@@ -12,13 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('conversaciones_bot', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('usuario_id')->constrained('users')->onDelete('cascade');
-        $table->foreignId('curso_id')->nullable()->constrained('cursos')->onDelete('set null');
-        $table->jsonb('mensajes')->default('[]');
-        $table->timestamps();
+            $table->id();
+            $table->foreignId('usuario_id')->constrained('users')->onDelete('cascade');
+            $table->foreignId('curso_id')->nullable()->constrained('cursos')->onDelete('set null');
+            $table->jsonb('mensajes')->default('[]');
+            $table->timestamps();
         });
-    }   
+    }
 
     /**
      * Reverse the migrations.

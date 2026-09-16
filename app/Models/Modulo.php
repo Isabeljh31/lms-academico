@@ -2,19 +2,30 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Modulo extends Model
 {
+    use HasFactory;
+
     protected $table = 'modulos';
 
     protected $fillable = [
         'curso_id',
         'titulo',
         'orden',
+        'materiales',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'materiales' => 'array',
+        ];
+    }
 
     public function curso(): BelongsTo
     {

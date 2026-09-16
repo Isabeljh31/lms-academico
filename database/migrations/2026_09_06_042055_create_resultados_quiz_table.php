@@ -12,12 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('resultados_quiz', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('quiz_id')->constrained('quizzes')->onDelete('cascade');
-        $table->foreignId('estudiante_id')->constrained('users')->onDelete('cascade');
-        $table->jsonb('respuestas');
-        $table->decimal('puntaje', 4, 2);
-        $table->timestamps();
+            $table->id();
+            $table->foreignId('quiz_id')->constrained('quizzes')->onDelete('cascade');
+            $table->foreignId('estudiante_id')->constrained('users')->onDelete('cascade');
+            $table->jsonb('respuestas');
+            $table->decimal('puntaje', 4, 2);
+            $table->timestamps();
         });
     }
 

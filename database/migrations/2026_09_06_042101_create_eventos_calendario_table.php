@@ -12,12 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('eventos_calendario', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('usuario_id')->constrained('users')->onDelete('cascade');
-        $table->string('titulo');
-        $table->timestamp('fecha');
-        $table->string('tipo', 30);
-        $table->timestamps();
+            $table->id();
+            $table->foreignId('usuario_id')->constrained('users')->onDelete('cascade');
+            $table->string('titulo');
+            $table->timestamp('fecha');
+            $table->string('tipo', 30);
+            $table->timestamps();
         });
     }
 

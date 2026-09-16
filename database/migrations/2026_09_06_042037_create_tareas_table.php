@@ -12,14 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('tareas', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('curso_id')->constrained('cursos')->onDelete('cascade');
-        $table->foreignId('modulo_id')->constrained('modulos')->onDelete('cascade');
-        $table->string('titulo');
-        $table->text('descripcion')->nullable();
-        $table->timestamp('fecha_entrega');
-        $table->decimal('peso_nota', 5, 2)->default(1.00);
-        $table->timestamps();
+            $table->id();
+            $table->foreignId('curso_id')->constrained('cursos')->onDelete('cascade');
+            $table->foreignId('modulo_id')->constrained('modulos')->onDelete('cascade');
+            $table->string('titulo');
+            $table->text('descripcion')->nullable();
+            $table->timestamp('fecha_entrega');
+            $table->decimal('peso_nota', 5, 2)->default(1.00);
+            $table->timestamps();
         });
     }
 
