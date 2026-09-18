@@ -12,15 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('entregas', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('tarea_id')->constrained('tareas')->onDelete('cascade');
-        $table->foreignId('estudiante_id')->constrained('users')->onDelete('cascade');
-        $table->text('archivo_url');
-        $table->text('comentario')->nullable();
-        $table->string('estado', 20)->default('entregado');
-        $table->decimal('nota', 4, 2)->nullable();
-        $table->text('feedback')->nullable();
-        $table->timestamps();
+            $table->id();
+            $table->foreignId('tarea_id')->constrained('tareas')->onDelete('cascade');
+            $table->foreignId('estudiante_id')->constrained('users')->onDelete('cascade');
+            $table->text('archivo_url');
+            $table->text('comentario')->nullable();
+            $table->string('estado', 20)->default('entregado');
+            $table->decimal('nota', 4, 2)->nullable();
+            $table->text('feedback')->nullable();
+            $table->timestamps();
         });
     }
 

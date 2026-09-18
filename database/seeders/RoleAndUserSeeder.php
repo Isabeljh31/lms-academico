@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
+use App\Enums\Rol;
 use App\Models\User;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Role;
 
@@ -15,39 +15,42 @@ class RoleAndUserSeeder extends Seeder
      */
     public function run(): void
     {
-        // 1. Roles del sistema según documento[cite: 1]
-        $adminRole = Role::firstOrCreate(['name' => 'admin']);
-        $profesorRole = Role::firstOrCreate(['name' => 'profesor']);
-        $estudianteRole = Role::firstOrCreate(['name' => 'estudiante']);
+        // 1. Roles del sistema (spec sección 3: administrador, profesor, estudiante).
+        foreach (Rol::cases() as $rol) {
+            Role::firstOrCreate(['name' => $rol->value]);
+        }
 
-        // 2. Administrador de prueba[cite: 1]
+        // 2. Administrador de prueba.
         $admin = User::firstOrCreate(
             ['email' => 'admin@lms.edu.pe'],
             [
                 'name' => 'Administrador General',
                 'password' => Hash::make('password123'),
+                'email_verified_at' => now(),
             ]
         );
-        $admin->syncRoles([$adminRole]);
+        $admin->syncRoles([Rol::Administrador->value]);
 
-        // 3. Profesor de prueba[cite: 1]
+        // 3. Profesor de prueba.
         $profesor = User::firstOrCreate(
             ['email' => 'profesor@lms.edu.pe'],
             [
                 'name' => 'Prof. Juan Perez',
                 'password' => Hash::make('password123'),
+                'email_verified_at' => now(),
             ]
         );
-        $profesor->syncRoles([$profesorRole]);
+        $profesor->syncRoles([Rol::Profesor->value]);
 
-        // 4. Estudiante de prueba[cite: 1]
+        // 4. Estudiante de prueba.
         $estudiante = User::firstOrCreate(
             ['email' => 'estudiante@lms.edu.pe'],
             [
                 'name' => 'Estudiante Demo',
                 'password' => Hash::make('password123'),
+                'email_verified_at' => now(),
             ]
         );
-        $estudiante->syncRoles([$estudianteRole]);
+        $estudiante->syncRoles([Rol::Estudiante->value]);
     }
 }

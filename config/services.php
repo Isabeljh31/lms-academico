@@ -35,4 +35,31 @@ return [
         ],
     ],
 
+    // Fotos de perfil, portadas de curso, materiales y entregas.
+    // Sin CLOUDINARY_URL, App\Services\Multimedia\SubidorArchivos cae
+    // automáticamente al disco local "public" (ver ARQUITECTURA.md).
+    'cloudinary' => [
+        'url' => env('CLOUDINARY_URL'),
+        'upload_preset' => env('CLOUDINARY_UPLOAD_PRESET'),
+    ],
+
+    // Bot de sugerencias (módulos 6 y 7). Qué proveedor usa
+    // App\Services\Bot\Contracts\ProveedorIA (registrado en
+    // AppServiceProvider): "groq" (gratuito, por defecto durante
+    // desarrollo/pruebas del curso) o "claude" (de pago). Sin la key del
+    // proveedor activo, el bot corre en modo simulado.
+    'ia' => [
+        'proveedor' => env('IA_PROVEEDOR', 'groq'),
+    ],
+
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+        'model' => env('ANTHROPIC_MODEL', 'claude-sonnet-4-5'),
+    ],
+
+    'groq' => [
+        'key' => env('GROQ_API_KEY'),
+        'model' => env('GROQ_MODEL', 'openai/gpt-oss-120b'),
+    ],
+
 ];
