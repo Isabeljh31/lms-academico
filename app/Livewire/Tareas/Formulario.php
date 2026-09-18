@@ -28,6 +28,8 @@ class Formulario extends Component
 
     public float $peso_nota = 1;
 
+    public string $tipo_entrega = 'individual';
+
     public function mount(Curso $curso, ?Tarea $tarea = null): void
     {
         $this->curso = $curso;
@@ -41,6 +43,7 @@ class Formulario extends Component
             $this->modulo_id = $tarea->modulo_id;
             $this->fecha_entrega = $tarea->fecha_entrega->format('Y-m-d\TH:i');
             $this->peso_nota = (float) $tarea->peso_nota;
+            $this->tipo_entrega = $tarea->tipo_entrega;
         } else {
             Gate::authorize('crear', [Tarea::class, $curso]);
         }
@@ -54,6 +57,7 @@ class Formulario extends Component
             'modulo_id' => ['required', 'exists:modulos,id'],
             'fecha_entrega' => ['required', 'date'],
             'peso_nota' => ['required', 'numeric', 'min:0', 'max:100'],
+            'tipo_entrega' => ['required', 'in:individual,grupal'],
         ]);
 
         if ($this->tarea) {

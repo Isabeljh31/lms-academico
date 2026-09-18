@@ -42,7 +42,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta name="csrf-token" content="{{ csrf_token() }}">
 
-        <title>{{ config('app.name', 'LMS Académico') }}</title>
+        <title>{{ config('app.name', 'LearnUp') }}</title>
 
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
@@ -86,7 +86,10 @@
             </aside>
 
             <div class="flex-1 flex flex-col min-w-0 lg:overflow-y-auto">
-                <header class="sticky top-0 z-20 flex h-16 items-center gap-4 border-b {{ $cromaBorde }} {{ $cromaSuperficie }} px-4 sm:px-6">
+                {{-- shrink-0: sin esto, en páginas cuyo contenido es más alto que
+                     la pantalla, flexbox encoge esta barra junto con el resto en
+                     vez de dejarla fija en 64px y hacer scroll solo en <main>. --}}
+                <header class="sticky top-0 z-20 flex h-16 shrink-0 items-center gap-4 border-b {{ $cromaBorde }} {{ $cromaSuperficie }} px-4 sm:px-6">
                     <button @click="sidebarAbierto = true" class="lg:hidden {{ $cromaIconoMenu }}">
                         <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />

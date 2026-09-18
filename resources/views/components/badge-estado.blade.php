@@ -8,12 +8,14 @@
     $paletaFria = auth()->check() && auth()->user()->hasRole('estudiante');
 
     $estilos = $paletaFria
+        // Colores semánticos (ámbar/rojo/verde), igual al Figma — separados
+        // del azul de marca para que el estado se lea de un vistazo.
         ? match (strtolower($estado)) {
-            'pendiente' => 'bg-celeste/50 text-texto dark:bg-azul-borde-oscuro dark:text-slate-200',
-            'atrasado' => 'bg-coral-fondo text-coral-oscuro dark:bg-coral-oscuro/20 dark:text-coral-fondo',
-            'entregado' => 'bg-celeste/60 text-azul-oscuro dark:bg-azul-oscuro/20 dark:text-celeste',
-            'calificado', 'aprobado' => 'bg-verde-fondo/60 text-verde-oscuro dark:bg-verde-oscuro/30 dark:text-verde-fondo',
-            'rechazado' => 'bg-coral-oscuro/10 text-coral-oscuro dark:bg-coral-oscuro/30 dark:text-coral-fondo',
+            'pendiente' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+            'atrasado' => 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+            'entregado' => 'bg-celeste text-azul-oscuro dark:bg-azul-oscuro/20 dark:text-celeste',
+            'calificado', 'aprobado' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+            'rechazado' => 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
             'en_progreso', 'en progreso' => 'bg-lavanda-fondo/30 text-lavanda-oscuro dark:bg-lavanda-oscuro/30 dark:text-lavanda-fondo',
             default => 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200',
         }

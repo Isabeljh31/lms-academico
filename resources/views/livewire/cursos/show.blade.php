@@ -1,33 +1,39 @@
 @php
-    // Color plano de portada (sin degradado) para el rol estudiante, elegido
-    // de forma estable a partir del nombre del curso — mismo criterio que
-    // el widget "Mis cursos" del panel. El profesor conserva su fondo
-    // original sin cambios. Ver ARQUITECTURA.md § nueva paleta de color.
-    $coloresPortadaCurso = ['bg-azul-oscuro', 'bg-coral-oscuro', 'bg-lavanda-oscuro', 'bg-azul-fondo'];
-    $colorPortadaCurso = $coloresPortadaCurso[crc32($curso->nombre) % count($coloresPortadaCurso)];
+    // Acento de portada (código + fondo tenue, sin degradado) para el rol
+    // estudiante, elegido de forma estable a partir del nombre del curso —
+    // mismo criterio que el widget "Mis cursos" del panel (ver /DISEñO
+    // FIGMA). El profesor conserva su fondo original sin cambios.
+    $acentosCurso = [
+        ['texto' => 'text-azul-oscuro dark:text-azul-fondo', 'fondo' => 'bg-azul-oscuro/10 dark:bg-azul-oscuro/20'],
+        ['texto' => 'text-azul-fondo dark:text-cielo', 'fondo' => 'bg-azul-fondo/10 dark:bg-azul-fondo/20'],
+        ['texto' => 'text-cielo dark:text-cielo', 'fondo' => 'bg-cielo/10 dark:bg-cielo/20'],
+    ];
+    $acentoCurso = $acentosCurso[crc32($curso->nombre) % count($acentosCurso)];
+    // Str::ascii() quita tildes antes de recortar, para que el código quede
+    // consistente (p. ej. "Física" -> "FIS", no "Fís" con strtoupper solo).
+    $codigoCurso = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', \Illuminate\Support\Str::ascii($curso->nombre)), 0, 3));
 @endphp
 
 <div class="py-8">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+    {{-- Ancho de contenedor estandarizado (max-w-6xl) para todas las vistas del estudiante. --}}
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         @if (session('estado'))
             <div class="rounded-lg bg-exito-base/15 text-exito-oscuro px-4 py-3 text-sm">{{ session('estado') }}</div>
         @endif
 
         <div class="bg-white rounded-xl border overflow-hidden {{ auth()->user()->hasRole('estudiante') ? 'dark:bg-azul-superficie-oscura border-celeste dark:border-azul-borde-oscuro' : 'dark:bg-stone-800 border-arena-medio dark:border-stone-700' }}">
-            <div class="relative h-40 overflow-hidden {{ auth()->user()->hasRole('estudiante') ? $colorPortadaCurso : 'bg-gradient-to-br from-menta-fondo to-arena-medio dark:from-stone-700 dark:to-stone-800' }}"
+            <div class="relative h-40 overflow-hidden flex items-center justify-center {{ auth()->user()->hasRole('estudiante') ? $acentoCurso['fondo'] : 'bg-gradient-to-br from-menta-fondo to-arena-medio dark:from-stone-700 dark:to-stone-800' }}"
                 @if ($curso->imagen_portada_url) style="background-image:url('{{ $curso->imagen_portada_url }}');background-size:cover;background-position:center;" @endif>
                 @if (! $curso->imagen_portada_url && auth()->user()->hasRole('estudiante'))
-                    {{-- Rediseño visual del rol estudiante: iniciales del curso en vez de un bloque de color vacío. --}}
-                    <span class="absolute -right-3 -bottom-8 text-[7rem] font-black text-white/15 select-none leading-none">
-                        {{ collect(explode(' ', $curso->nombre))->map(fn ($p) => mb_substr($p, 0, 1))->take(2)->implode('') }}
-                    </span>
+                    {{-- Rediseño visual del rol estudiante: código del curso sobre fondo tenue del acento. --}}
+                    <span class="text-5xl font-black tracking-tight {{ $acentoCurso['texto'] }} opacity-70 select-none">{{ $codigoCurso }}</span>
                 @endif
             </div>
             <div class="p-6">
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
-                        <h1 class="text-2xl font-bold text-stone-900 dark:text-stone-100">{{ $curso->nombre }}</h1>
-                        <p class="text-sm text-stone-500 dark:text-stone-400">Prof. {{ $curso->profesor?->name }}</p>
+                        <h1 class="text-2xl font-bold {{ auth()->user()->hasRole('estudiante') ? 'text-texto dark:text-slate-100' : 'text-stone-900 dark:text-stone-100' }}">{{ $curso->nombre }}</h1>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Prof. {{ $curso->profesor?->name }}</p>
                     </div>
 
                     <div class="flex items-center gap-2">
@@ -40,6 +46,10 @@
                         </a>
 
                         @if ($this->puedeGestionar)
+                            <a href="{{ route('cursos.grupos.index', $curso) }}" wire:navigate>
+                                <x-secondary-button>Grupos</x-secondary-button>
+                            </a>
+
                             <a href="{{ route('cursos.editar', $curso) }}" wire:navigate>
                                 <x-secondary-button>Editar</x-secondary-button>
                             </a>
@@ -58,7 +68,7 @@
                 </div>
 
                 @if ($curso->descripcion)
-                    <p class="mt-4 text-stone-600 dark:text-stone-300">{{ $curso->descripcion }}</p>
+                    <p class="mt-4 {{ auth()->user()->hasRole('estudiante') ? 'text-slate-600 dark:text-slate-300' : 'text-stone-600 dark:text-stone-300' }}">{{ $curso->descripcion }}</p>
                 @endif
             </div>
         </div>
@@ -121,7 +131,7 @@
 
             <div x-data="{ pestaña: 'unidades' }">
                 <div class="flex flex-wrap gap-1 border-b border-celeste dark:border-azul-borde-oscuro mb-4">
-                    @foreach (['unidades' => 'Contenido', 'tareas' => 'Tareas', 'quizzes' => 'Quizzes', 'materiales' => 'Materiales'] as $clave => $etiqueta)
+                    @foreach (['unidades' => 'Contenido', 'tareas' => 'Tareas', 'quizzes' => 'Quizzes', 'materiales' => 'Materiales', 'companeros' => 'Compañeros', 'migrupo' => 'Mi grupo'] as $clave => $etiqueta)
                         <button @click="pestaña = '{{ $clave }}'"
                             :class="pestaña === '{{ $clave }}' ? 'border-azul-oscuro text-azul-oscuro dark:text-azul-fondo' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700'"
                             class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition">
@@ -226,6 +236,59 @@
                     @empty
                         <p class="text-sm text-slate-500 dark:text-slate-400">Este curso todavía no tiene materiales.</p>
                     @endforelse
+                </div>
+
+                {{-- Compañeros: solo estudiantes ya inscritos ven quién más está en el curso. --}}
+                <div x-show="pestaña === 'companeros'" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    @forelse ($this->companerosDelCurso as $companero)
+                        @php $esUnoMismo = $companero->is(auth()->user()); @endphp
+                        <div class="flex items-center gap-3 rounded-xl border border-celeste dark:border-azul-borde-oscuro bg-white dark:bg-azul-superficie-oscura p-3" wire:key="companero-{{ $companero->id }}">
+                            <img src="{{ $companero->avatar_url ?? 'https://ui-avatars.com/api/?name='.urlencode($companero->name).'&background=2F5A78&color=fff' }}"
+                                class="h-9 w-9 shrink-0 rounded-full object-cover" alt="{{ $companero->name }}">
+                            <span class="flex-1 min-w-0">
+                                <span class="block text-sm font-medium text-texto dark:text-slate-100 truncate">
+                                    {{ $companero->name }} @if ($esUnoMismo) <span class="text-slate-400 font-normal">(tú)</span> @endif
+                                </span>
+                                @if ($companero->grupo_nombre)
+                                    <span class="block text-xs text-slate-400 truncate">{{ $companero->grupo_nombre }}</span>
+                                @endif
+                            </span>
+                        </div>
+                    @empty
+                        <p class="text-sm text-slate-500 dark:text-slate-400 sm:col-span-2">Todavía no hay más estudiantes inscritos en este curso.</p>
+                    @endforelse
+                </div>
+
+                {{-- Mi grupo: nombre del grupo + integrantes, o aviso de que no tiene uno. --}}
+                <div x-show="pestaña === 'migrupo'">
+                    @if ($this->miGrupoDelCurso)
+                        <div class="bg-white dark:bg-azul-superficie-oscura rounded-xl border border-celeste dark:border-azul-borde-oscuro shadow-sm dark:shadow-none p-5">
+                            <div class="flex items-center gap-3 mb-4">
+                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-lavanda-fondo/40 text-lavanda-oscuro dark:bg-lavanda-oscuro/30 dark:text-lavanda-fondo">
+                                    <x-icono nombre="usuarios" class="h-5 w-5" />
+                                </span>
+                                <h3 class="font-semibold text-texto dark:text-slate-100">{{ $this->miGrupoDelCurso->nombre }}</h3>
+                            </div>
+
+                            <p class="text-xs font-semibold uppercase text-slate-400 mb-2">Integrantes</p>
+                            <div class="space-y-2">
+                                @foreach ($this->miGrupoDelCurso->estudiantes as $integrante)
+                                    @php $esUnoMismo = $integrante->is(auth()->user()); @endphp
+                                    <div class="flex items-center gap-3" wire:key="integrante-{{ $integrante->id }}">
+                                        <img src="{{ $integrante->avatar_url ?? 'https://ui-avatars.com/api/?name='.urlencode($integrante->name).'&background=2F5A78&color=fff' }}"
+                                            class="h-8 w-8 shrink-0 rounded-full object-cover" alt="{{ $integrante->name }}">
+                                        <span class="text-sm text-texto dark:text-slate-100">
+                                            {{ $integrante->name }} @if ($esUnoMismo) <span class="text-slate-400">(tú)</span> @endif
+                                        </span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+                    @else
+                        <div class="bg-white dark:bg-azul-superficie-oscura rounded-xl border border-celeste dark:border-azul-borde-oscuro shadow-sm dark:shadow-none p-6 text-center text-slate-500 dark:text-slate-400 text-sm">
+                            Todavía no tienes un grupo asignado en este curso. Cuando tu profesor te agregue a uno, aparecerá aquí.
+                        </div>
+                    @endif
                 </div>
             </div>
         @endif

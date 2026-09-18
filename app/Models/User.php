@@ -77,4 +77,16 @@ class User extends Authenticatable
     {
         return $this->getRoleNames()->first();
     }
+
+    /**
+     * El grupo del estudiante dentro de un curso (o null si no está en
+     * ninguno todavía). Un estudiante pertenece a lo más un grupo por
+     * curso — se asegura al asignarlo, no con una restricción de BD.
+     */
+    public function grupoEnCurso(Curso $curso): ?Grupo
+    {
+        return Grupo::where('curso_id', $curso->id)
+            ->whereHas('estudiantes', fn ($q) => $q->where('users.id', $this->id))
+            ->first();
+    }
 }

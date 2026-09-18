@@ -71,6 +71,6 @@ class PulidoEstudianteTest extends TestCase
 
         Livewire::actingAs($estudiante)
             ->test(Show::class, ['curso' => $curso])
-            ->assertSee('FA'); // iniciales de "Física Aplicada"
+            ->assertSee('FIS'); // código corto de "Física Aplicada" (rediseño guiado por /DISEñO FIGMA)
     }
 }

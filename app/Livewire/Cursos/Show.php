@@ -3,6 +3,7 @@
 namespace App\Livewire\Cursos;
 
 use App\Models\Curso;
+use App\Models\Grupo;
 use App\Models\Modulo;
 use App\Services\Multimedia\SubidorArchivos;
 use Illuminate\Http\UploadedFile;
@@ -103,6 +104,47 @@ class Show extends Component
                 'quiz' => $quiz,
                 'resultado' => $quiz->resultados->first(),
             ]);
+    }
+
+    /**
+     * Compañeros de curso (pestaña nueva, solo para un estudiante ya
+     * inscrito — no se muestra a quien todavía no se inscribió, por
+     * privacidad de la lista de inscritos).
+     */
+    public function getCompanerosDelCursoProperty(): Collection
+    {
+        if (! auth()->user()->hasRole('estudiante') || ! $this->estaInscrito) {
+            return collect();
+        }
+
+        // Nombre del grupo de cada estudiante (si el curso tiene grupos),
+        // para mostrarlo junto al nombre en la pestaña de Compañeros.
+        $nombreGrupoPorEstudiante = $this->curso->grupos()
+            ->with('estudiantes')
+            ->get()
+            ->flatMap(fn ($grupo) => $grupo->estudiantes->mapWithKeys(fn ($e) => [$e->id => $grupo->nombre]));
+
+        return $this->curso->inscripciones()
+            ->with('estudiante')
+            ->get()
+            ->pluck('estudiante')
+            ->filter()
+            ->sortBy('name')
+            ->map(fn ($estudiante) => tap($estudiante, fn ($e) => $e->grupo_nombre = $nombreGrupoPorEstudiante[$e->id] ?? null))
+            ->values();
+    }
+
+    /**
+     * El grupo del estudiante en este curso (pestaña "Mi grupo"), o null si
+     * todavía no le asignaron uno.
+     */
+    public function getMiGrupoDelCursoProperty(): ?Grupo
+    {
+        if (! auth()->user()->hasRole('estudiante') || ! $this->estaInscrito) {
+            return null;
+        }
+
+        return auth()->user()->grupoEnCurso($this->curso)?->load('estudiantes');
     }
 
     public function inscribirme(): void

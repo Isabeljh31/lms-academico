@@ -1,9 +1,10 @@
 <div class="py-8">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+    {{-- Ancho de contenedor estandarizado (max-w-6xl) para todas las vistas del estudiante. --}}
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <a href="{{ route('cursos.show', $curso) }}" wire:navigate class="text-sm {{ $this->puedeGestionar ? 'text-menta-oscuro dark:text-menta-base' : 'text-azul-oscuro dark:text-azul-fondo' }} hover:underline">&larr; {{ $curso->nombre }}</a>
-                <h1 class="text-2xl font-bold text-stone-900 dark:text-stone-100">Tareas</h1>
+                <h1 class="text-2xl font-bold {{ $this->puedeGestionar ? 'text-stone-900 dark:text-stone-100' : 'text-texto dark:text-slate-100' }}">Tareas</h1>
             </div>
 
             @if ($this->puedeGestionar)

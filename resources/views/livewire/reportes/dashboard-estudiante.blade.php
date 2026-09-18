@@ -5,7 +5,8 @@
 @endphp
 
 <div class="py-8">
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+    {{-- Ancho de contenedor estandarizado (max-w-6xl) para todas las vistas del estudiante. --}}
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
         <div>
             <h1 class="text-2xl font-bold text-texto dark:text-slate-100">Mi progreso</h1>
             <p class="text-sm text-slate-500 dark:text-slate-400">Tus promedios por curso, combinando tareas y quizzes.</p>
@@ -14,6 +15,19 @@
         @if ($filas->isEmpty())
             <p class="text-slate-500 dark:text-slate-400">Todavía no estás inscrito en ningún curso.</p>
         @else
+            {{-- Resumen: promedio general combinando todos los cursos inscritos. --}}
+            <div class="bg-white dark:bg-azul-superficie-oscura rounded-xl border border-celeste dark:border-azul-borde-oscuro p-5 flex items-center gap-4">
+                <span class="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-azul-oscuro/10 dark:bg-azul-oscuro/20 text-azul-oscuro dark:text-azul-fondo text-xl font-bold">
+                    {{ $promedioGeneral ?? '—' }}
+                </span>
+                <div>
+                    <p class="font-semibold text-texto dark:text-slate-100">Promedio general</p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">
+                        Combina tareas y quizzes de tus {{ $filas->count() }} {{ $filas->count() === 1 ? 'curso' : 'cursos' }} inscritos.
+                    </p>
+                </div>
+            </div>
+
             <div class="bg-white dark:bg-azul-superficie-oscura rounded-xl border border-celeste dark:border-azul-borde-oscuro shadow-sm dark:shadow-none p-4"
                 wire:ignore
                 x-data="{

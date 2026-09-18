@@ -15,6 +15,7 @@ class Entrega extends Model
     protected $fillable = [
         'tarea_id',
         'estudiante_id',
+        'grupo_id',
         'archivo_url',
         'comentario',
         'estado',
@@ -37,5 +38,10 @@ class Entrega extends Model
     public function estudiante(): BelongsTo
     {
         return $this->belongsTo(User::class, 'estudiante_id');
+    }
+
+    public function grupo(): BelongsTo
+    {
+        return $this->belongsTo(Grupo::class, 'grupo_id');
     }
 }

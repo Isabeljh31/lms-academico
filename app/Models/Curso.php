@@ -44,4 +44,9 @@ class Curso extends Model
     {
         return $this->hasMany(Quiz::class, 'curso_id');
     }
+
+    public function grupos(): HasMany
+    {
+        return $this->hasMany(Grupo::class, 'curso_id');
+    }
 }
