@@ -1,0 +1,10 @@
+{
+  "description": "This LMS platform offers an intuitive and visually appealing interface for users to access educational resources, enhancing learning experiences with organized content.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
