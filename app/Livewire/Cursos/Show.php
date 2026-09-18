@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Cursos;
 
+use App\Models\Comunicado;
 use App\Models\Curso;
 use App\Models\Grupo;
 use App\Models\Modulo;
@@ -26,6 +27,11 @@ class Show extends Component
 
     public ?UploadedFile $material = null;
 
+    // Anuncios del Curso
+    public string $nuevoAnuncioTitulo = '';
+    public string $nuevoAnuncioTexto = '';
+    public string $nuevoAnuncioPrioridad = 'normal';
+
     public function mount(Curso $curso): void
     {
         Gate::authorize('ver', $curso);
@@ -42,6 +48,49 @@ class Show extends Component
     {
         return auth()->user()->hasRole('estudiante')
             && $this->curso->inscripciones()->where('estudiante_id', auth()->id())->exists();
+    }
+
+    public function getAnunciosProperty(): Collection
+    {
+        return $this->curso->comunicados()->with('autor')->latest()->get();
+    }
+
+    public function getAnunciosDelCursoProperty(): Collection
+    {
+        return $this->anuncios;
+    }
+
+    public function publicarAnuncio(): void
+    {
+        Gate::authorize('gestionar', $this->curso);
+
+        $this->validate([
+            'nuevoAnuncioTitulo' => ['required', 'string', 'max:255'],
+            'nuevoAnuncioTexto' => ['required', 'string', 'max:5000'],
+            'nuevoAnuncioPrioridad' => ['required', 'in:informativo,normal,importante,urgente'],
+        ]);
+
+        $this->curso->comunicados()->create([
+            'user_id' => auth()->id(),
+            'titulo' => $this->nuevoAnuncioTitulo,
+            'contenido' => $this->nuevoAnuncioTexto,
+            'prioridad' => $this->nuevoAnuncioPrioridad,
+            'destinatario' => 'estudiantes',
+            'activo' => true,
+        ]);
+
+        $this->reset(['nuevoAnuncioTitulo', 'nuevoAnuncioTexto', 'nuevoAnuncioPrioridad']);
+        $this->curso->unsetRelation('comunicados');
+        session()->flash('estado', 'Anuncio de curso publicado para los estudiantes inscritos.');
+    }
+
+    public function eliminarAnuncio(int $anuncioId): void
+    {
+        Gate::authorize('gestionar', $this->curso);
+
+        $this->curso->comunicados()->whereKey($anuncioId)->delete();
+        $this->curso->unsetRelation('comunicados');
+        session()->flash('estado', 'Anuncio eliminado.');
     }
 
     /**

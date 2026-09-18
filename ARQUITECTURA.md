@@ -1334,3 +1334,53 @@ otra del valor del modelo), no del código.
   usan un proveedor simulado/mockeado, así que no dependen de la red ni del
   modelo real y no se vieron afectados.
 - `vendor/bin/pint --dirty --format agent`: limpio.
+
+
+## 10. Módulo de Administración Docente y Comunicados Institucionales (Estilo Blackboard)
+
+**Fecha de implementación:** 2026-09-18  
+**Objetivo:** Replicar las herramientas centrales de administración académica de **Blackboard Learn / Ultra** en el rol Administrador, enfocadas en la supervisión, carga académica y comunicación directa con el claustro docente.
+
+### 10.1 Decisiones Técnicas y de Arquitectura
+
+1. **Directorio Docente y Carga Académica (`/admin/profesores`):**
+   - Se construyó el componente Livewire `App\Livewire\Admin\Profesores\Index` exclusivo para el rol `administrador` (`abort_unless(..., 403)` y ruta protegida por middleware `role:administrador`).
+   - Muestra las métricas globales del claustro docente: Total de Profesores, Cursos Asignados en el catálogo, Entregas Pendientes de Calificar a nivel institucional y Cursos en custodia administrativa.
+   - Directorio con búsqueda reactiva en tiempo real (`wire:model.live.debounce.300ms`) por nombre o correo.
+   - Cada tarjeta de profesor visualiza:
+     - Avatar, datos de contacto y total de alumnos bajo su cargo.
+     - Asignaturas a cargo con enlaces directos (`cursos.show`) y botón de desvinculación rápida.
+     - Botón `+ Asignar curso` que abre un modal con el selector de materias disponibles.
+     - Barra de cumplimiento y tasa de calificación (% de entregas calificadas sobre el total recibido).
+     - Alerta visual automática (`atrasos_calificacion`) si existen entregas con más de 3 días de antigüedad sin calificar.
+   - Modal de Alta Rápida de Profesor: permite registrar un nuevo docente indicando Nombre, Correo y Contraseña inicial, asignando inmediatamente el rol Spatie `profesor` y activando su cuenta.
+
+2. **Asignación y Reasignación Docente en Cursos (`Cursos\Formulario`):**
+   - Se modificó `App\Livewire\Cursos\Formulario` y su vista `formulario.blade.php`.
+   - Cuando un `administrador` crea o edita un curso, se renderiza un selector desplegable con todos los usuarios que poseen el rol `profesor`.
+   - Si un docente titular es reasignado, el curso actualiza su `profesor_id` de forma inmediata sin alterar las tareas, entregas o inscripciones de los estudiantes.
+
+3. **Comunicados Institucionales (`/admin/comunicados` — Blackboard Announcements):**
+   - Se creó la migración `2026_09_18_143000_create_comunicados_table.php` y el modelo `App\Models\Comunicado`.
+   - Campos: `user_id` (autor admin), `titulo`, `contenido`, `prioridad` (`informativo`, `urgente`), `destinatario` (`profesores`, `estudiantes`, `todos`), `activo` (boolean).
+   - Scopes en el modelo: `scopeActivos()` y `scopeParaRol($rol)` para segmentar la entrega según el perfil del usuario autenticado.
+   - Componente `App\Livewire\Admin\Comunicados\Index`: permite redactar avisos, activar/desactivar y eliminar comunicados.
+   - Visualización en paneles (`resources/views/dashboard.blade.php`): los comunicados urgentes o informativos se despliegan en banners destacados en la parte superior del panel del profesor (y del estudiante cuando corresponda).
+
+4. **Mejora del Panel del Profesor:**
+   - En `resources/views/dashboard.blade.php` se dotó al profesor de un resumen directo de sus cursos asignados (con conteo de alumnos) y un acceso rápido a su bandeja de calificaciones con el contador de entregas pendientes.
+
+### 10.2 Cobertura de Pruebas Automatizadas
+
+Se creó `tests/Feature/AdminProfesoresTest.php` con 9 pruebas exhaustivas:
+1. `test_administrador_puede_acceder_al_directorio_de_profesores`: verificación de ruta 200 y renderizado del directorio.
+2. `test_profesor_y_estudiante_no_pueden_acceder_a_admin_profesores`: protección estricta 403 Forbidden.
+3. `test_administrador_puede_crear_un_nuevo_profesor_con_rol`: creación en BD, hashing de password y asignación del rol.
+4. `test_administrador_puede_reasignar_un_curso_a_un_profesor`: cambio de titularidad en `cursos.profesor_id`.
+5. `test_administrador_puede_desasignar_un_curso`: transferencia a custodia administrativa.
+6. `test_administrador_puede_publicar_un_comunicado_institucional`: persistencia del comunicado y sus flags.
+7. `test_profesor_y_estudiante_no_pueden_gestionar_comunicados`: protección de rutas 403 Forbidden.
+8. `test_administrador_puede_asignar_profesor_desde_formulario_de_curso`: selector en el formulario de creación/edición.
+9. `test_comunicados_activos_se_filtran_segun_rol`: validación del scope de segmentación por audiencia.
+
+**Estado de la suite general:** 108 tests pasando (262 aserciones), 0 fallando.

@@ -1,31 +1,34 @@
 @php
-    // Compartido entre roles; Estudiante usa la paleta fría nueva y
-    // Profesor/Administrador conservan la anterior — ver ARQUITECTURA.md §
-    // nueva paleta de color.
-    $paletaFria = ! $this->puedeGestionar;
+    // Paleta fría institucional (ver /DISEÑO FIGMA y ARQUITECTURA.md)
+    // aplicada al estudiante. El profesor/admin conserva la paleta cálida.
+    $paletaFria = auth()->user()->hasRole('estudiante');
 @endphp
 
 <div class="py-8">
-    {{-- Ancho de contenedor estandarizado (max-w-6xl) para todas las vistas del estudiante. --}}
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-        <div>
-            <a href="{{ route('cursos.tareas.index', $tarea->curso) }}" wire:navigate
-                class="text-sm {{ $paletaFria ? 'text-azul-oscuro dark:text-azul-fondo' : 'text-menta-oscuro dark:text-menta-base' }} hover:underline">&larr; Tareas</a>
-            <h1 class="text-2xl font-bold {{ $paletaFria ? 'text-texto dark:text-slate-100' : 'text-stone-900 dark:text-stone-100' }}">{{ $tarea->titulo }}</h1>
-            <p class="text-sm text-slate-500 dark:text-slate-400">
-                {{ $tarea->modulo?->titulo }} · Vence {{ $tarea->fecha_entrega->format('d/m/Y H:i') }} · Peso {{ $tarea->peso_nota }}
-            </p>
-        </div>
-
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         @if (session('estado'))
-            <div class="rounded-lg bg-exito-base/15 text-exito-oscuro px-4 py-3 text-sm">{{ session('estado') }}</div>
+            <div class="rounded-lg bg-exito-base/15 text-exito-oscuro px-4 py-3 text-sm font-medium">{{ session('estado') }}</div>
         @endif
 
-        @if ($tarea->descripcion)
-            <div class="bg-white rounded-xl border p-6 {{ $paletaFria ? 'dark:bg-azul-superficie-oscura border-celeste dark:border-azul-borde-oscuro' : 'dark:bg-stone-800 border-arena-medio dark:border-stone-700' }}">
-                <p class="{{ $paletaFria ? 'text-slate-600 dark:text-slate-300' : 'text-stone-600 dark:text-stone-300' }} whitespace-pre-line">{{ $tarea->descripcion }}</p>
+        <div class="bg-white rounded-xl border p-6 {{ $paletaFria ? 'dark:bg-azul-superficie-oscura border-celeste dark:border-azul-borde-oscuro shadow-sm dark:shadow-none' : 'dark:bg-stone-800 border-arena-medio dark:border-stone-700' }}">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">{{ $tarea->curso->nombre }}</span>
+                    <h1 class="text-2xl font-bold mt-1 {{ $paletaFria ? 'text-texto dark:text-slate-100' : 'text-stone-900 dark:text-stone-100' }}">{{ $tarea->titulo }}</h1>
+                </div>
+                <div class="text-right">
+                    <span class="text-xs text-slate-400 block">Vencimiento</span>
+                    <span class="text-sm font-medium {{ $paletaFria ? 'text-texto dark:text-slate-200' : 'text-stone-700 dark:text-stone-200' }}">
+                        {{ $tarea->fecha_limite?->translatedFormat('d M Y, H:i') ?? 'Sin fecha límite' }}
+                    </span>
+                    <span class="text-xs text-slate-400 block mt-1">Peso: {{ $tarea->peso_nota }}%</span>
+                </div>
             </div>
-        @endif
+
+            @if ($tarea->descripcion)
+                <p class="mt-4 {{ $paletaFria ? 'text-slate-600 dark:text-slate-300' : 'text-stone-600 dark:text-stone-300' }}">{{ $tarea->descripcion }}</p>
+            @endif
+        </div>
 
         @if ($paletaFria)
             {{-- Rediseño visual del rol estudiante: entregar o ver mi entrega calificada. --}}
@@ -37,6 +40,24 @@
                 @endif
 
                 @if ($this->miEntrega)
+                    {{-- Recibo de confirmación de entrega del sistema LearnUp --}}
+                    <div class="rounded-xl border border-exito-base/40 bg-exito-base/10 dark:bg-emerald-950/30 p-4 mb-5">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <div class="flex items-center gap-2.5">
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-exito-oscuro text-white text-xs font-bold">✓</span>
+                                <div>
+                                    <h3 class="text-sm font-bold text-exito-oscuro dark:text-emerald-300">Confirmación de Entrega Oficial</h3>
+                                    <p class="text-xs text-slate-600 dark:text-slate-300">
+                                        Número de confirmación: <span class="font-mono font-bold text-slate-800 dark:text-slate-100">REC-{{ str_pad($this->miEntrega->id, 6, '0', STR_PAD_LEFT) }}-{{ $this->miEntrega->created_at->format('Y') }}</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <span class="text-xs font-medium text-slate-500 dark:text-slate-400 bg-white/60 dark:bg-black/20 px-2 py-1 rounded">
+                                Fecha: {{ $this->miEntrega->created_at->format('d/m/Y H:i:s') }}
+                            </span>
+                        </div>
+                    </div>
+
                     <div class="flex items-center justify-between">
                         <h2 class="font-semibold text-texto dark:text-slate-100">
                             {{ $tarea->esGrupal() ? 'Entrega de tu grupo' : 'Tu entrega' }}
@@ -55,9 +76,19 @@
 
                     @if ($this->miEntrega->estado === 'calificado')
                         <div class="mt-4 pt-4 border-t border-celeste dark:border-azul-borde-oscuro">
-                            <p class="text-sm font-semibold text-texto dark:text-slate-100">Nota: {{ $this->miEntrega->nota }} / 20</p>
+                            <div class="flex items-center justify-between">
+                                <p class="text-base font-bold text-texto dark:text-slate-100">
+                                    Nota: <span class="text-azul-oscuro dark:text-cielo font-black text-lg">{{ $this->miEntrega->nota }}</span> / 20
+                                </p>
+                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $this->miEntrega->nota >= 10.5 ? 'bg-verde-fondo/60 text-verde-oscuro' : 'bg-terracota-base/20 text-terracota-oscuro' }}">
+                                    {{ $this->miEntrega->nota >= 10.5 ? 'Aprobado' : 'Desaprobado' }}
+                                </span>
+                            </div>
                             @if ($this->miEntrega->feedback)
-                                <p class="text-sm text-slate-600 dark:text-slate-300 mt-1">{{ $this->miEntrega->feedback }}</p>
+                                <div class="mt-2 bg-slate-50 dark:bg-slate-800/60 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
+                                    <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-0.5">Comentarios del docente:</span>
+                                    <p class="text-sm text-slate-700 dark:text-slate-200">{{ $this->miEntrega->feedback }}</p>
+                                </div>
                             @endif
                         </div>
                     @endif

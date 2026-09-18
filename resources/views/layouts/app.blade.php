@@ -1,21 +1,33 @@
 @php
-    $rol = auth()->user()?->rolPrincipal() ?? 'estudiante';
+    $rol = auth()->user()->getRoleNames()->first();
     $esEstudiante = $rol === 'estudiante';
 
-    $acento = match ($rol) {
-        'administrador' => ['activo' => 'bg-cafe-arcilla/15 text-cafe-arcilla border-cafe-arcilla', 'punto' => 'bg-cafe-arcilla'],
-        'profesor' => ['activo' => 'bg-terracota-fondo text-terracota-oscuro border-terracota-oscuro', 'punto' => 'bg-terracota-oscuro'],
-        // Estudiante: paleta fría nueva — ver ARQUITECTURA.md § nueva paleta de color.
-        default => ['activo' => 'bg-celeste/60 text-azul-oscuro border-azul-oscuro', 'punto' => 'bg-azul-oscuro'],
-    };
+    // Sistema de color por rol (ver ARQUITECTURA.md):
+    // - Estudiante: paleta fría (azul oscuro, menta, cielo, lavanda).
+    // - Profesor / Admin: paleta cálida (menta, arena, terracota).
+    //
+    // Las clases dark:* van asociadas a variables cromáticas semánticas
+    // (azul-fondo-oscuro, azul-superficie-oscura, etc. para el estudiante;
+    // stone-800 / stone-900 para profesor/admin).
+    $acentos = [
+        'estudiante' => [
+            'activo' => 'border-azul-oscuro bg-celeste/40 text-azul-oscuro dark:border-cielo dark:bg-azul-oscuro/40 dark:text-cielo',
+        ],
+        'profesor' => [
+            'activo' => 'border-menta-oscuro bg-menta-fondo text-menta-oscuro dark:border-menta-base dark:bg-stone-800 dark:text-menta-base',
+        ],
+        'administrador' => [
+            'activo' => 'border-terracota-oscuro bg-arena-claro text-terracota-oscuro dark:border-terracota-base dark:bg-stone-800 dark:text-terracota-claro',
+        ],
+    ];
+    $acento = $acentos[$rol] ?? $acentos['estudiante'];
 
-    // Colores de "chrome" compartido (body, sidebar, header) condicionados al
-    // rol: solo Estudiante usa la paleta fría por ahora; Profesor y
-    // Administrador conservan exactamente los mismos tonos que ya tenían.
-    $cromaBody = $esEstudiante ? 'bg-fondo dark:bg-azul-pagina-oscura' : 'bg-arena-claro dark:bg-stone-950';
-    $cromaSuperficie = $esEstudiante ? 'bg-white dark:bg-azul-superficie-oscura' : 'bg-white dark:bg-stone-900';
-    $cromaBorde = $esEstudiante ? 'border-celeste dark:border-azul-borde-oscuro' : 'border-arena-medio dark:border-stone-800';
-    $cromaLogo = $esEstudiante ? 'text-azul-oscuro dark:text-azul-fondo' : 'text-menta-oscuro dark:text-menta-base';
+    // Cromática estructural: fondo, superficies, bordes y tipografías
+    // según el rol activo.
+    $cromaBody = $esEstudiante ? 'bg-celeste/20 text-texto dark:bg-azul-fondo-oscuro dark:text-slate-100' : 'bg-arena-claro text-stone-900 dark:bg-stone-900 dark:text-stone-100';
+    $cromaSuperficie = $esEstudiante ? 'bg-white dark:bg-azul-superficie-oscura' : 'bg-white dark:bg-stone-800';
+    $cromaBorde = $esEstudiante ? 'border-celeste dark:border-azul-borde-oscuro' : 'border-arena-medio dark:border-stone-700';
+    $cromaLogo = $esEstudiante ? 'text-azul-oscuro dark:text-cielo' : 'text-menta-oscuro dark:text-menta-base';
     $cromaTitulo = $esEstudiante ? 'text-texto dark:text-slate-100' : 'text-stone-800 dark:text-stone-100';
     $cromaNavInactivo = $esEstudiante ? 'text-slate-600 dark:text-slate-300 hover:bg-celeste/30 dark:hover:bg-azul-borde-oscuro' : 'text-stone-600 dark:text-stone-300 hover:bg-arena-claro dark:hover:bg-stone-800';
     $cromaIconoMenu = $esEstudiante ? 'text-slate-500 dark:text-slate-400' : 'text-stone-500 dark:text-stone-400';
@@ -25,6 +37,9 @@
     $menu = [
         ['ruta' => 'dashboard', 'etiqueta' => 'Panel', 'icono' => 'inicio', 'visible' => true],
         ['ruta' => 'cursos.index', 'etiqueta' => 'Cursos', 'icono' => 'libro', 'visible' => true],
+        ['ruta' => 'docente.por-calificar', 'etiqueta' => 'Por Calificar', 'icono' => 'tarea', 'visible' => $rol === 'profesor'],
+        ['ruta' => 'admin.profesores.index', 'etiqueta' => 'Profesores', 'icono' => 'birrete', 'visible' => $rol === 'administrador'],
+        ['ruta' => 'admin.comunicados.index', 'etiqueta' => 'Comunicados', 'icono' => 'megafono', 'visible' => $rol === 'administrador'],
         ['ruta' => 'admin.usuarios.index', 'etiqueta' => 'Usuarios', 'icono' => 'usuarios', 'visible' => $rol === 'administrador'],
         ['ruta' => 'admin.metricas', 'etiqueta' => 'Métricas', 'icono' => 'grafico', 'visible' => $rol === 'administrador'],
         ['ruta' => 'admin.configuracion', 'etiqueta' => 'Configuración', 'icono' => 'engranaje', 'visible' => $rol === 'administrador'],

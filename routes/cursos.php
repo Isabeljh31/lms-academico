@@ -2,6 +2,7 @@
 
 use App\Livewire\Cursos\Formulario;
 use App\Livewire\Cursos\Index;
+use App\Livewire\Cursos\LibroCalificaciones;
 use App\Livewire\Cursos\Show;
 use App\Livewire\Grupos\Index as GruposIndex;
 use App\Livewire\Quizzes\Resolver;
@@ -37,6 +38,6 @@ Route::middleware(['auth', 'verified'])
             });
 
         Route::get('/{curso}/grupos', GruposIndex::class)->name('grupos.index');
-
+        Route::get('/{curso}/libro-calificaciones', LibroCalificaciones::class)->name('libro-calificaciones');
         Route::get('/{curso}', Show::class)->name('show');
     });

@@ -73,6 +73,11 @@ class User extends Authenticatable
         return $this->hasMany(PropuestaBot::class, 'usuario_id');
     }
 
+    public function comunicados(): HasMany
+    {
+        return $this->hasMany(Comunicado::class, 'user_id');
+    }
+
     public function rolPrincipal(): ?string
     {
         return $this->getRoleNames()->first();
