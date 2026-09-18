@@ -3,8 +3,11 @@
 @php
     // Compartido entre roles; Estudiante usa la paleta fría nueva y
     // Profesor/Administrador conservan la anterior — ver ARQUITECTURA.md §
-    // nueva paleta de color.
-    $paletaFria = auth()->check() && auth()->user()->hasRole('estudiante');
+    // nueva paleta de color. Sin sesión (login/registro/recuperar
+    // contraseña) todavía no hay rol que consultar, así que se usa la
+    // paleta fría por defecto — es la identidad de marca de "LMS
+    // Académico" en las pantallas de invitado.
+    $paletaFria = ! auth()->check() || auth()->user()->hasRole('estudiante');
 @endphp
 
 <input @disabled($disabled) {{ $attributes->merge(['class' => $paletaFria

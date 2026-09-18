@@ -1,8 +1,9 @@
 @php
     // Compartido entre roles; Estudiante usa la paleta fría nueva y
     // Profesor/Administrador conservan la anterior — ver ARQUITECTURA.md §
-    // nueva paleta de color.
-    $paletaFria = auth()->check() && auth()->user()->hasRole('estudiante');
+    // nueva paleta de color. Sin sesión (login/registro/recuperar
+    // contraseña) se usa la paleta fría por defecto — ver text-input.blade.php.
+    $paletaFria = ! auth()->check() || auth()->user()->hasRole('estudiante');
 @endphp
 
 <button {{ $attributes->merge(['type' => 'button', 'class' => $paletaFria

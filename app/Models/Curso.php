@@ -44,4 +44,14 @@ class Curso extends Model
     {
         return $this->hasMany(Quiz::class, 'curso_id');
     }
+
+    public function grupos(): HasMany
+    {
+        return $this->hasMany(Grupo::class, 'curso_id');
+    }
+
+    public function comunicados(): HasMany
+    {
+        return $this->hasMany(Comunicado::class, 'curso_id')->orderByDesc('created_at');
+    }
 }

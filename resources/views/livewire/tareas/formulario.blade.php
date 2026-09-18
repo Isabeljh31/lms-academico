@@ -45,6 +45,19 @@
                 </div>
             </div>
 
+            <div>
+                <x-input-label for="tipo_entrega" value="Tipo de entrega" />
+                <select wire:model="tipo_entrega" id="tipo_entrega"
+                    class="mt-1 block w-full rounded-md border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base">
+                    <option value="individual">Individual</option>
+                    <option value="grupal">Grupal (usa los grupos del curso)</option>
+                </select>
+                <x-input-error :messages="$errors->get('tipo_entrega')" class="mt-2" />
+                <p class="mt-1 text-xs text-stone-400">
+                    En una tarea grupal, cualquier integrante entrega por todo su grupo y la calificación se aplica a todos por igual. Configura los grupos desde el botón "Grupos" del curso.
+                </p>
+            </div>
+
             <div class="flex items-center gap-4">
                 <x-primary-button>Guardar</x-primary-button>
                 <a href="{{ route('cursos.tareas.index', $curso) }}" wire:navigate class="text-sm text-stone-500 hover:underline">Cancelar</a>

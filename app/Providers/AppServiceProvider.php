@@ -4,12 +4,14 @@ namespace App\Providers;
 
 use App\Models\Curso;
 use App\Models\Entrega;
+use App\Models\Grupo;
 use App\Models\PropuestaBot;
 use App\Models\Quiz;
 use App\Models\Tarea;
 use App\Models\User;
 use App\Policies\CursoPolicy;
 use App\Policies\EntregaPolicy;
+use App\Policies\GrupoPolicy;
 use App\Policies\PropuestaBotPolicy;
 use App\Policies\QuizPolicy;
 use App\Policies\TareaPolicy;
@@ -48,5 +50,6 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Entrega::class, EntregaPolicy::class);
         Gate::policy(Quiz::class, QuizPolicy::class);
         Gate::policy(PropuestaBot::class, PropuestaBotPolicy::class);
+        Gate::policy(Grupo::class, GrupoPolicy::class);
     }
 }

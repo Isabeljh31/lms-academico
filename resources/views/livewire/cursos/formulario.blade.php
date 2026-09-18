@@ -11,6 +11,21 @@
                 <x-input-error :messages="$errors->get('nombre')" class="mt-2" />
             </div>
 
+            @if (auth()->user()->hasRole('administrador'))
+                <div>
+                    <x-input-label for="profesor_id" value="Profesor titular asignado" />
+                    <select wire:model="profesor_id" id="profesor_id"
+                        class="mt-1 block w-full rounded-md border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base text-sm">
+                        <option value="">-- Seleccionar profesor titular --</option>
+                        @foreach ($profesores as $prof)
+                            <option value="{{ $prof->id }}">{{ $prof->name }} ({{ $prof->email }})</option>
+                        @endforeach
+                    </select>
+                    <x-input-error :messages="$errors->get('profesor_id')" class="mt-2" />
+                    <p class="mt-1 text-xs text-stone-500">Como administrador, puedes asignar o reasignar el docente a cargo de este curso.</p>
+                </div>
+            @endif
+
             <div>
                 <x-input-label for="descripcion" value="Descripción" />
                 <textarea wire:model="descripcion" id="descripcion" rows="4"

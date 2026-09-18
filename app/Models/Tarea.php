@@ -20,6 +20,7 @@ class Tarea extends Model
         'descripcion',
         'fecha_entrega',
         'peso_nota',
+        'tipo_entrega',
     ];
 
     protected function casts(): array
@@ -55,5 +56,10 @@ class Tarea extends Model
     public function estaVencida(): bool
     {
         return $this->fecha_entrega->isPast();
+    }
+
+    public function esGrupal(): bool
+    {
+        return $this->tipo_entrega === 'grupal';
     }
 }

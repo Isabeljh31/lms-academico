@@ -105,3 +105,168 @@ Preparado (`railway.json` + `Procfile`), no ejecutado — no hay cuenta de Railw
 ## Estado general del proyecto
 
 Los 9 módulos del documento están construidos, probados (unitaria/funcionalmente donde tiene sentido, con inspección manual donde no) y verificados de extremo a extremo con datos de ejemplo realistas. La regla de gobernanza del bot (el punto más sensible frente al docente) tiene una prueba automatizada explícita y pasando. Considero cubiertas las Fases 1 a 4 del documento del proyecto en su totalidad funcional; lo que queda pendiente son credenciales externas (no dependen de más código) y pulido visual menor en pantallas que Breeze ya dejaba funcionales.
+
+
+---
+
+## 10. Administración Docente y Comunicados Institucionales (Estilo Blackboard)
+
+**Actualización:** 2026-09-18  
+**Se construyó:** 
+1. **Directorio Docente y Carga Académica (`/admin/profesores`):** Vista de supervisión inspirada en Blackboard Faculty Management. Métricas globales del claustro, visualización de cursos a cargo, conteo de alumnos asignados, medidores de tasa de cumplimiento en calificaciones y alerta visual de entregas sin calificar con más de 3 días de espera.
+2. **Alta Rápida de Docentes:** Modal para registrar nuevos profesores con contraseña inicial y asignación inmediata del rol.
+3. **Asignación / Reasignación de Cursos:** Desde el directorio docente o en el formulario de creación/edición de cursos (`/cursos/crear` y `/cursos/{id}/editar`), el Administrador puede cambiar el profesor titular de cualquier asignatura.
+4. **Comunicados Institucionales (`/admin/comunicados` — Blackboard Announcements):** Emisión de directivas oficiales con prioridades (`urgente`, `informativo`) y segmentación de audiencia (`profesores`, `estudiantes`, `todos`), visibles en banners destacados en los paneles de los usuarios.
+5. **Panel Docente Enriquecido:** Resumen en el dashboard del profesor con sus cursos asignados, total de alumnos y contador de entregas pendientes en tiempo real.
+
+**Se probó:** 9 tests automatizados en `tests/Feature/AdminProfesoresTest.php` cubriendo navegación, protección de acceso (403 Forbidden para estudiantes y profesores), alta de docentes, asignación/desasignación de cursos, emisión de comunicados y filtrado por rol.
+
+---
+
+## Estado actualizado de la Suite de Pruebas (2026-09-18)
+
+**108 tests automatizados, 262 aserciones, 0 fallando** (`php artisan test`). Cobertura completa de los 10 módulos del sistema, autenticación, gobernanza del bot, grupos, reportes en PDF y administración docente.
+
+---
+
+## 11. Cola de Calificacion Docente ("Por Calificar")
+
+**Actualizacion:** 2026-09-18
+
+**Se construyo:**
+Vista centralizada en `/por-calificar` donde el docente accede a todas las entregas pendientes de evaluacion de todos sus cursos en un solo lugar, sin tener que entrar curso por curso.
+
+**Funcionalidades implementadas:**
+- **KPI badges** en la cabecera: total de entregas sin calificar y conteo de entregas con mas de 3 dias de espera (resaltadas en rojo).
+- **Filtro por curso** y busqueda por nombre de estudiante o nombre de tarea.
+- **Orden FIFO**: las entregas mas antiguas aparecen primero.
+- **Modal de calificacion rapida**: el docente asigna nota numerica (0-20) y escribe retroalimentacion sin abandonar la cola.
+- **Propagacion grupal**: si la entrega pertenece a una tarea grupal, la nota se aplica automaticamente a todos los integrantes del grupo.
+- **Notificacion automatica** al estudiante (o a todos los integrantes del grupo) al guardar la calificacion.
+- **Control de acceso**: solo accesible para roles `profesor` y `administrador` (HTTP 403 para estudiantes).
+- Item **"Por Calificar"** anadido al menu lateral de navegacion, visible unicamente para el rol `profesor`.
+
+**Archivos creados:**
+- `app/Livewire/Docente/PorCalificar/Index.php`
+- `resources/views/livewire/docente/por-calificar/index.blade.php`
+
+**Archivos modificados:**
+- `resources/views/layouts/app.blade.php` - item de navegacion
+- `routes/web.php` - ruta `GET /por-calificar`
+
+---
+
+## 12. Libro de Calificaciones por Curso (Gradebook)
+
+**Actualizacion:** 2026-09-18
+
+**Se construyo:**
+Matriz de calificaciones completa en `/cursos/{curso}/libro-calificaciones`, accesible desde la cabecera de cada curso para el docente titular y el administrador.
+
+**Funcionalidades implementadas:**
+- **Matriz Estudiantes x Evaluaciones**: columnas por tarea y quiz, fila de promedio final por estudiante.
+- **Promedios ponderados** calculados usando el campo `peso_nota` de cada tarea (no promedio aritmetico simple).
+- **KPI cards globales del curso**: Promedio General, Tasa de Aprobacion, Nota Maxima y Nota Minima.
+- **Colores semanticos por nota**: verde (>=13), amarillo (11-12), rojo (<11), gris (sin entrega).
+- **Modal de edicion directa por celda**: el docente puede modificar la nota de cualquier entrega existente sin ir al detalle de la tarea.
+- **Notificacion al estudiante** al guardar la nota desde el gradebook.
+- **Control de acceso**: Gate `gestionar` (solo profesor dueno o administrador).
+- Boton **"Libro de Calificaciones"** visible en la cabecera del curso.
+
+**Archivos creados:**
+- `app/Livewire/Cursos/LibroCalificaciones.php`
+- `resources/views/livewire/cursos/libro-calificaciones.blade.php`
+
+**Archivos modificados:**
+- `routes/cursos.php` - ruta `GET /cursos/{curso}/libro-calificaciones`
+- `resources/views/livewire/cursos/show.blade.php` - boton de acceso en cabecera
+
+---
+
+## 13. Sistema de Anuncios por Curso
+
+**Actualizacion:** 2026-09-18
+
+**Se construyo:**
+Extension del modulo de comunicados para que los docentes puedan publicar anuncios especificos de cada curso (distinto a los comunicados institucionales globales del Administrador).
+
+**Funcionalidades implementadas:**
+
+### Perspectiva del Docente:
+- Formulario de publicacion en la vista del curso: titulo, mensaje y nivel de prioridad (Normal / Importante / Urgente).
+- Listado de anuncios publicados con badge de color por prioridad (gris / naranja / rojo).
+- Opcion de eliminar un anuncio propio con confirmacion.
+- Layout rediseado a 2 columnas en la vista del curso: contenido/modulos a la izquierda y panel de anuncios a la derecha.
+
+### Perspectiva del Estudiante:
+- **Nueva pestana "Anuncios"** en la vista del curso, entre "Contenido" y "Tareas".
+- Badge numerico en la pestana cuando hay anuncios activos.
+- Cada anuncio muestra: icono, titulo, badge de prioridad, nombre del autor, fecha relativa y fecha absoluta.
+- Estado vacio descriptivo cuando el docente no ha publicado anuncios.
+
+**Archivos modificados:**
+- `app/Livewire/Cursos/Show.php` - metodos `publicarAnuncio()`, `eliminarAnuncio()`, computed `getAnunciosProperty()`
+- `app/Models/Comunicado.php` - campo `curso_id`, relacion `curso()`, scopes `scopeInstitucionales()` y `scopeDelCurso()`
+- `app/Models/Curso.php` - relacion `comunicados()`
+- `resources/views/livewire/cursos/show.blade.php` - nuevo layout docente y pestana estudiante
+
+**Migracion:**
+- `database/migrations/2026_09_18_150000_add_curso_id_to_comunicados_table.php`
+
+---
+
+## 14. Comprobante Digital de Entrega
+
+**Actualizacion:** 2026-09-18
+
+**Se construyo:**
+Tarjeta de confirmacion visible para el estudiante en la pagina de detalle de cada tarea, una vez que ha realizado su entrega.
+
+**Funcionalidades implementadas:**
+- Tarjeta verde de confirmacion, visible unicamente cuando el estudiante ya entrego.
+- **Codigo unico de comprobante** con formato `REC-000001-2026` (derivado del ID de la entrega con padding y anio).
+- **Timestamp exacto** de la entrega en formato `dd/mm/YYYY HH:MM:SS`.
+- Seccion de calificacion mejorada: badge Aprobado/Desaprobado, nota en tipografia grande, panel de retroalimentacion del docente.
+
+**Archivos modificados:**
+- `resources/views/livewire/tareas/detalle.blade.php`
+
+---
+
+## 15. Tests Automatizados - Modulos Docente y Estudiante
+
+**Actualizacion:** 2026-09-18
+
+**Archivo:** `tests/Feature/DocenteEstudianteLmsTest.php` - 7 tests, ~30 aserciones.
+
+| # | Nombre del test | Que verifica |
+|---|---|---|
+| 1 | test_docente_puede_acceder_a_cola_por_calificar_y_evaluar_entrega | Calificacion correcta, propagacion grupal, nota almacenada |
+| 2 | test_estudiante_no_puede_acceder_a_cola_por_calificar | HTTP 403 para rol estudiante |
+| 3 | test_docente_puede_ver_y_editar_libro_de_calificaciones | Matriz visible, edicion directa de nota, estado calificado |
+| 4 | test_estudiante_no_puede_acceder_a_libro_de_calificaciones | HTTP 403 para rol estudiante |
+| 5 | test_docente_puede_publicar_y_eliminar_anuncio_del_curso | Publicacion y eliminacion de anuncio desde el curso |
+| 6 | test_estudiante_ve_anuncios_del_curso_en_su_pestana | Pestana Anuncios muestra el comunicado del docente |
+| 7 | test_estudiante_ve_recibo_digital_de_entrega | Codigo REC-XXXXXX visible al consultar el detalle de la tarea |
+
+---
+
+## Estado final de la Suite de Pruebas (2026-09-18)
+
+**115 tests automatizados, 292 aserciones, 0 fallando** (`php artisan test`).
+
+| Area | Tests | Archivo de test |
+|---|---|---|
+| Autenticacion y registro | 4 | Auth/RegistrationTest, Auth/AuthenticationTest |
+| Usuarios y roles | 7 | UsuariosTest |
+| Cursos | 8 | CursosTest |
+| Grupos | 7 | GruposTest |
+| Tareas | 7 | TareasTest |
+| Quizzes | 4 | QuizzesTest |
+| Calendario y notificaciones | 5 | CalendarioNotificacionesTest |
+| Bot de IA y propuestas | 12 | BotFaqTest, PropuestaBotTest |
+| Dashboard y reportes | 5 | ReportesTest |
+| Panel Administrador | 4 | PanelAdminTest |
+| Admin Profesores | 9 | AdminProfesoresTest |
+| Docente Cola/Gradebook/Anuncios | 7 | DocenteEstudianteLmsTest |
+| Vista Estudiante (rediseno UI) | 9 | CursoShowEstudianteTest, PanelInicioEstudianteTest, ListadosEstudianteTest, PulidoEstudianteTest |

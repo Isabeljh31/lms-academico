@@ -36,7 +36,7 @@
 
                     <input type="text" wire:model="preguntas.{{ $i }}.enunciado" placeholder="Enunciado de la pregunta…"
                         class="block w-full rounded-md border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base">
-                    <x-input-error :messages="$errors->get("preguntas.$i.enunciado")" class="mt-1" />
+                    <x-input-error :messages="$errors->get('preguntas.'.$i.'.enunciado')" class="mt-1" />
 
                     <div class="space-y-2">
                         @foreach ($pregunta['opciones'] as $j => $opcion)
@@ -50,7 +50,7 @@
                                 @endif
                             </div>
                         @endforeach
-                        <x-input-error :messages="$errors->get("preguntas.$i.opciones")" class="mt-1" />
+                        <x-input-error :messages="$errors->get('preguntas.'.$i.'.opciones')" class="mt-1" />
                     </div>
 
                     <button type="button" wire:click="agregarOpcion({{ $i }})" class="text-xs font-semibold text-menta-oscuro dark:text-menta-base hover:underline">
