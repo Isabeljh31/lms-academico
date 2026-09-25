@@ -26,7 +26,7 @@ class Index extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->hasAnyRole(['profesor', 'administrador']), 403);
+        abort_unless(auth()->user()->hasAnyRole(['profesor', 'supervisor']), 403);
     }
 
     public function updatingBusqueda(): void
@@ -100,7 +100,7 @@ class Index extends Component
         $usuario = auth()->user();
 
         // Cursos asignados al docente o todos si es administrador
-        $cursosQuery = $usuario->hasRole('administrador')
+        $cursosQuery = $usuario->hasRole('supervisor')
             ? Curso::query()
             : $usuario->cursosComoProfesor();
 

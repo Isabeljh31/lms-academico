@@ -2,10 +2,11 @@
 
 namespace App\Livewire\Forms;
 
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Validate;
 use Livewire\Form;
@@ -18,55 +19,50 @@ class LoginForm extends Form
     #[Validate('required|string')]
     public string $password = '';
 
-    #[Validate('boolean')]
     public bool $remember = false;
 
     /**
-     * Attempt to authenticate the request's credentials.
-     *
-     * @throws ValidationException
+     * ERS RF-06: intentar autenticar al usuario.
+     * Bloqueo 15 min tras 3 intentos fallidos.
+     * ERS RF-05: redirección obligatoria si es primer login.
      */
     public function authenticate(): void
     {
-        $this->ensureIsNotRateLimited();
+        $this->validate();
 
-        if (! Auth::attempt($this->only(['email', 'password']), $this->remember)) {
-            RateLimiter::hit($this->throttleKey());
+        $user = User::where('email', $this->email)->first();
 
+        // ERS RF-06: verificar bloqueo por intentos fallidos
+        if ($user && $user->estaBloqueada()) {
+            $minutosRestantes = (int) now()->diffInMinutes($user->bloqueado_hasta, false);
             throw ValidationException::withMessages([
-                'form.email' => trans('auth.failed'),
+                'form.email' => "Cuenta bloqueada temporalmente. Intente en {$minutosRestantes} minuto(s) o recupere su contraseña.",
             ]);
         }
 
-        RateLimiter::clear($this->throttleKey());
-    }
-
-    /**
-     * Ensure the authentication request is not rate limited.
-     */
-    protected function ensureIsNotRateLimited(): void
-    {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
-            return;
+        // ERS RF-15: cuenta desactivada
+        if ($user && !$user->activo) {
+            throw ValidationException::withMessages([
+                'form.email' => 'Esta cuenta ha sido desactivada. Contacte al Supervisor.',
+            ]);
         }
 
-        event(new Lockout(request()));
+        if (!Auth::attempt($this->only(['email', 'password']), $this->remember)) {
+            // ERS RF-06: registrar intento fallido
+            if ($user) {
+                $user->registrarIntentoFallido();
+            }
 
-        $seconds = RateLimiter::availableIn($this->throttleKey());
+            throw ValidationException::withMessages([
+                'form.password' => trans('auth.failed'),
+            ]);
+        }
 
-        throw ValidationException::withMessages([
-            'form.email' => trans('auth.throttle', [
-                'seconds' => $seconds,
-                'minutes' => ceil($seconds / 60),
-            ]),
-        ]);
-    }
+        // Login exitoso: limpiar intentos fallidos
+        if ($user) {
+            $user->limpiarIntentosFallidos();
+        }
 
-    /**
-     * Get the authentication rate limiting throttle key.
-     */
-    protected function throttleKey(): string
-    {
-        return Str::transliterate(Str::lower($this->email).'|'.request()->ip());
+        Session::regenerate();
     }
 }

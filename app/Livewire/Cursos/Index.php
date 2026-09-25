@@ -14,6 +14,7 @@ class Index extends Component
     use WithPagination;
 
     public string $busqueda = '';
+    public string $filtroEstado = '';
 
     public function render()
     {
@@ -22,6 +23,7 @@ class Index extends Component
         $cursos = Curso::query()
             ->with(['profesor', 'modulos'])
             ->withCount('inscripciones')
+            ->when($this->filtroEstado, fn ($q) => $q->where('estado', $this->filtroEstado))
             ->when($this->busqueda, fn ($q) => $q->where('nombre', 'like', "%{$this->busqueda}%"))
             ->when($usuario->hasRole('profesor'), fn ($q) => $q->where('profesor_id', $usuario->id))
             ->orderBy('nombre')

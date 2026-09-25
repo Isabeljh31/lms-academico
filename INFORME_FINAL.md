@@ -270,3 +270,28 @@ Tarjeta de confirmacion visible para el estudiante en la pagina de detalle de ca
 | Admin Profesores | 9 | AdminProfesoresTest |
 | Docente Cola/Gradebook/Anuncios | 7 | DocenteEstudianteLmsTest |
 | Vista Estudiante (rediseno UI) | 9 | CursoShowEstudianteTest, PanelInicioEstudianteTest, ListadosEstudianteTest, PulidoEstudianteTest |
+
+## 3. Pruebas de Integración y Flujo por Roles (E2E)
+
+Se han realizado pruebas exhaustivas en el sistema para garantizar que cada rol interactúe correctamente con los módulos desarrollados en todas las fases. A continuación se detallan los resultados:
+
+### Rol Administrador (Supervisor)
+- **Inicio de sesión y acceso:** Validado el redireccionamiento obligatorio para el cambio de contraseña en el primer inicio de sesión. (Corregido el error de middleware que congelaba la pantalla).
+- **Métricas:** El dashboard de analíticas (Riesgo de Deserción e Interacciones) carga y procesa los datos sin generar cuellos de botella ni errores 500.
+- **Gestión de Cursos:** La funcionalidad de 'Clonar Curso' permite duplicar la estructura base correctamente. 
+- **Gestión de Usuarios:** El modal de edición de usuarios se despliega correctamente y guarda los cambios en la bitácora de auditoría inmutable.
+
+### Rol Profesor
+- **Gestión de Asistencia:** La vista de asistencia permite registrar el estado diario (Presente, Falta, Tardanza) y calcula los porcentajes acumulados sin problemas de integridad referencial.
+- **Mensajería Interna (Envío Masivo):** 
+  - La interfaz rediseñada permite elegir primero el Curso y luego a los destinatarios.
+  - La opción exclusiva del profesor *'Enviar a todos los estudiantes de este curso'* funciona a la perfección.
+  - El sistema de base de datos (Postgres con PgBouncer) ahora soporta correctamente las transacciones para múltiples mensajes gracias a la configuración de PDO::ATTR_EMULATE_PREPARES.
+
+### Rol Estudiante
+- **Acceso a Mensajería:** Puede leer los mensajes enviados por el profesor. 
+- **Respuesta de Mensajes:** Se implementó y verificó con éxito el nuevo botón 'Responder mensaje', el cual redirige a la vista de redacción autocompletando el destinatario y el asunto ('Re: ...').
+- **Interacción con Bot de Sugerencias (IA):** El estudiante puede consultar dudas a través del Widget de Inteligencia Artificial que analiza sus estadísticas de rendimiento, y este registro alimenta el panel de Métricas del Supervisor de forma asíncrona.
+
+**Estado Final de Pruebas:** **Exitoso ✅**. 
+Todos los errores de incompatibilidad de bases de datos y vistas detectados inicialmente han sido parchados. El sistema se encuentra estable, fluido, sin uso de emojis en las interfaces solicitadas y listo para su uso.

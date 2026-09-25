@@ -33,7 +33,17 @@
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <h1 class="text-2xl font-bold {{ auth()->user()->hasRole('estudiante') ? 'text-texto dark:text-slate-100' : 'text-stone-900 dark:text-stone-100' }}">{{ $curso->nombre }}</h1>
-                        <p class="text-sm text-slate-500 dark:text-slate-400">Prof. {{ $curso->profesor?->name }}</p>
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Prof. {{ $curso->profesor?->name }}
+                        </p>
+                        {{-- ERS RF-22: Badge de estado del curso --}}
+                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium mt-1
+                            @if($curso->estado === 'publicado') bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400
+                            @elseif($curso->estado === 'borrador') bg-stone-100 text-stone-600 dark:bg-stone-700 dark:text-stone-300
+                            @elseif($curso->estado === 'despublicado') bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400
+                            @elseif($curso->estado === 'archivado') bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400
+                            @endif" id="badge-estado-curso">
+                            {{ ucfirst($curso->estado) }}
+                        </span</p>
                     </div>
 
                     <div class="flex items-center gap-2 flex-wrap">
@@ -50,11 +60,39 @@
                                 <x-secondary-button>Grupos</x-secondary-button>
                             </a>
 
+                            {{-- ERS RF-26: Gestión de Matrícula (manual + baja) --}}
+                            <a href="{{ route('cursos.matriculas', $curso) }}" wire:navigate>
+                                <x-secondary-button class="border-azul-fondo text-azul-fondo dark:text-celeste hover:bg-azul-fondo/10">
+                                    <x-icono nombre="usuario" class="w-4 h-4 mr-1.5 inline" /> Matrículas
+                                </x-secondary-button>
+                            </a>
+
+                            {{-- ERS RF-70: Asistencia --}}
+                            <a href="{{ route('asistencia.index', $curso) }}" wire:navigate>
+                                <x-secondary-button class="border-amber-600 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/10">
+                                    🗓️ Asistencia
+                                </x-secondary-button>
+                            </a>
+
+                            {{-- ERS RF-20: Clonar curso --}}
+                            <button wire:click="clonarCurso" wire:confirm="¿Estás seguro de clonar este curso? Se copiará el contenido y el esquema de evaluación, pero no los estudiantes ni calificaciones."
+                                class="inline-flex items-center px-4 py-2 bg-stone-100 dark:bg-stone-700 border border-stone-300 dark:border-stone-600 rounded-md font-semibold text-xs text-stone-700 dark:text-stone-300 uppercase tracking-widest shadow-sm hover:bg-stone-200 dark:hover:bg-stone-600 focus:outline-none focus:ring-2 focus:ring-menta-base disabled:opacity-25 transition">
+                                📑 Clonar
+                            </button>
+
                             <a href="{{ route('cursos.libro-calificaciones', $curso) }}" wire:navigate>
                                 <x-secondary-button class="border-menta-oscuro text-menta-oscuro dark:text-menta-base hover:bg-menta-fondo/20">
                                     <x-icono nombre="tarea" class="w-4 h-4 mr-1.5 inline" /> Libro de Calificaciones
                                 </x-secondary-button>
                             </a>
+
+                            @role('supervisor')
+                            <a href="{{ route('cursos.esquema', $curso) }}" wire:navigate>
+                                <x-secondary-button class="border-terracota-base text-terracota-base dark:text-terracota-claro hover:bg-terracota-base/10">
+                                    <x-icono nombre="tarea" class="w-4 h-4 mr-1.5 inline" /> Esquema de Evaluación
+                                </x-secondary-button>
+                            </a>
+                            @endrole
 
                             <a href="{{ route('cursos.editar', $curso) }}" wire:navigate>
                                 <x-secondary-button>Editar</x-secondary-button>
@@ -66,6 +104,12 @@
                                 <span class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold bg-celeste/50 text-azul-oscuro">
                                     Ya estás inscrito
                                 </span>
+                                {{-- ERS RF-59: el estudiante accede a su boleta de notas --}}
+                                <a href="{{ route('cursos.boleta', $curso) }}" wire:navigate>
+                                    <x-secondary-button class="border-menta-oscuro text-menta-oscuro dark:text-menta-base hover:bg-menta-fondo/20">
+                                        <x-icono nombre="tarea" class="w-4 h-4 mr-1.5 inline" /> Mi Boleta
+                                    </x-secondary-button>
+                                </a>
                             @else
                                 <x-primary-button wire:click="inscribirme">Inscribirme</x-primary-button>
                             @endif
@@ -94,31 +138,20 @@
                                 <div class="flex items-center justify-between">
                                     <h3 class="font-medium text-stone-800 dark:text-stone-100">{{ $modulo->titulo }}</h3>
                                     @if ($this->puedeGestionar)
-                                        <button wire:click="eliminarModulo({{ $modulo->id }})" wire:confirm="¿Eliminar esta unidad y sus materiales?"
-                                            class="text-xs text-terracota-oscuro hover:underline">Eliminar</button>
+                                        <div class="flex items-center gap-2">
+                                            <a href="{{ route('lecciones.index', $modulo) }}" wire:navigate
+                                                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-md bg-menta-oscuro text-white hover:bg-menta-oscuro/90 transition shadow-sm">
+                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                                                Gestionar Lecciones y Materiales
+                                            </a>
+                                            <button wire:click="eliminarModulo({{ $modulo->id }})" wire:confirm="¿Eliminar esta unidad?"
+                                                class="px-2 py-1.5 text-xs text-terracota-oscuro hover:bg-terracota-oscuro/10 rounded-md transition">Eliminar</button>
+                                        </div>
                                     @endif
                                 </div>
-
-                                @if (! empty($modulo->materiales))
-                                    <ul class="mt-3 space-y-1">
-                                        @foreach ($modulo->materiales as $material)
-                                            <li>
-                                                <a href="{{ $material['url'] }}" target="_blank" class="text-sm text-menta-oscuro dark:text-menta-base hover:underline">
-                                                    📎 {{ $material['nombre'] }}
-                                                </a>
-                                            </li>
-                                        @endforeach
-                                    </ul>
-                                @endif
-
-                                @if ($this->puedeGestionar)
-                                    <form wire:submit="subirMaterial({{ $modulo->id }})" class="mt-3 flex items-center gap-2">
-                                        <input type="file" wire:model="material"
-                                            class="text-xs text-stone-500 dark:text-stone-400 file:me-2 file:rounded-md file:border-0 file:bg-arena-medio file:px-2 file:py-1 file:text-xs">
-                                        <button type="submit" class="text-xs font-semibold text-menta-oscuro dark:text-menta-base hover:underline">Subir</button>
-                                        <span wire:loading wire:target="material,subirMaterial" class="text-xs text-stone-400">Subiendo…</span>
-                                    </form>
-                                @endif
+                                <div class="mt-2 text-xs text-stone-500">
+                                    Contiene {{ $modulo->lecciones()->count() }} lecciones/materiales en total.
+                                </div>
                             </div>
                         @empty
                             <p class="text-sm text-stone-500 dark:text-stone-400">Este curso todavía no tiene unidades.</p>
@@ -213,14 +246,11 @@
             </div>
         @else
             {{-- Rediseño visual del rol estudiante: pestañas por módulo (ver ARQUITECTURA.md). --}}
-            @php
-                $materialesDelCurso = $modulos->flatMap(fn ($m) => collect($m->materiales ?? [])
-                    ->map(fn ($mat) => [...$mat, 'modulo' => $m->titulo]));
-            @endphp
+            
 
             <div x-data="{ pestaña: 'unidades' }">
                 <div class="flex flex-wrap gap-1 border-b border-celeste dark:border-azul-borde-oscuro mb-4">
-                    @foreach (['unidades' => 'Contenido', 'anuncios' => 'Anuncios', 'tareas' => 'Tareas', 'quizzes' => 'Quizzes', 'materiales' => 'Materiales', 'companeros' => 'Compañeros', 'migrupo' => 'Mi grupo'] as $clave => $etiqueta)
+                    @foreach (['unidades' => 'Contenido', 'anuncios' => 'Anuncios', 'tareas' => 'Tareas', 'quizzes' => 'Quizzes', 'companeros' => 'Compañeros', 'migrupo' => 'Mi grupo'] as $clave => $etiqueta)
                         <button @click="pestaña = '{{ $clave }}'"
                             :class="pestaña === '{{ $clave }}' ? 'border-azul-oscuro text-azul-oscuro dark:text-azul-fondo' : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700'"
                             class="px-4 py-2 text-sm font-medium border-b-2 -mb-px transition flex items-center gap-1.5">
@@ -241,9 +271,9 @@
                             $prog = $this->progresoModulos[$modulo->id] ?? null;
                             $pct = $prog && $prog['total'] > 0 ? (int) round(($prog['completadas'] / $prog['total']) * 100) : null;
                         @endphp
-                        <div class="bg-white dark:bg-azul-superficie-oscura rounded-xl border border-celeste dark:border-azul-borde-oscuro shadow-sm dark:shadow-none p-4" wire:key="modulo-est-{{ $modulo->id }}">
-                            <div class="flex items-center gap-3">
-                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-celeste/50 text-azul-oscuro dark:bg-azul-oscuro/30 dark:text-celeste">
+                        <div x-data="{ expandido: false }" class="bg-white dark:bg-azul-superficie-oscura rounded-xl border border-celeste dark:border-azul-borde-oscuro shadow-sm dark:shadow-none p-4" wire:key="modulo-est-{{ $modulo->id }}">
+                            <div @click="expandido = !expandido" class="flex items-center gap-3 cursor-pointer select-none">
+                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-celeste/50 text-azul-oscuro dark:bg-azul-oscuro/30 dark:text-celeste transition-colors hover:bg-celeste">
                                     <x-icono nombre="libro" class="h-5 w-5" />
                                 </span>
                                 <div class="flex-1 min-w-0">
@@ -257,11 +287,40 @@
                                         </div>
                                     @endif
                                 </div>
-                                @if (! empty($modulo->materiales))
-                                    <span class="text-xs text-slate-400 flex items-center gap-1">
-                                        <x-icono nombre="material" class="h-3.5 w-3.5" /> {{ count($modulo->materiales) }}
-                                    </span>
-                                @endif
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs text-slate-400">{{ count($modulo->leccionesVisibles) }} lecciones</span>
+                                    <svg class="h-5 w-5 text-slate-400 transition-transform duration-200" :class="expandido ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </div>
+
+                            <!-- Contenido de la Unidad (Lecciones) -->
+                            <div x-show="expandido" x-collapse class="mt-4 pt-4 border-t border-celeste dark:border-azul-borde-oscuro space-y-3">
+                                @forelse ($modulo->leccionesVisibles as $leccion)
+                                    <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
+                                        <h4 class="font-semibold text-sm text-texto dark:text-slate-200">{{ $leccion->titulo }}</h4>
+                                        @if($leccion->descripcion)
+                                            <p class="text-xs text-slate-500 mt-1">{{ $leccion->descripcion }}</p>
+                                        @endif
+                                        <div class="flex flex-wrap gap-2 mt-3">
+                                            @if($leccion->video_url)
+                                                <a href="{{ $leccion->video_url }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-azul-oscuro hover:bg-azul-oscuro/90 text-white rounded text-xs font-medium transition">
+                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                                    Ver Video
+                                                </a>
+                                            @endif
+                                            @if($leccion->material_url)
+                                                <a href="{{ $leccion->material_url }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-azul-oscuro text-azul-oscuro hover:bg-celeste/20 rounded text-xs font-medium transition">
+                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                                    Material Adjunto
+                                                </a>
+                                            @endif
+                                        </div>
+                                    </div>
+                                @empty
+                                    <p class="text-xs text-slate-500 italic">No hay lecciones disponibles en esta unidad todavía.</p>
+                                @endforelse
                             </div>
                         </div>
                     @empty
@@ -355,24 +414,6 @@
                         </a>
                     @empty
                         <p class="text-sm text-slate-500 dark:text-slate-400">Este curso todavía no tiene quizzes.</p>
-                    @endforelse
-                </div>
-
-                {{-- Materiales --}}
-                <div x-show="pestaña === 'materiales'" class="space-y-2">
-                    @forelse ($materialesDelCurso as $material)
-                        <a href="{{ $material['url'] }}" target="_blank" wire:key="material-{{ $loop->index }}"
-                            class="flex items-center gap-3 rounded-xl border border-celeste dark:border-azul-borde-oscuro bg-white dark:bg-azul-superficie-oscura p-3 shadow-sm dark:shadow-none transition hover:shadow-md">
-                            <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-lavanda-fondo/25 text-lavanda-oscuro">
-                                <x-icono nombre="material" class="h-5 w-5" />
-                            </span>
-                            <span class="flex-1 min-w-0">
-                                <span class="block text-sm font-medium text-texto dark:text-slate-100 truncate">{{ $material['nombre'] }}</span>
-                                <span class="block text-xs text-slate-500 dark:text-slate-400">{{ $material['modulo'] }}</span>
-                            </span>
-                        </a>
-                    @empty
-                        <p class="text-sm text-slate-500 dark:text-slate-400">Este curso todavía no tiene materiales.</p>
                     @endforelse
                 </div>
 

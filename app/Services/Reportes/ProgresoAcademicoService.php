@@ -165,4 +165,76 @@ class ProgresoAcademicoService
             'proximas_entregas' => $proximasEntregas,
         ];
     }
+
+    /**
+     * ERS RF-58: Calcula la nota final ponderada por rubros para un estudiante en un curso.
+     * Retorna null si no hay esquema o si ningún rubro tiene nota registrada.
+     */
+    public function notaFinalPorRubros(\App\Models\User $estudiante, \App\Models\Curso $curso): ?float
+    {
+        $esquema = $curso->esquemaEvaluacion()->with('rubros')->first();
+        if (!$esquema || $esquema->rubros->isEmpty()) {
+            return null;
+        }
+
+        $rubroIds = $esquema->rubros->pluck('id');
+        $notas = \App\Models\NotaRubro::whereIn('rubro_id', $rubroIds)
+            ->where('estudiante_id', $estudiante->id)
+            ->get()
+            ->keyBy('rubro_id');
+
+        $sumaFinal = 0;
+        $pesoTotal = 0;
+
+        foreach ($esquema->rubros as $rubro) {
+            $nota = $notas->get($rubro->id);
+            if ($nota && $nota->nota !== null) {
+                $sumaFinal += $nota->nota * ($rubro->peso / 100);
+                $pesoTotal += $rubro->peso;
+            }
+        }
+
+        return $pesoTotal > 0 ? round($sumaFinal, 1) : null;
+    }
+
+    /**
+     * ERS RF-59: Resumen completo de notas por rubro para boleta del estudiante.
+     */
+    public function resumenRubros(\App\Models\User $estudiante, \App\Models\Curso $curso): array
+    {
+        $esquema = $curso->esquemaEvaluacion()->with('rubros')->first();
+        $rubros  = $esquema?->rubros ?? collect();
+        $rubroIds = $rubros->pluck('id');
+
+        $notas = \App\Models\NotaRubro::whereIn('rubro_id', $rubroIds)
+            ->where('estudiante_id', $estudiante->id)
+            ->get()
+            ->keyBy('rubro_id');
+
+        $notaMinima = config('app.nota_minima_aprobatoria', 10.5);
+        $sumaFinal  = 0;
+        $pesoTotal  = 0;
+
+        $filas = $rubros->map(function ($rubro) use ($notas, $notaMinima, &$sumaFinal, &$pesoTotal) {
+            $nota = $notas->get($rubro->id);
+            if ($nota && $nota->nota !== null) {
+                $sumaFinal += $nota->nota * ($rubro->peso / 100);
+                $pesoTotal += $rubro->peso;
+            }
+            return [
+                'rubro'    => $rubro,
+                'nota'     => $nota?->nota,
+                'aprobado' => $nota !== null && $nota->nota >= $notaMinima,
+                'aporte'   => $nota?->nota !== null ? round($nota->nota * ($rubro->peso / 100), 2) : null,
+            ];
+        });
+
+        return [
+            'esquema'    => $esquema,
+            'rubros'     => $rubros,
+            'filas'      => $filas,
+            'nota_final' => $pesoTotal > 0 ? round($sumaFinal, 1) : null,
+            'aprobado'   => $pesoTotal > 0 && round($sumaFinal, 1) >= $notaMinima,
+        ];
+    }
 }

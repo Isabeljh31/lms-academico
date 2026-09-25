@@ -41,4 +41,15 @@ class Modulo extends Model
     {
         return $this->hasMany(Quiz::class, 'modulo_id');
     }
+
+    public function lecciones(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Leccion::class, 'modulo_id')->orderBy('orden');
+    }
+
+    public function leccionesVisibles(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->lecciones()->publicadas();
+    }
+
 }

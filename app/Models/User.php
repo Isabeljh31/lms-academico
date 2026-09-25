@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,37 +10,61 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
-// <-- 1. Importar Spatie
-
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, Notifiable; // <-- 2. Agregar HasRoles aquí[cite: 1]
+    use HasFactory, HasRoles, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
     protected $fillable = [
         'name',
         'email',
         'password',
-        'avatar_url', // <-- 3. Permitir guardar la URL de foto de Cloudinary[cite: 1]
+        'avatar_url',
+        // ERS RF-15: activar/desactivar cuenta (logica, sin borrar historial)
+        'activo',
+        // ERS RF-05, RF-06: autenticacion mejorada
+        'primer_login',
+        'bloqueado_hasta',
+        'intentos_fallidos',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
+            'password'          => 'hashed',
+            'activo'            => 'boolean',
+            'primer_login'      => 'boolean',
+            'bloqueado_hasta'   => 'datetime',
         ];
+    }
+
+    // ==========================================
+    // HELPERS DE AUTENTICACION (ERS RF-06)
+    // ==========================================
+
+    /** Indica si la cuenta está bloqueada por intentos fallidos. */
+    public function estaBloqueada(): bool
+    {
+        return $this->bloqueado_hasta !== null && $this->bloqueado_hasta->isFuture();
+    }
+
+    /** Incrementa el contador de intentos y bloquea si supera el límite (3 intentos → 15 min). */
+    public function registrarIntentoFallido(): void
+    {
+        $intentos = $this->intentos_fallidos + 1;
+        $data = ['intentos_fallidos' => $intentos];
+        if ($intentos >= 3) {
+            $data['bloqueado_hasta'] = now()->addMinutes(15);
+        }
+        $this->update($data);
+    }
+
+    /** Reinicia el contador tras un login exitoso. */
+    public function limpiarIntentosFallidos(): void
+    {
+        $this->update(['intentos_fallidos' => 0, 'bloqueado_hasta' => null]);
     }
 
     // ==========================================
@@ -78,15 +101,28 @@ class User extends Authenticatable
         return $this->hasMany(Comunicado::class, 'user_id');
     }
 
+    public function notasRubro(): HasMany
+    {
+        return $this->hasMany(NotaRubro::class, 'estudiante_id');
+    }
+
+    public function accionesAuditoria(): HasMany
+    {
+        return $this->hasMany(BitacoraAuditoria::class, 'ejecutado_por');
+    }
+
+    // ==========================================
+    // HELPERS DE ROL
+    // ==========================================
+
     public function rolPrincipal(): ?string
     {
         return $this->getRoleNames()->first();
     }
 
     /**
-     * El grupo del estudiante dentro de un curso (o null si no está en
-     * ninguno todavía). Un estudiante pertenece a lo más un grupo por
-     * curso — se asegura al asignarlo, no con una restricción de BD.
+     * El grupo del estudiante dentro de un curso (o null si no está en ninguno).
+     * Un estudiante pertenece a lo más un grupo por curso.
      */
     public function grupoEnCurso(Curso $curso): ?Grupo
     {

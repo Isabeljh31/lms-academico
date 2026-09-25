@@ -260,4 +260,25 @@ class Show extends Component
             'modulos' => $this->curso->modulos()->orderBy('orden')->get(),
         ]);
     }
+
+    // ==========================================
+    // CLONAR CURSO (ERS RF-20, RF-21, RF-61)
+    // ==========================================
+    public function clonarCurso(): void
+    {
+        \Illuminate\Support\Facades\Gate::authorize('gestionar', $this->curso);
+
+        $nuevoCurso = $this->curso->clonar($this->curso->nombre . ' (Clon)', auth()->id());
+
+        \App\Models\BitacoraAuditoria::registrarAccionAdmin(
+            ejecutor: auth()->user(),
+            tipoEvento: 'clonacion_curso',
+            descripcion: "Curso clonado: {$this->curso->nombre} -> {$nuevoCurso->nombre}",
+            curso: $nuevoCurso
+        );
+
+        session()->flash('estado', 'Curso clonado exitosamente.');
+        $this->redirectRoute('cursos.show', $nuevoCurso->id, navigate: true);
+    }
+
 }

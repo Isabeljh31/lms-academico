@@ -4,13 +4,16 @@ namespace App\Livewire\Cursos;
 
 use App\Models\Curso;
 use App\Models\User;
-use App\Services\Multimedia\SubidorArchivos;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
+/**
+ * Formulario de creación/edición de cursos.
+ * ERS RF-19, RF-22: campos de estado, fechas, duración y sesiones.
+ */
 #[Layout('layouts.app')]
 class Formulario extends Component
 {
@@ -18,71 +21,109 @@ class Formulario extends Component
 
     public ?Curso $curso = null;
 
+    // Campos básicos
     public string $nombre = '';
-
     public string $descripcion = '';
-
     public ?int $profesor_id = null;
+    public $portada = null;
 
-    public ?UploadedFile $portada = null;
+    // ERS RF-22: estado de publicación
+    // estados: borrador | publicado | despublicado | archivado
+    public string $estado = 'borrador';
+
+    // ERS RF-19: fechas, duración y sesiones
+    public string $fecha_inicio = '';
+    public string $fecha_fin = '';
+    public string $semanas_duracion = '';
+    public string $sesiones_clase_count = '';
 
     public function mount(?Curso $curso = null): void
     {
-        if ($curso?->exists) {
-            Gate::authorize('gestionar', $curso);
+        Gate::authorize('crear', Curso::class);
 
+        if ($curso && $curso->exists) {
+            Gate::authorize('gestionar', $curso);
             $this->curso = $curso;
-            $this->nombre = $curso->nombre;
-            $this->descripcion = $curso->descripcion ?? '';
-            $this->profesor_id = $curso->profesor_id;
+            $this->nombre              = $curso->nombre;
+            $this->descripcion         = $curso->descripcion ?? '';
+            $this->profesor_id         = $curso->profesor_id;
+            $this->estado              = $curso->estado;
+            $this->fecha_inicio        = $curso->fecha_inicio?->format('Y-m-d') ?? '';
+            $this->fecha_fin           = $curso->fecha_fin?->format('Y-m-d') ?? '';
+            $this->semanas_duracion    = (string) ($curso->semanas_duracion ?? '');
+            $this->sesiones_clase_count = (string) ($curso->sesiones_clase_count ?? '');
         } else {
-            Gate::authorize('crear', Curso::class);
-            $this->profesor_id = auth()->user()->hasRole('administrador') ? null : auth()->id();
+            // Para nuevo curso: el profesor es el auth si no es supervisor
+            $this->profesor_id = auth()->user()->hasRole('supervisor') ? null : auth()->id();
         }
     }
 
-    public function guardar(SubidorArchivos $subidor): void
+    public function guardar(): void
     {
-        $reglas = [
-            'nombre' => ['required', 'string', 'max:255'],
-            'descripcion' => ['nullable', 'string', 'max:2000'],
-            'portada' => ['nullable', 'image', 'max:4096'],
+        Gate::authorize('crear', Curso::class);
+
+        $this->validate([
+            'nombre'              => ['required', 'string', 'max:255'],
+            'descripcion'         => ['nullable', 'string', 'max:5000'],
+            'profesor_id'         => ['nullable', 'exists:users,id'],
+            'portada'             => ['nullable', 'image', 'max:2048'],
+            'estado'              => ['required', 'string', 'in:borrador,publicado,despublicado,archivado'],
+            'fecha_inicio'        => ['nullable', 'date'],
+            'fecha_fin'           => ['nullable', 'date', 'after_or_equal:fecha_inicio'],
+            'semanas_duracion'    => ['nullable', 'integer', 'min:1', 'max:104'],
+            'sesiones_clase_count' => ['nullable', 'integer', 'min:1', 'max:999'],
+        ]);
+
+        // Upload de portada
+        $portadaUrl = $this->curso?->imagen_portada_url;
+        if ($this->portada) {
+            $path = $this->portada->store('portadas', 'public');
+            $portadaUrl = Storage::disk('public')->url($path);
+        }
+
+        $datos = [
+            'nombre'               => $this->nombre,
+            'descripcion'          => $this->descripcion ?: null,
+            'profesor_id'          => auth()->user()->hasRole('supervisor')
+                                        ? $this->profesor_id
+                                        : auth()->id(),
+            'imagen_portada_url'   => $portadaUrl,
+            'estado'               => $this->estado,
+            'fecha_inicio'         => $this->fecha_inicio ?: null,
+            'fecha_fin'            => $this->fecha_fin ?: null,
+            'semanas_duracion'     => $this->semanas_duracion ?: null,
+            'sesiones_clase_count' => $this->sesiones_clase_count ?: null,
         ];
 
-        if (auth()->user()->hasRole('administrador')) {
-            $reglas['profesor_id'] = ['required', 'exists:users,id'];
-        }
-
-        $validado = $this->validate($reglas);
-
-        if ($this->portada) {
-            if ($this->curso) {
-                $subidor->eliminar($this->curso->imagen_portada_url);
-            }
-            $validado['imagen_portada_url'] = $subidor->subir($this->portada, 'cursos/portadas');
-        }
-
-        if ($this->curso) {
-            $this->curso->update($validado);
-            $curso = $this->curso;
+        if ($this->curso && $this->curso->exists) {
+            Gate::authorize('gestionar', $this->curso);
+            $this->curso->update($datos);
+            $mensaje = "Curso '{$this->curso->nombre}' actualizado.";
         } else {
-            $curso = Curso::create([
-                ...$validado,
-                'profesor_id' => auth()->user()->hasRole('administrador') ? $this->profesor_id : auth()->id(),
-            ]);
+            Curso::create($datos);
+            $mensaje = "Curso '{$this->nombre}' creado exitosamente.";
         }
 
-        $this->redirect(route('cursos.show', $curso), navigate: true);
+        session()->flash('estado', $mensaje);
+        $this->redirect(route('cursos.index'), navigate: true);
     }
 
     public function render()
     {
-        $profesores = auth()->user()->hasRole('administrador')
+        $profesores = auth()->user()->hasRole('supervisor')
             ? User::role('profesor')->orderBy('name')->get()
             : collect();
 
+        $estadosCurso = [
+            'borrador'      => 'Borrador (no visible para estudiantes)',
+            'publicado'     => 'Publicado (visible y con inscripciones activas)',
+            'despublicado'  => 'Despublicado (oculto temporalmente)',
+            'archivado'     => 'Archivado (finalizado, historial conservado)',
+        ];
+
         return view('livewire.cursos.formulario', [
-            'profesores' => $profesores,
+            'profesores'   => $profesores,
+            'estadosCurso' => $estadosCurso,
         ]);
     }
 }
