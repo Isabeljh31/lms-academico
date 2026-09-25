@@ -17,12 +17,12 @@ class CursoPolicy
 
     public function crear(User $usuario): bool
     {
-        return $usuario->hasAnyRole(['profesor', 'administrador']);
+        return $usuario->hasAnyRole(['profesor', 'supervisor']);
     }
 
     public function gestionar(User $usuario, Curso $curso): bool
     {
-        return $usuario->hasRole('administrador')
+        return $usuario->hasRole('supervisor')
             || ($usuario->hasRole('profesor') && $usuario->is($curso->profesor));
     }
 

@@ -54,7 +54,7 @@ class Comunicado extends Model
 
     public function scopeParaRol($query, string $rol)
     {
-        if ($rol === 'administrador') {
+        if ($rol === 'supervisor') {
             return $query;
         }
 

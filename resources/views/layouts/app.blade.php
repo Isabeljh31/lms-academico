@@ -16,7 +16,7 @@
         'profesor' => [
             'activo' => 'border-menta-oscuro bg-menta-fondo text-menta-oscuro dark:border-menta-base dark:bg-stone-800 dark:text-menta-base',
         ],
-        'administrador' => [
+        'supervisor' => [
             'activo' => 'border-terracota-oscuro bg-arena-claro text-terracota-oscuro dark:border-terracota-base dark:bg-stone-800 dark:text-terracota-claro',
         ],
     ];
@@ -37,12 +37,14 @@
     $menu = [
         ['ruta' => 'dashboard', 'etiqueta' => 'Panel', 'icono' => 'inicio', 'visible' => true],
         ['ruta' => 'cursos.index', 'etiqueta' => 'Cursos', 'icono' => 'libro', 'visible' => true],
+        ['ruta' => 'mensajeria.bandeja', 'etiqueta' => 'Mensajería', 'icono' => 'usuarios', 'visible' => true],
         ['ruta' => 'docente.por-calificar', 'etiqueta' => 'Por Calificar', 'icono' => 'tarea', 'visible' => $rol === 'profesor'],
-        ['ruta' => 'admin.profesores.index', 'etiqueta' => 'Profesores', 'icono' => 'birrete', 'visible' => $rol === 'administrador'],
-        ['ruta' => 'admin.comunicados.index', 'etiqueta' => 'Comunicados', 'icono' => 'megafono', 'visible' => $rol === 'administrador'],
-        ['ruta' => 'admin.usuarios.index', 'etiqueta' => 'Usuarios', 'icono' => 'usuarios', 'visible' => $rol === 'administrador'],
-        ['ruta' => 'admin.metricas', 'etiqueta' => 'Métricas', 'icono' => 'grafico', 'visible' => $rol === 'administrador'],
-        ['ruta' => 'admin.configuracion', 'etiqueta' => 'Configuración', 'icono' => 'engranaje', 'visible' => $rol === 'administrador'],
+        ['ruta' => 'admin.profesores.index', 'etiqueta' => 'Profesores', 'icono' => 'birrete', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'admin.comunicados.index', 'etiqueta' => 'Comunicados', 'icono' => 'megafono', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'admin.usuarios.index', 'etiqueta' => 'Usuarios', 'icono' => 'usuarios', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'admin.metricas', 'etiqueta' => 'Métricas', 'icono' => 'grafico', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'admin.configuracion', 'etiqueta' => 'Configuración', 'icono' => 'engranaje', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'admin.auditoria', 'etiqueta' => 'Auditoría', 'icono' => 'tarea', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'evento-calendario.index', 'etiqueta' => 'Calendario', 'icono' => 'calendario', 'visible' => true],
         ['ruta' => 'reportes.dashboard', 'etiqueta' => 'Reportes', 'icono' => 'grafico', 'visible' => true],
         ['ruta' => 'bot.propuestas', 'etiqueta' => 'Propuestas del bot', 'icono' => 'bombilla', 'visible' => $rol === 'estudiante'],

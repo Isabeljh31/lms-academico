@@ -33,7 +33,7 @@ class Index extends Component
 
     public function mount(): void
     {
-        abort_unless(auth()->user()->hasRole('administrador'), 403);
+        abort_unless(auth()->user()->hasRole('supervisor'), 403);
     }
 
     public function updatingBusqueda(): void
