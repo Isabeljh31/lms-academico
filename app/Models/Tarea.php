@@ -13,6 +13,15 @@ class Tarea extends Model
 
     protected $table = 'tareas';
 
+    // Espejo del default(true) de la migración: sin esto, un modelo recién
+    // creado en memoria (p. ej. justo después de Tarea::create(...), antes
+    // de recargarlo de la BD) queda con visible = null, que las policies
+    // tratan como "falso" y bloquean el acceso a una tarea que en la BD sí
+    // está visible.
+    protected $attributes = [
+        'visible' => true,
+    ];
+
     protected $fillable = [
         'curso_id',
         'modulo_id',
@@ -21,6 +30,7 @@ class Tarea extends Model
         'fecha_entrega',
         'peso_nota',
         'tipo_entrega',
+        'visible',
     ];
 
     protected function casts(): array
@@ -28,6 +38,7 @@ class Tarea extends Model
         return [
             'fecha_entrega' => 'datetime',
             'peso_nota' => 'decimal:2',
+            'visible' => 'boolean',
         ];
     }
 
@@ -61,5 +72,18 @@ class Tarea extends Model
     public function esGrupal(): bool
     {
         return $this->tipo_entrega === 'grupal';
+    }
+
+    /**
+     * Solo se puede eliminar de verdad si nadie entregó todavía: borrarla
+     * con entregas de por medio se llevaría esas notas/feedback en cascada
+     * (ver migración de `entregas`, onDelete cascade). Con entregas, la
+     * única opción es ocultarla (ver campo `visible`).
+     */
+    public function puedeEliminarse(): bool
+    {
+        return $this->relationLoaded('entregas')
+            ? $this->entregas->isEmpty()
+            : $this->entregas()->doesntExist();
     }
 }

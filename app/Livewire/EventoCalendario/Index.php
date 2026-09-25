@@ -73,7 +73,7 @@ class Index extends Component
         if ($usuario->hasRole('estudiante')) {
             $cursoIds = $usuario->inscripciones()->pluck('curso_id');
 
-            return Tarea::whereIn('curso_id', $cursoIds)->with('curso')->get();
+            return Tarea::whereIn('curso_id', $cursoIds)->where('visible', true)->with('curso')->get();
         }
 
         return collect();

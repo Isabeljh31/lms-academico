@@ -25,7 +25,8 @@ class QuizPolicy
             return true;
         }
 
-        return $usuario->hasRole('estudiante')
+        return $quiz->visible
+            && $usuario->hasRole('estudiante')
             && $quiz->curso->inscripciones()->where('estudiante_id', $usuario->id)->exists();
     }
 
@@ -34,5 +35,10 @@ class QuizPolicy
         return $this->ver($usuario, $quiz)
             && $usuario->hasRole('estudiante')
             && ! $quiz->resultadoDe($usuario);
+    }
+
+    public function eliminar(User $usuario, Quiz $quiz): bool
+    {
+        return $this->gestionar($usuario, $quiz) && $quiz->puedeEliminarse();
     }
 }

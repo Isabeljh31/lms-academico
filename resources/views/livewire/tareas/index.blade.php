@@ -18,22 +18,38 @@
         @if ($tareas->isEmpty())
             <p class="text-stone-500 dark:text-stone-400">Todavía no hay tareas en este curso.</p>
         @elseif ($this->puedeGestionar)
-            {{-- Vista de profesor/administrador: sin cambios respecto a la versión anterior. --}}
+            {{-- Vista de profesor/administrador. --}}
             <div class="space-y-3">
                 @foreach ($tareas as $tarea)
-                    <a href="{{ route('cursos.tareas.show', [$curso, $tarea]) }}" wire:navigate wire:key="tarea-{{ $tarea->id }}"
-                        class="flex items-center justify-between bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 p-4 hover:shadow-md transition">
-                        <div>
-                            <h3 class="font-medium text-stone-800 dark:text-stone-100">{{ $tarea->titulo }}</h3>
+                    <div wire:key="tarea-{{ $tarea->id }}"
+                        class="flex items-center justify-between gap-3 bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 p-4 hover:shadow-md transition {{ ! $tarea->visible ? 'opacity-60' : '' }}">
+                        <a href="{{ route('cursos.tareas.show', [$curso, $tarea]) }}" wire:navigate class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-medium text-stone-800 dark:text-stone-100 truncate">{{ $tarea->titulo }}</h3>
+                                @unless ($tarea->visible)
+                                    <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-stone-200 text-stone-600 dark:bg-stone-700 dark:text-stone-300">Oculta</span>
+                                @endunless
+                            </div>
                             <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">
                                 {{ $tarea->modulo?->titulo }} · Vence {{ $tarea->fecha_entrega->format('d/m/Y H:i') }} · Peso {{ $tarea->peso_nota }}
                             </p>
-                        </div>
+                        </a>
 
-                        <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-3 shrink-0">
                             <span class="text-xs text-stone-500 dark:text-stone-400">{{ $tarea->entregas->count() }} entregas</span>
+                            <button type="button" wire:click="alternarVisibilidad({{ $tarea->id }})"
+                                class="text-xs font-semibold {{ $tarea->visible ? 'text-stone-500 hover:text-stone-700' : 'text-menta-oscuro hover:underline' }}">
+                                {{ $tarea->visible ? 'Ocultar' : 'Publicar' }}
+                            </button>
+                            @if ($tarea->entregas->isEmpty())
+                                <button type="button" wire:click="eliminar({{ $tarea->id }})"
+                                    wire:confirm="¿Eliminar esta tarea? Esta acción no se puede deshacer."
+                                    class="text-xs font-semibold text-terracota-oscuro hover:underline">
+                                    Eliminar
+                                </button>
+                            @endif
                         </div>
-                    </a>
+                    </div>
                 @endforeach
             </div>
         @else

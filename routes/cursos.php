@@ -5,6 +5,7 @@ use App\Livewire\Cursos\Index;
 use App\Livewire\Cursos\LibroCalificaciones;
 use App\Livewire\Cursos\Show;
 use App\Livewire\Grupos\Index as GruposIndex;
+use App\Livewire\Quizzes\Estadisticas;
 use App\Livewire\Quizzes\Resolver;
 use App\Livewire\Tareas\Detalle;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +35,7 @@ Route::middleware(['auth', 'verified'])
                 Route::get('/', App\Livewire\Quizzes\Index::class)->name('index');
                 Route::get('/crear', App\Livewire\Quizzes\Formulario::class)->name('crear');
                 Route::get('/{quiz}/editar', App\Livewire\Quizzes\Formulario::class)->name('editar');
+                Route::get('/{quiz}/estadisticas', Estadisticas::class)->name('estadisticas');
                 Route::get('/{quiz}', Resolver::class)->name('show');
             });
 

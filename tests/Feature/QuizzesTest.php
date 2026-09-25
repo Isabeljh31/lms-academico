@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\Rol;
 use App\Livewire\Quizzes\Formulario;
+use App\Livewire\Quizzes\Index;
 use App\Livewire\Quizzes\Resolver;
 use App\Models\Curso;
 use App\Models\Modulo;
@@ -104,6 +105,26 @@ class QuizzesTest extends TestCase
         ]);
     }
 
+    public function test_calcularpuntaje_compara_por_valor_no_por_tipo(): void
+    {
+        [, $curso, $modulo] = $this->cursoConProfesor();
+
+        // respuesta_correcta guardado como int (típico de seeders/factories),
+        // respuestas del estudiante como string (típico de un <input
+        // type="radio">, que siempre entrega texto). Antes del fix, la
+        // comparación === estricta contaba esto como incorrecto.
+        $quiz = Quiz::create([
+            'curso_id' => $curso->id,
+            'modulo_id' => $modulo->id,
+            'tema' => 'Quiz',
+            'preguntas' => $this->preguntasDePrueba(),
+        ]);
+
+        $puntaje = $quiz->calcularPuntaje(['1', '0']);
+
+        $this->assertEquals(20.0, $puntaje);
+    }
+
     public function test_estudiante_no_puede_resolver_el_mismo_quiz_dos_veces(): void
     {
         [$profesor, $curso, $modulo] = $this->cursoConProfesor();
@@ -130,5 +151,124 @@ class QuizzesTest extends TestCase
             ->assertForbidden();
 
         $this->assertEquals(1, $quiz->resultados()->count());
+    }
+
+    public function test_un_quiz_oculto_no_es_visible_para_el_estudiante(): void
+    {
+        [$profesor, $curso, $modulo] = $this->cursoConProfesor();
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+        $curso->inscripciones()->create(['estudiante_id' => $estudiante->id, 'fecha_inscripcion' => now()]);
+
+        $quiz = Quiz::create([
+            'curso_id' => $curso->id,
+            'modulo_id' => $modulo->id,
+            'tema' => 'Quiz',
+            'preguntas' => $this->preguntasDePrueba(),
+            'visible' => false,
+        ]);
+
+        $this->actingAs($estudiante)
+            ->get(route('cursos.quizzes.show', [$curso, $quiz]))
+            ->assertForbidden();
+
+        $this->actingAs($profesor)
+            ->get(route('cursos.quizzes.show', [$curso, $quiz]))
+            ->assertOk();
+    }
+
+    public function test_profesor_puede_eliminar_un_quiz_sin_resultados(): void
+    {
+        [$profesor, $curso, $modulo] = $this->cursoConProfesor();
+
+        $quiz = Quiz::create([
+            'curso_id' => $curso->id,
+            'modulo_id' => $modulo->id,
+            'tema' => 'Quiz',
+            'preguntas' => $this->preguntasDePrueba(),
+        ]);
+
+        Livewire::actingAs($profesor)
+            ->test(Index::class, ['curso' => $curso])
+            ->call('eliminar', $quiz->id);
+
+        $this->assertDatabaseMissing('quizzes', ['id' => $quiz->id]);
+    }
+
+    public function test_profesor_no_puede_eliminar_un_quiz_con_resultados(): void
+    {
+        [$profesor, $curso, $modulo] = $this->cursoConProfesor();
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+
+        $quiz = Quiz::create([
+            'curso_id' => $curso->id,
+            'modulo_id' => $modulo->id,
+            'tema' => 'Quiz',
+            'preguntas' => $this->preguntasDePrueba(),
+        ]);
+        $quiz->resultados()->create(['estudiante_id' => $estudiante->id, 'respuestas' => [1, 0], 'puntaje' => 20]);
+
+        Livewire::actingAs($profesor)
+            ->test(Index::class, ['curso' => $curso])
+            ->call('eliminar', $quiz->id)
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('quizzes', ['id' => $quiz->id]);
+    }
+
+    public function test_las_estadisticas_por_pregunta_identifican_la_mas_fallada(): void
+    {
+        [, $curso, $modulo] = $this->cursoConProfesor();
+        $estudiante1 = User::factory()->create()->assignRole(Rol::Estudiante->value);
+        $estudiante2 = User::factory()->create()->assignRole(Rol::Estudiante->value);
+
+        $quiz = Quiz::create([
+            'curso_id' => $curso->id,
+            'modulo_id' => $modulo->id,
+            'tema' => 'Quiz',
+            'preguntas' => $this->preguntasDePrueba(),
+        ]);
+
+        // Pregunta 0 correcta = índice 1, pregunta 1 correcta = índice 0.
+        $quiz->resultados()->create(['estudiante_id' => $estudiante1->id, 'respuestas' => [1, 0], 'puntaje' => 20]);
+        // estudiante2 falla la pregunta 0 (responde 0 en vez de 1).
+        $quiz->resultados()->create(['estudiante_id' => $estudiante2->id, 'respuestas' => [0, 0], 'puntaje' => 10]);
+
+        $estadisticas = $quiz->fresh()->estadisticasPorPregunta();
+
+        // Ordenadas por tasa de error descendente: la pregunta 0 (50% de error) va primero.
+        $this->assertSame(0, $estadisticas[0]['indice']);
+        $this->assertEquals(50.0, $estadisticas[0]['tasa_error']);
+        $this->assertEquals(1, $estadisticas[0]['correctas']);
+        $this->assertEquals(1, $estadisticas[0]['incorrectas']);
+
+        $this->assertSame(1, $estadisticas[1]['indice']);
+        $this->assertEquals(0.0, $estadisticas[1]['tasa_error']);
+        $this->assertEquals(2, $estadisticas[1]['correctas']);
+    }
+
+    public function test_solo_el_profesor_dueno_puede_ver_las_estadisticas_del_quiz(): void
+    {
+        [$profesor, $curso, $modulo] = $this->cursoConProfesor();
+        $otroProfesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+
+        $quiz = Quiz::create([
+            'curso_id' => $curso->id,
+            'modulo_id' => $modulo->id,
+            'tema' => 'Quiz',
+            'preguntas' => $this->preguntasDePrueba(),
+        ]);
+
+        $this->actingAs($profesor)
+            ->get(route('cursos.quizzes.estadisticas', [$curso, $quiz]))
+            ->assertOk();
+
+        $this->actingAs($estudiante)
+            ->get(route('cursos.quizzes.estadisticas', [$curso, $quiz]))
+            ->assertForbidden();
+
+        $this->actingAs($otroProfesor)
+            ->get(route('cursos.quizzes.estadisticas', [$curso, $quiz]))
+            ->assertForbidden();
     }
 }

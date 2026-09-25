@@ -5,13 +5,16 @@ namespace Tests\Feature;
 use App\Enums\Rol;
 use App\Livewire\Tareas\Detalle;
 use App\Livewire\Tareas\Formulario;
+use App\Livewire\Tareas\Index;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Models\Modulo;
 use App\Models\Tarea;
 use App\Models\User;
+use App\Notifications\NuevaTareaAsignada;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -128,5 +131,66 @@ class TareasTest extends TestCase
         $this->actingAs($otroProfesor)
             ->get(route('cursos.tareas.show', [$curso, $tarea]))
             ->assertForbidden();
+    }
+
+    public function test_una_tarea_oculta_no_es_visible_para_el_estudiante(): void
+    {
+        [$profesor, $curso, $modulo] = $this->cursoConProfesor();
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+        $curso->inscripciones()->create(['estudiante_id' => $estudiante->id, 'fecha_inscripcion' => now()]);
+        $tarea = Tarea::factory()->create(['curso_id' => $curso->id, 'modulo_id' => $modulo->id, 'visible' => false]);
+
+        $this->actingAs($estudiante)
+            ->get(route('cursos.tareas.show', [$curso, $tarea]))
+            ->assertForbidden();
+
+        // El profesor sí la sigue viendo aunque esté oculta (la está preparando).
+        $this->actingAs($profesor)
+            ->get(route('cursos.tareas.show', [$curso, $tarea]))
+            ->assertOk();
+    }
+
+    public function test_al_publicar_una_tarea_oculta_se_notifica_a_los_inscritos(): void
+    {
+        Notification::fake();
+
+        [$profesor, $curso, $modulo] = $this->cursoConProfesor();
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+        $curso->inscripciones()->create(['estudiante_id' => $estudiante->id, 'fecha_inscripcion' => now()]);
+        $tarea = Tarea::factory()->create(['curso_id' => $curso->id, 'modulo_id' => $modulo->id, 'visible' => false]);
+
+        Livewire::actingAs($profesor)
+            ->test(Index::class, ['curso' => $curso])
+            ->call('alternarVisibilidad', $tarea->id);
+
+        $this->assertTrue($tarea->fresh()->visible);
+        Notification::assertSentTo($estudiante, NuevaTareaAsignada::class);
+    }
+
+    public function test_profesor_puede_eliminar_una_tarea_sin_entregas(): void
+    {
+        [$profesor, $curso, $modulo] = $this->cursoConProfesor();
+        $tarea = Tarea::factory()->create(['curso_id' => $curso->id, 'modulo_id' => $modulo->id]);
+
+        Livewire::actingAs($profesor)
+            ->test(Index::class, ['curso' => $curso])
+            ->call('eliminar', $tarea->id);
+
+        $this->assertDatabaseMissing('tareas', ['id' => $tarea->id]);
+    }
+
+    public function test_profesor_no_puede_eliminar_una_tarea_con_entregas(): void
+    {
+        [$profesor, $curso, $modulo] = $this->cursoConProfesor();
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+        $tarea = Tarea::factory()->create(['curso_id' => $curso->id, 'modulo_id' => $modulo->id]);
+        Entrega::factory()->create(['tarea_id' => $tarea->id, 'estudiante_id' => $estudiante->id]);
+
+        Livewire::actingAs($profesor)
+            ->test(Index::class, ['curso' => $curso])
+            ->call('eliminar', $tarea->id)
+            ->assertForbidden();
+
+        $this->assertDatabaseHas('tareas', ['id' => $tarea->id]);
     }
 }

@@ -20,6 +20,7 @@ class ProgresoAcademicoService
     public function progresoEstudiante(User $estudiante, Curso $curso): array
     {
         $tareas = $curso->tareas()
+            ->where('visible', true)
             ->with(['entregas' => fn ($q) => $q->where('estudiante_id', $estudiante->id)])
             ->get()
             ->map(function ($tarea) {
@@ -36,6 +37,7 @@ class ProgresoAcademicoService
             });
 
         $quizzes = $curso->quizzes()
+            ->where('visible', true)
             ->with(['resultados' => fn ($q) => $q->where('estudiante_id', $estudiante->id)])
             ->get()
             ->map(fn ($quiz) => [
@@ -99,10 +101,12 @@ class ProgresoAcademicoService
 
         $filas = $cursos->map(function (Curso $curso) use ($estudiante, &$pendientes) {
             $tareas = $curso->tareas()
+                ->where('visible', true)
                 ->with(['entregas' => fn ($q) => $q->where('estudiante_id', $estudiante->id)])
                 ->get();
 
             $quizzes = $curso->quizzes()
+                ->where('visible', true)
                 ->with(['resultados' => fn ($q) => $q->where('estudiante_id', $estudiante->id)])
                 ->get();
 

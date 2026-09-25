@@ -24,6 +24,22 @@ class Index extends Component
         return Gate::allows('gestionar', $this->curso);
     }
 
+    public function alternarVisibilidad(int $quizId): void
+    {
+        $quiz = $this->curso->quizzes()->findOrFail($quizId);
+        Gate::authorize('gestionar', $quiz);
+
+        $quiz->update(['visible' => ! $quiz->visible]);
+    }
+
+    public function eliminar(int $quizId): void
+    {
+        $quiz = $this->curso->quizzes()->findOrFail($quizId);
+        Gate::authorize('eliminar', $quiz);
+
+        $quiz->delete();
+    }
+
     public function render()
     {
         $usuario = auth()->user();
@@ -33,6 +49,7 @@ class Index extends Component
                 ? $q->where('estudiante_id', $usuario->id)
                 : $q,
             ])
+            ->when($usuario->hasRole('estudiante'), fn ($q) => $q->where('visible', true))
             ->orderBy('created_at')
             ->get();
 

@@ -3,7 +3,10 @@
 namespace App\Livewire\Tareas;
 
 use App\Models\Curso;
+use App\Models\User;
+use App\Notifications\NuevaTareaAsignada;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Notification;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -24,6 +27,34 @@ class Index extends Component
         return Gate::allows('gestionar', $this->curso);
     }
 
+    /**
+     * Publica u oculta la tarea. Al pasar de oculta a visible por primera
+     * vez, notifica a los inscritos (mismo aviso que si se hubiera creado
+     * ya visible) — así el profesor puede preparar tareas con anticipación
+     * y "activarlas" en medio de la clase sin tener que recrearlas.
+     */
+    public function alternarVisibilidad(int $tareaId): void
+    {
+        $tarea = $this->curso->tareas()->findOrFail($tareaId);
+        Gate::authorize('gestionar', $tarea);
+
+        $eraVisible = $tarea->visible;
+        $tarea->update(['visible' => ! $tarea->visible]);
+
+        if ($tarea->visible && ! $eraVisible) {
+            $estudiantes = User::whereIn('id', $this->curso->inscripciones()->pluck('estudiante_id'))->get();
+            Notification::send($estudiantes, new NuevaTareaAsignada($tarea));
+        }
+    }
+
+    public function eliminar(int $tareaId): void
+    {
+        $tarea = $this->curso->tareas()->findOrFail($tareaId);
+        Gate::authorize('eliminar', $tarea);
+
+        $tarea->delete();
+    }
+
     public function render()
     {
         $usuario = auth()->user();
@@ -33,6 +64,7 @@ class Index extends Component
                 ? $q->where('estudiante_id', $usuario->id)
                 : $q,
             ])
+            ->when($usuario->hasRole('estudiante'), fn ($q) => $q->where('visible', true))
             ->orderBy('fecha_entrega')
             ->get();
 

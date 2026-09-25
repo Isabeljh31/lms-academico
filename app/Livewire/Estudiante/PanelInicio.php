@@ -47,6 +47,7 @@ class PanelInicio extends Component
         $cursoIds = $usuario->inscripciones()->pluck('curso_id');
 
         $tareas = Tarea::whereIn('curso_id', $cursoIds)
+            ->where('visible', true)
             ->whereBetween('fecha_entrega', [$inicioMes, $finMes])
             ->with('curso')
             ->get()
