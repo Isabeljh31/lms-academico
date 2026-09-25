@@ -58,6 +58,15 @@
                 </p>
             </div>
 
+            <div class="flex items-center gap-2">
+                <input wire:model="visible" id="visible" type="checkbox"
+                    class="rounded border-stone-300 dark:border-stone-600 text-menta-oscuro focus:ring-menta-base">
+                <x-input-label for="visible" value="Visible para los estudiantes" class="!mb-0" />
+            </div>
+            <p class="-mt-4 text-xs text-stone-400">
+                Desmárcalo si todavía la estás preparando: quedará guardada pero oculta hasta que la publiques desde el listado de tareas.
+            </p>
+
             <div class="flex items-center gap-4">
                 <x-primary-button>Guardar</x-primary-button>
                 <a href="{{ route('cursos.tareas.index', $curso) }}" wire:navigate class="text-sm text-stone-500 hover:underline">Cancelar</a>

@@ -22,6 +22,8 @@ class Formulario extends Component
     /** @var array<int, array{enunciado: string, opciones: array<int, string>, respuesta_correcta: int}> */
     public array $preguntas = [];
 
+    public bool $visible = true;
+
     public function mount(Curso $curso, ?Quiz $quiz = null): void
     {
         $this->curso = $curso;
@@ -33,6 +35,7 @@ class Formulario extends Component
             $this->tema = $quiz->tema;
             $this->modulo_id = $quiz->modulo_id;
             $this->preguntas = $quiz->preguntas;
+            $this->visible = $quiz->visible;
         } else {
             Gate::authorize('crear', [Quiz::class, $curso]);
             $this->agregarPregunta();
@@ -79,6 +82,7 @@ class Formulario extends Component
             'preguntas.*.opciones' => ['required', 'array', 'min:2'],
             'preguntas.*.opciones.*' => ['required', 'string', 'max:255'],
             'preguntas.*.respuesta_correcta' => ['required', 'integer', 'min:0'],
+            'visible' => ['boolean'],
         ]);
 
         if ($this->quiz) {

@@ -18,22 +18,44 @@
         @if ($quizzes->isEmpty())
             <p class="text-stone-500 dark:text-stone-400">Todavía no hay quizzes en este curso.</p>
         @elseif ($this->puedeGestionar)
-            {{-- Vista de profesor/administrador: sin cambios respecto a la versión anterior. --}}
+            {{-- Vista de profesor/administrador. --}}
             <div class="space-y-3">
                 @foreach ($quizzes as $quiz)
-                    <a href="{{ route('cursos.quizzes.show', [$curso, $quiz]) }}" wire:navigate wire:key="quiz-{{ $quiz->id }}"
-                        class="flex items-center justify-between bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 p-4 hover:shadow-md transition">
-                        <div>
-                            <h3 class="font-medium text-stone-800 dark:text-stone-100">{{ $quiz->tema }}</h3>
+                    <div wire:key="quiz-{{ $quiz->id }}"
+                        class="flex items-center justify-between gap-3 bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 p-4 hover:shadow-md transition {{ ! $quiz->visible ? 'opacity-60' : '' }}">
+                        <a href="{{ route('cursos.quizzes.show', [$curso, $quiz]) }}" wire:navigate class="min-w-0 flex-1">
+                            <div class="flex items-center gap-2">
+                                <h3 class="font-medium text-stone-800 dark:text-stone-100 truncate">{{ $quiz->tema }}</h3>
+                                @unless ($quiz->visible)
+                                    <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-stone-200 text-stone-600 dark:bg-stone-700 dark:text-stone-300">Oculto</span>
+                                @endunless
+                            </div>
                             <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">
                                 {{ $quiz->modulo?->titulo }} · {{ count($quiz->preguntas) }} preguntas
                             </p>
-                        </div>
+                        </a>
 
-                        <div>
+                        <div class="flex items-center gap-3 shrink-0">
                             <span class="text-xs text-stone-500 dark:text-stone-400">{{ $quiz->resultados->count() }} resueltos</span>
+                            @if ($quiz->resultados->isNotEmpty())
+                                <a href="{{ route('cursos.quizzes.estadisticas', [$curso, $quiz]) }}" wire:navigate
+                                    class="text-xs font-semibold text-menta-oscuro dark:text-menta-base hover:underline">
+                                    Estadísticas
+                                </a>
+                            @endif
+                            <button type="button" wire:click="alternarVisibilidad({{ $quiz->id }})"
+                                class="text-xs font-semibold {{ $quiz->visible ? 'text-stone-500 hover:text-stone-700' : 'text-menta-oscuro hover:underline' }}">
+                                {{ $quiz->visible ? 'Ocultar' : 'Publicar' }}
+                            </button>
+                            @if ($quiz->resultados->isEmpty())
+                                <button type="button" wire:click="eliminar({{ $quiz->id }})"
+                                    wire:confirm="¿Eliminar este quiz? Esta acción no se puede deshacer."
+                                    class="text-xs font-semibold text-terracota-oscuro hover:underline">
+                                    Eliminar
+                                </button>
+                            @endif
                         </div>
-                    </a>
+                    </div>
                 @endforeach
             </div>
         @else

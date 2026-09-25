@@ -25,7 +25,18 @@ class TareaPolicy
             return true;
         }
 
-        return $usuario->hasRole('estudiante')
+        return $tarea->visible
+            && $usuario->hasRole('estudiante')
             && $tarea->curso->inscripciones()->where('estudiante_id', $usuario->id)->exists();
+    }
+
+    /**
+     * Eliminar de verdad solo si nadie entregó todavía (ver
+     * Tarea::puedeEliminarse). Con entregas de por medio, la UI debe
+     * ofrecer "ocultar" en vez de este permiso.
+     */
+    public function eliminar(User $usuario, Tarea $tarea): bool
+    {
+        return $this->gestionar($usuario, $tarea) && $tarea->puedeEliminarse();
     }
 }
