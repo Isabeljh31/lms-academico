@@ -35,7 +35,7 @@ class RoleAndUserSeeder extends Seeder
         $profesor = User::firstOrCreate(
             ['email' => 'profesor@lms.edu.pe'],
             [
-                'name' => 'Prof. Juan Perez',
+                'name' => 'Juan Pérez Salinas',
                 'password' => Hash::make('password123'),
                 'email_verified_at' => now(),
             ]

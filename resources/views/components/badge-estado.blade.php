@@ -12,7 +12,9 @@
         // del azul de marca para que el estado se lea de un vistazo.
         ? match (strtolower($estado)) {
             'pendiente' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-            'atrasado' => 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+            'atrasado', 'no_entregado' => 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+            'fuera_de_plazo' => 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+            'devuelto' => 'bg-lavanda-fondo/30 text-lavanda-oscuro dark:bg-lavanda-oscuro/30 dark:text-lavanda-fondo',
             'entregado' => 'bg-celeste text-azul-oscuro dark:bg-azul-oscuro/20 dark:text-celeste',
             'calificado', 'aprobado' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
             'rechazado' => 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
@@ -21,7 +23,9 @@
         }
         : match (strtolower($estado)) {
             'pendiente' => 'bg-arena-medio text-stone-800 dark:bg-stone-700 dark:text-stone-200',
-            'atrasado' => 'bg-terracota-fondo text-terracota-oscuro dark:bg-terracota-oscuro/20 dark:text-terracota-fondo',
+            'atrasado', 'no_entregado' => 'bg-terracota-fondo text-terracota-oscuro dark:bg-terracota-oscuro/20 dark:text-terracota-fondo',
+            'fuera_de_plazo' => 'bg-arena-medio text-terracota-oscuro dark:bg-stone-700 dark:text-terracota-fondo',
+            'devuelto' => 'bg-cafe-arcilla/20 text-cafe-arcilla dark:bg-cafe-arcilla/30 dark:text-arena-medio',
             'entregado' => 'bg-menta-fondo text-menta-oscuro dark:bg-menta-oscuro/20 dark:text-menta-fondo',
             'calificado', 'aprobado' => 'bg-exito-base/20 text-exito-oscuro dark:bg-exito-oscuro/30 dark:text-exito-base',
             'rechazado' => 'bg-terracota-oscuro/10 text-terracota-oscuro dark:bg-terracota-oscuro/30 dark:text-terracota-fondo',
@@ -37,6 +41,10 @@
         'aprobado' => 'Aprobado',
         'rechazado' => 'Rechazado',
         'en_progreso' => 'En progreso',
+        // ERS RF-43: estados calculados de una tarea por estudiante.
+        'no_entregado' => 'No entregado',
+        'fuera_de_plazo' => 'Fuera de plazo',
+        'devuelto' => 'Devuelto para corrección',
     ];
 
     $texto = $etiquetas[strtolower($estado)] ?? \Illuminate\Support\Str::headline($estado);

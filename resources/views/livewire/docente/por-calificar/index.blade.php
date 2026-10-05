@@ -1,226 +1,110 @@
 <div class="py-8">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+    <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        {{-- Encabezado --}}
-        <div class="flex flex-wrap items-center justify-between gap-4">
-            <div>
-                <h1 class="text-2xl font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
-                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-terracota-fondo text-terracota-oscuro">
-                        📝
-                    </span>
-                    Bandeja Por Calificar (Needs Grading)
-                </h1>
-                <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">
-                    Cola centralizada de entregas Califica y retroalimenta los trabajos de todos tus cursos en un solo lugar, desde una vista centralizada.
-                </p>
-            </div>
+        <x-gestion.encabezado titulo="Por calificar" icono="tarea"
+            descripcion="Entregas pendientes de todos tus cursos, de la más antigua a la más reciente." />
+
+        <x-gestion.alertas />
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <x-gestion.indicador etiqueta="Pendientes" :valor="$totalPendientes" icono="reloj" tono="terracota" detalle="Entregas esperando nota" />
+            <x-gestion.indicador etiqueta="Con más de 3 días" :valor="$conAtraso" icono="alerta" :tono="$conAtraso > 0 ? 'alerta' : 'exito'"
+                :detalle="$conAtraso > 0 ? 'Requieren atención prioritaria' : 'Al día con las revisiones'" />
+            <x-gestion.indicador etiqueta="Cursos a cargo" :valor="$cursos->count()" icono="libro" tono="cafe" />
         </div>
 
-        {{-- Alertas de estado --}}
-        @if (session('estado'))
-            <div class="rounded-xl bg-exito-base/15 border border-exito-base/30 text-exito-oscuro p-4 text-sm flex items-center justify-between shadow-sm">
-                <span>{{ session('estado') }}</span>
-                <button type="button" onclick="this.parentElement.remove()" class="text-exito-oscuro/60 hover:text-exito-oscuro">&times;</button>
-            </div>
-        @endif
-
-        {{-- Tarjetas de Resumen Rápido --}}
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 p-5 shadow-sm">
-                <div class="text-xs font-semibold uppercase text-stone-500">Pendientes en Cola</div>
-                <div class="text-3xl font-black text-terracota-oscuro mt-1">{{ $totalPendientes }}</div>
-                <div class="text-xs text-stone-400 mt-1">Entregas de alumnos esperando nota</div>
-            </div>
-
-            <div class="bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 p-5 shadow-sm">
-                <div class="text-xs font-semibold uppercase text-stone-500">Con Retraso (>3 días)</div>
-                <div class="text-3xl font-black {{ $conAtraso > 0 ? 'text-red-600' : 'text-exito-oscuro' }} mt-1">
-                    {{ $conAtraso }}
-                </div>
-                <div class="text-xs text-stone-400 mt-1">
-                    {{ $conAtraso > 0 ? 'Requieren atención prioritaria' : 'Al día con las revisiones' }}
-                </div>
-            </div>
-
-            <div class="bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 p-5 shadow-sm">
-                <div class="text-xs font-semibold uppercase text-stone-500">Cursos a Cargo</div>
-                <div class="text-3xl font-black text-stone-900 dark:text-stone-100 mt-1">{{ $cursos->count() }}</div>
-                <div class="text-xs text-stone-400 mt-1">Asignaturas activas asignadas</div>
-            </div>
-        </div>
-
-        {{-- Filtros y Búsqueda --}}
-        <div class="bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 p-4 shadow-sm flex flex-wrap items-center gap-4">
-            <div class="flex-1 min-w-[240px]">
-                <input wire:model.live.debounce.300ms="busqueda" type="text"
-                    placeholder="Buscar por nombre de alumno o título de tarea..."
-                    class="w-full rounded-lg border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 focus:border-menta-base focus:ring-menta-base text-sm">
-            </div>
-
-            <div class="w-full sm:w-auto">
-                <select wire:model.live="cursoFiltroId"
-                    class="w-full sm:w-auto rounded-lg border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 focus:border-menta-base focus:ring-menta-base text-sm">
-                    <option value="">-- Todos los cursos --</option>
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <x-gestion.campo etiqueta="Buscar" nombre="busqueda">
+                <x-gestion.control id="busqueda" type="search" wire:model.live.debounce.300ms="busqueda" placeholder="Estudiante o tarea" />
+            </x-gestion.campo>
+            <x-gestion.campo etiqueta="Curso" nombre="cursoFiltroId">
+                <x-gestion.control tipo="select" id="cursoFiltroId" wire:model.live="cursoFiltroId">
+                    <option value="">Todos los cursos</option>
                     @foreach ($cursos as $c)
                         <option value="{{ $c->id }}">{{ $c->nombre }}</option>
                     @endforeach
-                </select>
-            </div>
+                </x-gestion.control>
+            </x-gestion.campo>
         </div>
 
-        {{-- Tabla de Entregas por Calificar --}}
-        <div class="bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 overflow-hidden shadow-sm">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm text-stone-600 dark:text-stone-300">
-                    <thead class="bg-arena-claro/50 dark:bg-stone-700/50 text-xs uppercase tracking-wider text-stone-500 font-bold border-b border-arena-medio dark:border-stone-700">
-                        <tr>
-                            <th class="py-3 px-4">Estudiante / Grupo</th>
-                            <th class="py-3 px-4">Asignatura</th>
-                            <th class="py-3 px-4">Actividad / Tarea</th>
-                            <th class="py-3 px-4">Fecha de Envío</th>
-                            <th class="py-3 px-4 text-center">Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-arena-medio/40 dark:divide-stone-700">
-                        @forelse ($entregas as $entrega)
-                            @php
-                                $diasEspera = $entrega->created_at->diffInDays(now());
-                                $esUrgente = $diasEspera >= 3;
-                            @endphp
-                            <tr class="hover:bg-stone-50 dark:hover:bg-stone-700/30 transition {{ $esUrgente ? 'bg-red-50/30 dark:bg-red-950/10' : '' }}" wire:key="ent-{{ $entrega->id }}">
-                                <td class="py-3 px-4">
-                                    <div class="flex items-center gap-3">
-                                        <img src="{{ $entrega->estudiante?->avatar_url ?? 'https://ui-avatars.com/api/?name='.urlencode($entrega->estudiante?->name ?? 'A').'&background=2F5A78&color=fff' }}"
-                                            alt="{{ $entrega->estudiante?->name }}" class="h-8 w-8 rounded-full object-cover shrink-0">
-                                        <div>
-                                            <div class="font-semibold text-stone-900 dark:text-stone-100">
-                                                {{ $entrega->estudiante?->name }}
-                                            </div>
-                                            @if ($entrega->grupo)
-                                                <span class="inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-lavanda-fondo/50 text-lavanda-oscuro">
-                                                    👥 {{ $entrega->grupo->nombre }}
-                                                </span>
-                                            @endif
-                                        </div>
-                                    </div>
-                                </td>
-
-                                <td class="py-3 px-4">
-                                    <span class="font-medium text-stone-800 dark:text-stone-200">
-                                        {{ $entrega->tarea->curso->nombre }}
-                                    </span>
-                                </td>
-
-                                <td class="py-3 px-4">
-                                    <div>
-                                        <div class="font-semibold text-stone-900 dark:text-stone-100">
-                                            {{ $entrega->tarea->titulo }}
-                                        </div>
-                                        <div class="text-xs text-stone-400">
-                                            Peso: {{ $entrega->tarea->peso_nota }} pts
-                                        </div>
-                                    </div>
-                                </td>
-
-                                <td class="py-3 px-4">
-                                    <div class="flex items-center gap-1.5">
-                                        <span class="text-xs {{ $esUrgente ? 'text-red-600 font-bold' : 'text-stone-500' }}">
-                                            {{ $entrega->created_at->diffForHumans() }}
-                                        </span>
-                                        @if ($esUrgente)
-                                            <span class="text-xs" title="Más de 3 días esperando nota">⚠️</span>
-                                        @endif
-                                    </div>
-                                    <div class="text-[11px] text-stone-400">
-                                        {{ $entrega->created_at->format('d/m/Y H:i') }}
-                                    </div>
-                                </td>
-
-                                <td class="py-3 px-4 text-center">
-                                    <button wire:click="abrirCalificar({{ $entrega->id }})"
-                                        class="inline-flex items-center gap-1 bg-menta-oscuro hover:bg-menta-oscuro/90 text-white font-semibold text-xs px-3 py-1.5 rounded-lg shadow-sm transition">
-                                        Calificar
-                                    </button>
-                                </td>
-                            </tr>
-                        @empty
+        <x-gestion.tarjeta :relleno="false">
+            @if ($entregas->isEmpty())
+                <div class="p-4">
+                    <x-gestion.vacio icono="check-circulo" titulo="No hay entregas pendientes"
+                        descripcion="Cuando tus estudiantes entreguen tareas aparecerán aquí." />
+                </div>
+            @else
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[760px] text-left text-sm">
+                        <thead class="bg-arena-claro/50 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
                             <tr>
-                                <td colspan="5" class="py-10 text-center text-stone-500">
-                                    <div class="text-2xl mb-1">🎉</div>
-                                    <p class="font-semibold">¡No hay entregas pendientes de calificación!</p>
-                                    <p class="text-xs text-stone-400 mt-1">Todos los trabajos de tus cursos están calificados al día.</p>
-                                </td>
+                                <th class="px-4 py-3">Estudiante / grupo</th>
+                                <th class="px-4 py-3">Curso</th>
+                                <th class="px-4 py-3">Tarea</th>
+                                <th class="px-4 py-3">Entregado</th>
+                                <th class="px-4 py-3 text-right">Acción</th>
                             </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="p-4 border-t border-arena-medio/40 dark:border-stone-700">
-                {{ $entregas->links() }}
-            </div>
-        </div>
-
+                        </thead>
+                        <tbody class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                            @foreach ($entregas as $entrega)
+                                @php $esUrgente = $entrega->updated_at->diffInDays(now()) >= 3; @endphp
+                                <tr wire:key="ent-{{ $entrega->id }}" class="{{ $esUrgente ? 'bg-red-50/40 dark:bg-red-950/10' : '' }}">
+                                    <td class="px-4 py-3">
+                                        <p class="font-medium text-stone-800 dark:text-stone-100">{{ $entrega->estudiante?->name }}</p>
+                                        @if ($entrega->grupo)
+                                            <span class="inline-flex items-center gap-1 text-xs text-stone-500"><x-icono nombre="usuarios" class="h-3 w-3" /> {{ $entrega->grupo->nombre }}</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-stone-600 dark:text-stone-300">{{ $entrega->tarea->curso->nombre }}</td>
+                                    <td class="px-4 py-3">
+                                        <a href="{{ route('cursos.tareas.show', [$entrega->tarea->curso_id, $entrega->tarea_id]) }}" wire:navigate class="font-medium text-menta-oscuro hover:underline dark:text-menta-base">{{ $entrega->tarea->titulo }}</a>
+                                    </td>
+                                    <td class="px-4 py-3 text-xs text-stone-500">
+                                        {{ $entrega->updated_at->formatoFechaHora() }}
+                                        @if ($esUrgente)
+                                            <span class="mt-0.5 flex items-center gap-1 font-semibold text-red-600"><x-icono nombre="alerta" class="h-3 w-3" /> {{ $entrega->updated_at->diffInDays(now()) }} días</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-3 text-right">
+                                        <x-gestion.boton tamano="sm" icono="lapiz" wire:click="abrirCalificar({{ $entrega->id }})">Calificar</x-gestion.boton>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <div class="border-t border-arena-medio px-4 py-3 dark:border-stone-700">{{ $entregas->links() }}</div>
+            @endif
+        </x-gestion.tarjeta>
     </div>
 
-    {{-- Modal de Calificación Rápida --}}
     @if ($mostrarModalCalificar && $entregaSeleccionada)
-        <div class="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/50 p-4">
-            <div class="bg-white dark:bg-stone-800 rounded-2xl border border-arena-medio dark:border-stone-700 max-w-lg w-full p-6 space-y-4 shadow-xl">
-                <div class="flex items-center justify-between border-b pb-3 border-arena-medio/50">
-                    <div>
-                        <h3 class="text-lg font-bold text-stone-900 dark:text-stone-100">Calificar Entrega</h3>
-                        <p class="text-xs text-stone-500">{{ $entregaSeleccionada->tarea->curso->nombre }} &bull; {{ $entregaSeleccionada->tarea->titulo }}</p>
-                    </div>
-                    <button wire:click="$set('mostrarModalCalificar', false)" class="text-stone-400 hover:text-stone-600 text-xl font-bold">&times;</button>
-                </div>
-
-                {{-- Datos del Estudiante y Trabajo --}}
-                <div class="bg-stone-50 dark:bg-stone-700/40 rounded-xl p-3 text-xs space-y-1.5 border border-stone-200 dark:border-stone-600">
-                    <div class="flex justify-between">
-                        <span class="text-stone-500 font-medium">Estudiante:</span>
-                        <span class="font-bold text-stone-800 dark:text-stone-200">{{ $entregaSeleccionada->estudiante?->name }}</span>
-                    </div>
-
-                    @if ($entregaSeleccionada->comentario)
-                        <div>
-                            <span class="text-stone-500 font-medium block">Comentario del alumno:</span>
-                            <p class="italic text-stone-700 dark:text-stone-300 mt-0.5">"{{ $entregaSeleccionada->comentario }}"</p>
-                        </div>
-                    @endif
-
-                    @if ($entregaSeleccionada->archivo_url)
-                        <div class="pt-1">
-                            <a href="{{ $entregaSeleccionada->archivo_url }}" target="_blank"
-                                class="inline-flex items-center gap-1 font-semibold text-menta-oscuro dark:text-menta-base hover:underline">
-                                📎 Ver archivo entregado
-                            </a>
-                        </div>
-                    @endif
-                </div>
-
-                <form wire:submit="guardarCalificacion" class="space-y-4">
-                    <div>
-                        <x-input-label for="nota" value="Nota (sobre 20)" />
-                        <x-text-input wire:model="nota" id="nota" type="number" step="0.5" min="0" max="20" class="mt-1 block w-full text-lg font-bold" placeholder="Ej: 16.5" required autofocus />
-                        <x-input-error :messages="$errors->get('nota')" class="mt-1" />
-                    </div>
-
-                    <div>
-                        <x-input-label for="feedback" value="Retroalimentación para el alumno" />
-                        <textarea wire:model="feedback" id="feedback" rows="3"
-                            class="mt-1 block w-full rounded-md border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base text-sm"
-                            placeholder="Excelente trabajo, observa los comentarios en la página 2..."></textarea>
-                        <x-input-error :messages="$errors->get('feedback')" class="mt-1" />
-                    </div>
-
-                    <div class="flex justify-end gap-3 pt-2">
-                        <x-secondary-button wire:click="$set('mostrarModalCalificar', false)" type="button">Cancelar</x-secondary-button>
-                        <x-primary-button type="submit">Guardar y Notificar</x-primary-button>
-                    </div>
-                </form>
+        <x-gestion.modal titulo="Calificar entrega" cerrar="$set('mostrarModalCalificar', false)"
+            descripcion="{{ $entregaSeleccionada->tarea->titulo }} · {{ $entregaSeleccionada->grupo ? $entregaSeleccionada->grupo->nombre.' (se aplica a todo el grupo)' : $entregaSeleccionada->estudiante?->name }}">
+            <div class="space-y-2 rounded-lg bg-arena-claro/50 p-3 text-sm dark:bg-stone-900">
+                @if ($entregaSeleccionada->archivo_url)
+                    <a href="{{ $entregaSeleccionada->archivo_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-menta-oscuro hover:underline"><x-icono nombre="material" class="h-4 w-4" /> Ver archivo</a>
+                @endif
+                @if ($entregaSeleccionada->enlace)
+                    <a href="{{ $entregaSeleccionada->enlace }}" target="_blank" rel="noopener noreferrer" class="ml-3 inline-flex items-center gap-1 text-menta-oscuro hover:underline"><x-icono nombre="enlace" class="h-4 w-4" /> Ver enlace</a>
+                @endif
+                @if ($entregaSeleccionada->respuesta_texto)
+                    <p class="whitespace-pre-line text-stone-700 dark:text-stone-300">{{ $entregaSeleccionada->respuesta_texto }}</p>
+                @endif
+                @if ($entregaSeleccionada->comentario)
+                    <p class="text-stone-500">Comentario: "{{ $entregaSeleccionada->comentario }}"</p>
+                @endif
             </div>
-        </div>
+            <x-gestion.campo etiqueta="Nota (0 a 20)" nombre="nota" requerido>
+                <x-gestion.control id="nota" type="number" step="0.01" min="0" max="20" wire:model="nota" />
+            </x-gestion.campo>
+            <x-gestion.campo etiqueta="Comentario para el estudiante" nombre="feedback">
+                <x-gestion.control tipo="textarea" id="feedback" wire:model="feedback" />
+            </x-gestion.campo>
+            <x-slot name="pie">
+                <x-gestion.boton variante="secundario" wire:click="$set('mostrarModalCalificar', false)">Cancelar</x-gestion.boton>
+                <x-gestion.boton icono="check" wire:click="guardarCalificacion">Guardar calificación</x-gestion.boton>
+            </x-slot>
+        </x-gestion.modal>
     @endif
-
 </div>

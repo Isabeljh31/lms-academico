@@ -3,6 +3,7 @@
 namespace App\Services\Bot;
 
 use App\Models\Curso;
+use App\Models\User;
 use App\Services\Bot\Concerns\ConstruyeContextoIA;
 use App\Services\Bot\Contracts\ProveedorIA;
 use Illuminate\Support\Facades\Http;
@@ -30,15 +31,15 @@ class GroqProveedor implements ProveedorIA
     /**
      * @param  array<int, array{rol: string, contenido: string}>  $historial
      */
-    public function responder(string $pregunta, ?Curso $curso, array $historial = []): string
+    public function responder(string $pregunta, ?Curso $curso, array $historial = [], ?User $usuario = null): string
     {
         if (! $this->activo()) {
             return $this->respuestaSimulada($pregunta, $curso, 'GROQ_API_KEY');
         }
 
-        $sistema = $this->promptSistema($curso);
+        $sistema = $this->promptSistema($curso, $usuario);
 
-        $mensajes = collect($historial)
+        $mensajes = collect($this->recortarHistorial($historial))
             ->map(fn ($m) => ['role' => $m['rol'] === 'usuario' ? 'user' : 'assistant', 'content' => $m['contenido']])
             ->push(['role' => 'user', 'content' => $pregunta])
             ->prepend(['role' => 'system', 'content' => $sistema])

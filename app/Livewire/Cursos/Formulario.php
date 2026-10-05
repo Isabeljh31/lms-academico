@@ -2,17 +2,20 @@
 
 namespace App\Livewire\Cursos;
 
+use App\Enums\Rol;
+use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
 use App\Models\User;
+use App\Services\Multimedia\SubidorArchivos;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
 /**
- * Formulario de creación/edición de cursos.
- * ERS RF-19, RF-22: campos de estado, fechas, duración y sesiones.
+ * Formulario de creación/edición de cursos (solo Supervisor).
+ * ERS RF-18, RF-19, RF-22, RF-24, RF-25, RF-73; regla de negocio 8.
  */
 #[Layout('layouts.app')]
 class Formulario extends Component
@@ -21,109 +24,204 @@ class Formulario extends Component
 
     public ?Curso $curso = null;
 
-    // Campos básicos
     public string $nombre = '';
+
+    public string $codigo = '';
+
     public string $descripcion = '';
+
     public ?int $profesor_id = null;
+
+    /**
+     * ERS RF-23: profesores adicionales (co-docentes), además del titular.
+     *
+     * @var array<int, int|string>
+     */
+    public array $profesoresAdicionales = [];
+
     public $portada = null;
 
-    // ERS RF-22: estado de publicación
     // estados: borrador | publicado | despublicado | archivado
     public string $estado = 'borrador';
 
-    // ERS RF-19: fechas, duración y sesiones
     public string $fecha_inicio = '';
+
     public string $fecha_fin = '';
-    public string $semanas_duracion = '';
+
+    /** Semanas en que se organiza el contenido (Semana 1..N); por defecto Curso::SEMANAS_PREDETERMINADAS. */
+    public string $semanas_duracion = '16';
+
     public string $sesiones_clase_count = '';
+
+    public bool $usa_asistencia = true;
 
     public function mount(?Curso $curso = null): void
     {
-        Gate::authorize('crear', Curso::class);
-
         if ($curso && $curso->exists) {
-            Gate::authorize('gestionar', $curso);
+            Gate::authorize('administrar', $curso);
+
             $this->curso = $curso;
-            $this->nombre              = $curso->nombre;
-            $this->descripcion         = $curso->descripcion ?? '';
-            $this->profesor_id         = $curso->profesor_id;
-            $this->estado              = $curso->estado;
-            $this->fecha_inicio        = $curso->fecha_inicio?->format('Y-m-d') ?? '';
-            $this->fecha_fin           = $curso->fecha_fin?->format('Y-m-d') ?? '';
-            $this->semanas_duracion    = (string) ($curso->semanas_duracion ?? '');
+            $this->nombre = $curso->nombre;
+            $this->codigo = $curso->codigo ?? '';
+            $this->descripcion = $curso->descripcion ?? '';
+            $this->profesor_id = $curso->profesor_id;
+            $this->profesoresAdicionales = $curso->profesoresAdicionales()->pluck('users.id')->map(fn ($id) => (string) $id)->all();
+            $this->estado = $curso->estado;
+            $this->fecha_inicio = $curso->fecha_inicio?->format('Y-m-d') ?? '';
+            $this->fecha_fin = $curso->fecha_fin?->format('Y-m-d') ?? '';
+            $this->semanas_duracion = (string) ($curso->semanas_duracion ?? $curso->totalSemanas());
             $this->sesiones_clase_count = (string) ($curso->sesiones_clase_count ?? '');
+            $this->usa_asistencia = (bool) $curso->usa_asistencia;
         } else {
-            // Para nuevo curso: el profesor es el auth si no es supervisor
-            $this->profesor_id = auth()->user()->hasRole('supervisor') ? null : auth()->id();
+            Gate::authorize('crear', Curso::class);
         }
     }
 
-    public function guardar(): void
+    public function getEsArchivadoProperty(): bool
     {
-        Gate::authorize('crear', Curso::class);
+        return (bool) $this->curso?->estaFinalizado();
+    }
+
+    public function guardar(SubidorArchivos $subidor): void
+    {
+        $editando = $this->curso && $this->curso->exists;
+        $editando ? Gate::authorize('administrar', $this->curso) : Gate::authorize('crear', Curso::class);
+
+        // Regla de negocio 8 / RNF-14: un curso archivado solo puede cambiar de estado.
+        if ($editando && $this->esArchivado) {
+            $this->guardarSoloEstado();
+
+            return;
+        }
 
         $this->validate([
-            'nombre'              => ['required', 'string', 'max:255'],
-            'descripcion'         => ['nullable', 'string', 'max:5000'],
-            'profesor_id'         => ['nullable', 'exists:users,id'],
-            'portada'             => ['nullable', 'image', 'max:2048'],
-            'estado'              => ['required', 'string', 'in:borrador,publicado,despublicado,archivado'],
-            'fecha_inicio'        => ['nullable', 'date'],
-            'fecha_fin'           => ['nullable', 'date', 'after_or_equal:fecha_inicio'],
-            'semanas_duracion'    => ['nullable', 'integer', 'min:1', 'max:104'],
+            'nombre' => ['required', 'string', 'max:255'],
+            'codigo' => ['nullable', 'string', 'max:50', 'alpha_dash', Rule::unique('cursos', 'codigo')->ignore($this->curso?->id)],
+            'descripcion' => ['nullable', 'string', 'max:5000'],
+            'profesor_id' => ['required', Rule::exists('users', 'id')],
+            'profesoresAdicionales' => ['array', 'max:10'],
+            'profesoresAdicionales.*' => ['integer', Rule::exists('users', 'id')],
+            'portada' => SubidorArchivos::reglas(config('archivos.extensiones.imagenes'), requerido: false),
+            'estado' => ['required', Rule::in(Curso::ESTADOS)],
+            'fecha_inicio' => ['nullable', 'date'],
+            'fecha_fin' => ['nullable', 'date', 'after_or_equal:fecha_inicio'],
+            // No puede quedar por debajo de la última semana que ya tiene contenido.
+            'semanas_duracion' => ['required', 'integer', 'min:'.max(1, (int) $this->curso?->modulos()->max('semana')), 'max:104'],
             'sesiones_clase_count' => ['nullable', 'integer', 'min:1', 'max:999'],
+            'usa_asistencia' => ['boolean'],
+        ], [
+            'profesor_id.required' => 'Selecciona el profesor titular del curso.',
+            'fecha_fin.after_or_equal' => 'La fecha de fin no puede ser anterior a la de inicio.',
+            'codigo.unique' => 'Ya existe un curso con este código.',
+            'semanas_duracion.required' => 'Indica cuántas semanas dura el curso.',
+            'semanas_duracion.min' => 'La semana :min ya tiene contenido: la duración no puede ser menor. Vacía o mueve esas semanas primero.',
+            ...SubidorArchivos::mensajes('portada'),
         ]);
 
-        // Upload de portada
+        if (! User::role(Rol::Profesor->value)->whereKey($this->profesor_id)->exists()
+            && $this->profesor_id !== $this->curso?->profesor_id) {
+            $this->addError('profesor_id', 'El usuario seleccionado no tiene rol de profesor.');
+
+            return;
+        }
+
+        $adicionales = collect($this->profesoresAdicionales)->map(fn ($id) => (int) $id)
+            ->reject(fn (int $id) => $id === (int) $this->profesor_id)->unique()->values();
+
+        if (User::role(Rol::Profesor->value)->whereKey($adicionales)->count() !== $adicionales->count()) {
+            $this->addError('profesoresAdicionales', 'Todos los profesores adicionales deben tener rol de profesor.');
+
+            return;
+        }
+
+        // ERS RF-25: solo se publica un curso con contenido en al menos una semana (o en prácticas de campo).
+        if ($this->estado === 'publicado' && (! $editando || $this->curso->modulos()->doesntExist())) {
+            $this->addError('estado', 'Para publicar el curso debe tener contenido en al menos una semana. Guárdalo como borrador, prepara sus semanas y luego publícalo.');
+
+            return;
+        }
+
         $portadaUrl = $this->curso?->imagen_portada_url;
+
         if ($this->portada) {
-            $path = $this->portada->store('portadas', 'public');
-            $portadaUrl = Storage::disk('public')->url($path);
+            $portadaUrl = $subidor->subir($this->portada, 'cursos/portadas', 'portada', config('archivos.extensiones.imagenes'));
         }
 
         $datos = [
-            'nombre'               => $this->nombre,
-            'descripcion'          => $this->descripcion ?: null,
-            'profesor_id'          => auth()->user()->hasRole('supervisor')
-                                        ? $this->profesor_id
-                                        : auth()->id(),
-            'imagen_portada_url'   => $portadaUrl,
-            'estado'               => $this->estado,
-            'fecha_inicio'         => $this->fecha_inicio ?: null,
-            'fecha_fin'            => $this->fecha_fin ?: null,
-            'semanas_duracion'     => $this->semanas_duracion ?: null,
+            'nombre' => $this->nombre,
+            'codigo' => $this->codigo !== '' ? strtoupper($this->codigo) : null,
+            'descripcion' => $this->descripcion ?: null,
+            'profesor_id' => $this->profesor_id,
+            'imagen_portada_url' => $portadaUrl,
+            'estado' => $this->estado,
+            'fecha_inicio' => $this->fecha_inicio ?: null,
+            'fecha_fin' => $this->fecha_fin ?: null,
+            'semanas_duracion' => $this->semanas_duracion ?: null,
             'sesiones_clase_count' => $this->sesiones_clase_count ?: null,
+            'usa_asistencia' => $this->usa_asistencia,
         ];
 
-        if ($this->curso && $this->curso->exists) {
-            Gate::authorize('gestionar', $this->curso);
+        if ($editando) {
+            $anterior = $this->curso->only(array_keys($datos)) + ['profesores_adicionales' => $this->curso->profesoresAdicionales()->pluck('users.id')->sort()->values()->all()];
             $this->curso->update($datos);
-            $mensaje = "Curso '{$this->curso->nombre}' actualizado.";
+            $curso = $this->curso;
+            $mensaje = "Curso \"{$curso->nombre}\" actualizado.";
         } else {
-            Curso::create($datos);
-            $mensaje = "Curso '{$this->nombre}' creado exitosamente.";
+            $anterior = null;
+            $curso = Curso::create($datos);
+            $mensaje = "Curso \"{$curso->nombre}\" creado como {$curso->estado}. Agrega sus módulos y define su esquema de evaluación.";
         }
 
+        $curso->profesoresAdicionales()->sync($adicionales->all());
+
+        BitacoraAuditoria::registrarAccionAdmin(
+            ejecutor: auth()->user(),
+            tipoEvento: 'modificacion_curso',
+            descripcion: ($editando ? 'Curso editado: ' : 'Curso creado: ')."\"{$curso->nombre}\" (estado {$curso->estado}).",
+            curso: $curso,
+            valorAnterior: $anterior,
+            valorNuevo: $curso->only(array_keys($datos)) + ['profesores_adicionales' => $adicionales->sort()->values()->all()],
+        );
+
         session()->flash('estado', $mensaje);
-        $this->redirect(route('cursos.index'), navigate: true);
+        $this->redirect(route('cursos.show', $curso), navigate: true);
+    }
+
+    protected function guardarSoloEstado(): void
+    {
+        $this->validate(['estado' => ['required', Rule::in(Curso::ESTADOS)]]);
+
+        if ($this->estado === 'archivado') {
+            $this->addError('estado', 'El curso ya está archivado. Solo puedes cambiar su estado para reabrirlo.');
+
+            return;
+        }
+
+        $this->curso->update(['estado' => $this->estado]);
+
+        BitacoraAuditoria::registrarAccionAdmin(
+            ejecutor: auth()->user(),
+            tipoEvento: 'modificacion_curso',
+            descripcion: "Curso reabierto: \"{$this->curso->nombre}\".",
+            curso: $this->curso,
+            valorAnterior: 'archivado',
+            valorNuevo: $this->estado,
+        );
+
+        session()->flash('estado', "El curso \"{$this->curso->nombre}\" se reabrió con estado {$this->estado}.");
+        $this->redirect(route('cursos.show', $this->curso), navigate: true);
     }
 
     public function render()
     {
-        $profesores = auth()->user()->hasRole('supervisor')
-            ? User::role('profesor')->orderBy('name')->get()
-            : collect();
-
-        $estadosCurso = [
-            'borrador'      => 'Borrador (no visible para estudiantes)',
-            'publicado'     => 'Publicado (visible y con inscripciones activas)',
-            'despublicado'  => 'Despublicado (oculto temporalmente)',
-            'archivado'     => 'Archivado (finalizado, historial conservado)',
-        ];
-
         return view('livewire.cursos.formulario', [
-            'profesores'   => $profesores,
-            'estadosCurso' => $estadosCurso,
-        ]);
+            'profesores' => User::role(Rol::Profesor->value)->where('activo', true)->orderBy('name')->get(),
+            'estadosCurso' => [
+                'borrador' => 'Borrador (no visible para estudiantes)',
+                'publicado' => 'Publicado (visible para los estudiantes matriculados)',
+                'despublicado' => 'Despublicado (oculto temporalmente)',
+                'archivado' => 'Archivado (finalizado: ya no admite cambios)',
+            ],
+        ])->title(($this->curso ? 'Editar curso' : 'Nuevo curso').' — LearnUp');
     }
 }

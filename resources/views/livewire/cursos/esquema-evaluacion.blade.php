@@ -1,233 +1,87 @@
-<div class="p-6 space-y-6">
-    @if(session('estado'))
-        <div class="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 px-4 py-3 text-sm text-green-700 dark:text-green-300">
-            {{ session('estado') }}
-        </div>
-    @endif
-    @if(session('advertencia'))
-        <div class="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
-            ⚠️ {{ session('advertencia') }}
-        </div>
-    @endif
+<div class="py-8">
+    <div class="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-    {{-- Encabezado --}}
-    <div class="flex items-center justify-between">
-        <div>
-            <h1 class="text-2xl font-bold text-stone-800 dark:text-stone-100">
-                Esquema de Evaluación
-            </h1>
-            <p class="text-sm text-stone-500 mt-1">{{ $curso->nombre }}</p>
-        </div>
-        @role('supervisor')
-        @if(!$curso->estaFinalizado())
-        <button wire:click="abrirModalNuevo"
-            class="inline-flex items-center gap-2 rounded-lg bg-terracota-base px-4 py-2 text-sm font-semibold text-white hover:bg-terracota-oscuro transition">
-            + Agregar Rubro
-        </button>
-        @endif
-        @endrole
-    </div>
+        <x-gestion.encabezado titulo="Esquema de evaluación" icono="grafico" :descripcion="$curso->nombre"
+            :volver="route('cursos.show', $curso)" volver-texto="Volver al curso">
+            <x-gestion.boton variante="secundario" icono="lista" :href="route('cursos.libro-calificaciones', $curso)">Libro de calificaciones</x-gestion.boton>
+        </x-gestion.encabezado>
 
-    {{-- Estado del esquema --}}
-    <div class="flex items-center gap-3 rounded-xl border {{ $pesosOk ? 'border-green-200 bg-green-50 dark:border-green-700 dark:bg-green-900/10' : 'border-amber-200 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/10' }} px-4 py-3">
-        <span class="text-lg">{{ $pesosOk ? '✅' : '⚠️' }}</span>
-        <div>
-            <p class="text-sm font-medium {{ $pesosOk ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300' }}">
-                Suma de pesos: {{ $sumaPesos }}% {{ $pesosOk ? '— Esquema válido' : '— Debe ser exactamente 100%' }}
-            </p>
-            <p class="text-xs text-stone-500 dark:text-stone-400">
-                Nota mínima aprobatoria: {{ $notaMinima }} / 20
-            </p>
-        </div>
-    </div>
+        <x-gestion.alertas />
 
-    {{-- Tabla de Rubros --}}
-    <div class="bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 overflow-hidden">
-        <div class="px-4 py-3 border-b border-stone-100 dark:border-stone-700">
-            <h2 class="text-sm font-semibold text-stone-700 dark:text-stone-300">Rubros de Evaluación</h2>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <x-gestion.indicador etiqueta="Suma de pesos" :valor="number_format($this->sumaPesos, 2).' %'" icono="grafico" :tono="$pesosOk ? 'exito' : 'alerta'"
+                :detalle="$pesosOk ? 'Correcto: suma 100 %' : 'Debe sumar exactamente 100 %'" />
+            <x-gestion.indicador etiqueta="Nota mínima aprobatoria" :valor="$notaMinima.' / 20'" icono="escudo" tono="cafe" detalle="Configuración general de la plataforma" />
+            <x-gestion.indicador etiqueta="Notas registradas" :valor="$notasRegistradas" icono="lista" :detalle="$totalEstudiantes.' estudiantes matriculados'" />
         </div>
-        @if($rubros->isEmpty())
-            <p class="px-4 py-8 text-center text-sm text-stone-400 dark:text-stone-500">
-                Sin rubros definidos. Agrega el primero con el botón de arriba.
-            </p>
-        @else
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="text-left text-xs font-medium text-stone-400 uppercase tracking-wider border-b border-stone-100 dark:border-stone-700">
-                        <th class="px-4 py-2">#</th>
-                        <th class="px-4 py-2">Nombre</th>
-                        <th class="px-4 py-2">Semana</th>
-                        <th class="px-4 py-2">Peso %</th>
-                        @role('supervisor')
-                        @if(!$curso->estaFinalizado())
-                        <th class="px-4 py-2">Acciones</th>
-                        @endif
-                        @endrole
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-stone-50 dark:divide-stone-700/50">
-                    @foreach($rubros as $rubro)
-                    <tr class="hover:bg-stone-50 dark:hover:bg-stone-700/20">
-                        <td class="px-4 py-3 text-stone-400">{{ $rubro->orden }}</td>
-                        <td class="px-4 py-3 font-medium text-stone-800 dark:text-stone-200">{{ $rubro->nombre }}</td>
-                        <td class="px-4 py-3 text-stone-600 dark:text-stone-400">
-                            {{ $rubro->semana ? "Semana {$rubro->semana}" : '—' }}
-                        </td>
-                        <td class="px-4 py-3">
-                            <span class="inline-flex items-center rounded-full bg-terracota-base/10 text-terracota-oscuro dark:text-terracota-claro px-2 py-0.5 text-xs font-semibold">
-                                {{ $rubro->peso }}%
-                            </span>
-                        </td>
-                        @role('supervisor')
-                        @if(!$curso->estaFinalizado())
-                        <td class="px-4 py-3 flex items-center gap-2">
-                            <button wire:click="abrirModalEditar({{ $rubro->id }})"
-                                class="text-xs text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 transition">
-                                Editar
-                            </button>
-                            <button wire:click="eliminarRubro({{ $rubro->id }})"
-                                wire:confirm="¿Eliminar el rubro '{{ $rubro->nombre }}'? Esta acción no se puede deshacer."
-                                class="text-xs text-red-500 hover:text-red-700 transition">
-                                Eliminar
-                            </button>
-                        </td>
-                        @endif
-                        @endrole
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        @endif
-    </div>
 
-    {{-- Tabla de calificaciones por Rubro (ERS RF-57, RF-59, RF-63, RF-64) --}}
-    @if($rubros->isNotEmpty() && $filas->isNotEmpty())
-    <div class="bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 overflow-hidden">
-        <div class="px-4 py-3 border-b border-stone-100 dark:border-stone-700">
-            <h2 class="text-sm font-semibold text-stone-700 dark:text-stone-300">Notas por Rubro</h2>
-            <p class="text-xs text-stone-400 dark:text-stone-500 mt-0.5">
-                Haz clic en una celda de nota para registrar o editar.
-            </p>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead>
-                    <tr class="text-left text-xs font-medium text-stone-400 uppercase tracking-wider border-b border-stone-100 dark:border-stone-700">
-                        <th class="px-4 py-2 sticky left-0 bg-white dark:bg-stone-800">Estudiante</th>
-                        @foreach($rubros as $rubro)
-                        <th class="px-3 py-2 text-center">
-                            {{ $rubro->nombre }}<br>
-                            <span class="normal-case font-normal text-stone-400">({{ $rubro->peso }}%)</span>
-                        </th>
-                        @endforeach
-                        <th class="px-4 py-2 text-center font-bold">Nota Final</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-stone-50 dark:divide-stone-700/50">
-                    @foreach($filas as $fila)
-                    <tr class="hover:bg-stone-50 dark:hover:bg-stone-700/20">
-                        <td class="px-4 py-3 font-medium text-stone-800 dark:text-stone-200 sticky left-0 bg-white dark:bg-stone-800">
-                            {{ $fila['estudiante']->name }}
-                        </td>
-                        @foreach($rubros as $rubro)
-                        <td class="px-3 py-3 text-center">
-                            @php $nota = $fila['notas'][$rubro->id] ?? null; @endphp
-                            <button wire:click="abrirModalNota({{ $rubro->id }}, {{ $fila['estudiante']->id }})"
-                                class="w-14 rounded-lg {{ $nota?->nota !== null ? 'bg-menta-fondo dark:bg-menta-oscuro/20 text-menta-oscuro dark:text-menta-base font-semibold' : 'bg-stone-100 dark:bg-stone-700 text-stone-400' }} px-2 py-1 text-sm hover:ring-2 hover:ring-terracota-base transition">
-                                {{ $nota?->nota !== null ? number_format($nota->nota, 1) : '—' }}
-                            </button>
-                        </td>
-                        @endforeach
-                        {{-- Nota Final (ERS RF-58): resaltar en rojo si < nota mínima (RF-64) --}}
-                        <td class="px-4 py-3 text-center">
-                            @if($fila['nota_final'] !== null)
-                                <span class="inline-flex items-center rounded-full px-3 py-1 text-sm font-bold
-                                    {{ $fila['aprobado'] ? 'bg-green-100 text-green-700 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400' }}">
-                                    {{ number_format($fila['nota_final'], 1) }}
-                                </span>
-                            @else
-                                <span class="text-stone-300 dark:text-stone-600">—</span>
-                            @endif
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-    </div>
-    @endif
+        @unless ($this->editable)
+            <div role="alert" class="flex items-start gap-3 rounded-xl border border-terracota-base/50 bg-arena-claro px-4 py-3 text-sm text-terracota-oscuro dark:bg-stone-800 dark:text-terracota-fondo">
+                <x-icono nombre="archivo" class="h-5 w-5 shrink-0" />
+                <p>El curso está finalizado: su esquema de evaluación ya no se puede modificar.</p>
+            </div>
+        @endunless
 
-    {{-- Modal: Rubro --}}
-    @if($mostrarModal)
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-        <div class="bg-white dark:bg-stone-800 rounded-2xl shadow-2xl w-full max-w-md p-6">
-            <h3 class="text-lg font-bold text-stone-800 dark:text-stone-100 mb-4">
-                {{ $rubroId ? 'Editar Rubro' : 'Nuevo Rubro de Evaluación' }}
-            </h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Nombre *</label>
-                    <input wire:model="nombre" type="text" placeholder="ej. Evaluación 1, Examen Final..."
-                        class="w-full rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-3 py-2 text-sm text-stone-900 dark:text-stone-100">
-                    @error('nombre') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+        <form wire:submit="guardar">
+            <x-gestion.tarjeta titulo="Rubros" descripcion="La nota final de cada estudiante es la suma de la nota de cada rubro (0 a 20) multiplicada por su peso. Las tareas y quizzes no se suman solos." :relleno="false">
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[560px] text-sm">
+                        <thead class="bg-arena-claro/50 text-left text-xs font-semibold uppercase tracking-wide text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
+                            <tr>
+                                <th class="px-4 py-2">Rubro</th>
+                                <th class="w-28 px-4 py-2">Semana</th>
+                                <th class="w-32 px-4 py-2">Peso (%)</th>
+                                @if ($this->editable) <th class="w-16 px-4 py-2"><span class="sr-only">Acciones</span></th> @endif
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                            @foreach ($rubros as $i => $rubro)
+                                <tr wire:key="rubro-{{ $rubro['id'] ?? 'nuevo-'.$i }}">
+                                    <td class="px-4 py-2 align-top">
+                                        <label class="sr-only" for="rubro-nombre-{{ $i }}">Nombre del rubro</label>
+                                        <x-gestion.control id="rubro-nombre-{{ $i }}" wire:model="rubros.{{ $i }}.nombre" :disabled="! $this->editable" />
+                                        @error('rubros.'.$i.'.nombre') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                    </td>
+                                    <td class="px-4 py-2 align-top">
+                                        <label class="sr-only" for="rubro-semana-{{ $i }}">Semana</label>
+                                        <x-gestion.control id="rubro-semana-{{ $i }}" type="number" min="1" wire:model="rubros.{{ $i }}.semana" :disabled="! $this->editable" />
+                                        @error('rubros.'.$i.'.semana') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                    </td>
+                                    <td class="px-4 py-2 align-top">
+                                        <label class="sr-only" for="rubro-peso-{{ $i }}">Peso</label>
+                                        <x-gestion.control id="rubro-peso-{{ $i }}" type="number" step="0.01" min="0" max="100" wire:model.live.debounce.300ms="rubros.{{ $i }}.peso" :disabled="! $this->editable" />
+                                        @error('rubros.'.$i.'.peso') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                    </td>
+                                    @if ($this->editable)
+                                        <td class="px-4 py-2 text-right align-top">
+                                            <button type="button" wire:click="quitarRubro({{ $i }})" class="rounded p-2 text-stone-400 hover:bg-arena-claro hover:text-terracota-oscuro dark:hover:bg-stone-700"
+                                                aria-label="Quitar rubro {{ $rubro['nombre'] }}" wire:confirm="¿Quitar el rubro {{ $rubro['nombre'] }}? El cambio se aplica al guardar.">
+                                                <x-icono nombre="papelera" class="h-4 w-4" />
+                                            </button>
+                                        </td>
+                                    @endif
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot class="border-t border-arena-medio dark:border-stone-700">
+                            <tr>
+                                <td class="px-4 py-3 text-sm font-semibold text-stone-700 dark:text-stone-200" colspan="2">Total</td>
+                                <td class="px-4 py-3 font-bold {{ $pesosOk ? 'text-exito-oscuro' : 'text-red-600' }}">{{ number_format($this->sumaPesos, 2) }} %</td>
+                                @if ($this->editable) <td></td> @endif
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Semana</label>
-                        <input wire:model="semana" type="number" min="1" max="52" placeholder="ej. 4"
-                            class="w-full rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-3 py-2 text-sm text-stone-900 dark:text-stone-100">
+                @error('rubros')
+                    <p class="flex items-center gap-1 border-t border-arena-medio px-4 py-3 text-sm font-medium text-red-600 dark:border-stone-700"><x-icono nombre="alerta" class="h-4 w-4" /> {{ $message }}</p>
+                @enderror
+                @if ($this->editable)
+                    <div class="flex flex-col gap-2 border-t border-arena-medio px-4 py-3 sm:flex-row sm:justify-between dark:border-stone-700">
+                        <x-gestion.boton variante="secundario" icono="mas" wire:click="agregarRubro">Agregar rubro</x-gestion.boton>
+                        <x-gestion.boton type="submit" icono="check" :disabled="! $pesosOk">Guardar esquema</x-gestion.boton>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Peso % *</label>
-                        <input wire:model="peso" type="number" min="0.01" max="100" step="0.01" placeholder="ej. 30"
-                            class="w-full rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-3 py-2 text-sm text-stone-900 dark:text-stone-100">
-                        @error('peso') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                    </div>
-                </div>
-            </div>
-            <div class="flex justify-end gap-3 mt-6">
-                <button wire:click="$set('mostrarModal', false)"
-                    class="rounded-lg border border-stone-300 dark:border-stone-600 px-4 py-2 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700 transition">
-                    Cancelar
-                </button>
-                <button wire:click="guardarRubro"
-                    class="rounded-lg bg-terracota-base px-4 py-2 text-sm font-semibold text-white hover:bg-terracota-oscuro transition">
-                    Guardar
-                </button>
-            </div>
-        </div>
+                @endif
+            </x-gestion.tarjeta>
+        </form>
     </div>
-    @endif
-
-    {{-- Modal: Nota de Rubro --}}
-    @if($mostrarModalNota)
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-        <div class="bg-white dark:bg-stone-800 rounded-2xl shadow-2xl w-full max-w-sm p-6">
-            <h3 class="text-lg font-bold text-stone-800 dark:text-stone-100 mb-4">Registrar Nota (0–20)</h3>
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Nota *</label>
-                    <input wire:model="notaInput" type="number" min="0" max="20" step="0.1" placeholder="ej. 14.5"
-                        class="w-full rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-3 py-2 text-sm text-stone-900 dark:text-stone-100">
-                    @error('notaInput') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Motivo del ajuste</label>
-                    <input wire:model="motivoInput" type="text" placeholder="(opcional)"
-                        class="w-full rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-700 px-3 py-2 text-sm text-stone-900 dark:text-stone-100">
-                </div>
-            </div>
-            <div class="flex justify-end gap-3 mt-6">
-                <button wire:click="$set('mostrarModalNota', false)"
-                    class="rounded-lg border border-stone-300 dark:border-stone-600 px-4 py-2 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-50 transition">
-                    Cancelar
-                </button>
-                <button wire:click="guardarNota"
-                    class="rounded-lg bg-menta-oscuro px-4 py-2 text-sm font-semibold text-white hover:bg-menta-base transition">
-                    Guardar nota
-                </button>
-            </div>
-        </div>
-    </div>
-    @endif
 </div>

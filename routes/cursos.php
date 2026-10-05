@@ -1,10 +1,13 @@
 <?php
 
+use App\Http\Controllers\RecursoLeccionController;
+use App\Livewire\Asistencia\MiHistorial;
 use App\Livewire\Cursos\Formulario;
 use App\Livewire\Cursos\Index;
 use App\Livewire\Cursos\LibroCalificaciones;
 use App\Livewire\Cursos\Show;
 use App\Livewire\Grupos\Index as GruposIndex;
+use App\Livewire\Quizzes\BancoPreguntas;
 use App\Livewire\Quizzes\Estadisticas;
 use App\Livewire\Quizzes\Resolver;
 use App\Livewire\Tareas\Detalle;
@@ -15,8 +18,8 @@ Route::middleware(['auth', 'verified'])
     ->name('cursos.')
     ->group(function () {
         Route::get('/', Index::class)->name('index');
-        Route::get('/crear', Formulario::class)->name('crear');
-        Route::get('/{curso}/editar', Formulario::class)->name('editar');
+        Route::get('/crear', Formulario::class)->middleware('role:supervisor')->name('crear');
+        Route::get('/{curso}/editar', Formulario::class)->middleware('role:supervisor')->name('editar');
 
         Route::prefix('{curso}/tareas')
             ->name('tareas.')
@@ -39,7 +42,23 @@ Route::middleware(['auth', 'verified'])
                 Route::get('/{quiz}', Resolver::class)->name('show');
             });
 
-        Route::get('/{curso}/grupos', GruposIndex::class)->name('grupos.index');
-        Route::get('/{curso}/libro-calificaciones', LibroCalificaciones::class)->name('libro-calificaciones');
+        // ERS RF-47: banco de preguntas por tema (Profesor del curso)
+        Route::get('/{curso}/banco-preguntas', BancoPreguntas::class)
+            ->middleware('role:profesor')
+            ->name('banco-preguntas');
+        // ERS RF-72: historial de asistencia del propio estudiante
+        Route::get('/{curso}/mi-asistencia', MiHistorial::class)
+            ->middleware('role:estudiante')
+            ->name('mi-asistencia');
+        Route::get('/{curso}/grupos', GruposIndex::class)
+            ->middleware('role:profesor|supervisor')
+            ->name('grupos.index');
+        Route::get('/{curso}/libro-calificaciones', LibroCalificaciones::class)
+            ->middleware('role:profesor|supervisor')
+            ->name('libro-calificaciones');
+        // ERS RF-36/RF-67: abre el video o material de una lección (y la completa si así se configuró).
+        Route::get('/{curso}/lecciones/{leccion}/{recurso}', RecursoLeccionController::class)
+            ->whereIn('recurso', ['video', 'material'])
+            ->name('lecciones.recurso');
         Route::get('/{curso}', Show::class)->name('show');
     });

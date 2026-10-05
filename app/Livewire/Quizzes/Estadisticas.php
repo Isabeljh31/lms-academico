@@ -3,6 +3,7 @@
 namespace App\Livewire\Quizzes;
 
 use App\Models\Quiz;
+use App\Services\ConfiguracionPlataforma;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -20,7 +21,7 @@ class Estadisticas extends Component
 
     public function mount(Quiz $quiz): void
     {
-        Gate::authorize('gestionar', $quiz);
+        Gate::authorize('supervisar', $quiz);
 
         $this->quiz = $quiz;
     }
@@ -32,6 +33,7 @@ class Estadisticas extends Component
         return view('livewire.quizzes.estadisticas', [
             'preguntas' => $this->quiz->estadisticasPorPregunta(),
             'totalIntentos' => $this->quiz->resultados->count(),
+            'notaMinima' => app(ConfiguracionPlataforma::class)->notaMinimaAprobatoria(),
             'promedioGeneral' => $this->quiz->resultados->isNotEmpty()
                 ? round((float) $this->quiz->resultados->avg('puntaje'), 2)
                 : null,

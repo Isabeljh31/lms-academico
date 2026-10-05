@@ -29,7 +29,7 @@ class IntegracionExterna extends Model
     protected function casts(): array
     {
         return [
-            'activo'     => 'boolean',
+            'activo' => 'boolean',
             'ultimo_uso' => 'datetime',
         ];
     }
@@ -45,17 +45,41 @@ class IntegracionExterna extends Model
      */
     public static function generarApiKey(string $nombre, ?string $descripcion = null): array
     {
-        $apiKeyPlana = 'LU_' . Str::random(40);
+        $apiKeyPlana = 'LU_'.Str::random(40);
         $prefix = substr($apiKeyPlana, 0, 8);
 
         $modelo = static::create([
-            'nombre'        => $nombre,
-            'api_key_hash'  => Hash::make($apiKeyPlana),
+            'nombre' => $nombre,
+            'api_key_hash' => Hash::make($apiKeyPlana),
             'api_key_prefix' => $prefix,
-            'descripcion'   => $descripcion,
+            'descripcion' => $descripcion,
         ]);
 
         return [$modelo, $apiKeyPlana];
+    }
+
+    /**
+     * ERS RNF-04: reemplaza la API Key por una nueva (la anterior deja de
+     * funcionar de inmediato) y reactiva la integración. Devuelve la key
+     * plana, que solo se muestra una vez.
+     */
+    public function regenerarApiKey(): string
+    {
+        $apiKeyPlana = 'LU_'.Str::random(40);
+
+        $this->forceFill([
+            'api_key_hash' => Hash::make($apiKeyPlana),
+            'api_key_prefix' => substr($apiKeyPlana, 0, 8),
+            'activo' => true,
+        ])->save();
+
+        return $apiKeyPlana;
+    }
+
+    /** ERS RNF-04: revoca la API Key; las solicitudes con ella serán rechazadas. */
+    public function revocar(): void
+    {
+        $this->forceFill(['activo' => false])->save();
     }
 
     /** Verifica si la API Key plana corresponde a esta integracion. */

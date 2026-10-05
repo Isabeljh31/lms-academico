@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\Rol;
 use App\Livewire\BotSugerencias\Bandeja;
+use App\Livewire\EventoCalendario\Index as Calendario;
 use App\Models\Curso;
 use App\Models\EventoCalendario;
 use App\Models\Modulo;
@@ -176,5 +177,65 @@ class PropuestaBotTest extends TestCase
             ->assertForbidden();
 
         $this->assertSame(1, EventoCalendario::count());
+    }
+
+    public function test_la_bandeja_precarga_la_fecha_propuesta_y_usa_el_color_del_curso_del_calendario(): void
+    {
+        [$estudiante, $curso, $tarea] = $this->estudianteConTareaAtrasada();
+        app(PropuestaBotService::class)->detectarAtrasos();
+        $propuesta = PropuestaBot::where('usuario_id', $estudiante->id)->firstOrFail();
+        $fechaPropuesta = substr($propuesta->datos_propuesta['nueva_fecha_recordatorio'], 0, 16);
+        $colorDelCalendario = Livewire::actingAs($estudiante)->test(Calendario::class)->instance()->coloresCursos[$curso->id];
+
+        Livewire::actingAs($estudiante)
+            ->test(Bandeja::class)
+            ->assertSet("fechasAjustadas.{$propuesta->id}", $fechaPropuesta)
+            ->assertSee('Por revisar')
+            ->assertSee('Atraso detectado')
+            ->assertSee("background-color: {$colorDelCalendario}", false)
+            ->assertSee(route('evento-calendario.index', [
+                'fecha' => substr($fechaPropuesta, 0, 10),
+                'evento' => 'tarea-'.$tarea->id,
+                'desde' => 'propuestas',
+            ]));
+    }
+
+    public function test_aceptar_con_fecha_ajustada_crea_el_recordatorio_en_esa_fecha_y_lo_enlaza(): void
+    {
+        [$estudiante] = $this->estudianteConTareaAtrasada();
+        app(PropuestaBotService::class)->detectarAtrasos();
+        $propuesta = PropuestaBot::where('usuario_id', $estudiante->id)->firstOrFail();
+
+        Livewire::actingAs($estudiante)
+            ->test(Bandeja::class)
+            ->set("fechasAjustadas.{$propuesta->id}", '2026-12-01T09:30')
+            ->call('aceptar', $propuesta->id)
+            ->assertHasNoErrors()
+            ->assertSee('Estás al día')
+            ->assertSee('Resueltas');
+
+        $evento = EventoCalendario::sole();
+        $this->assertSame('2026-12-01 09:30', $evento->fecha->format('Y-m-d H:i'));
+        $this->assertSame($evento->id, $propuesta->fresh()->datos_propuesta['evento_calendario_id']);
+
+        Livewire::actingAs($estudiante)
+            ->test(Bandeja::class)
+            ->assertSee(route('evento-calendario.index', ['fecha' => '2026-12-01', 'evento' => 'evento-'.$evento->id, 'desde' => 'propuestas']));
+    }
+
+    public function test_una_fecha_invalida_no_acepta_la_propuesta_ni_toca_el_calendario(): void
+    {
+        [$estudiante] = $this->estudianteConTareaAtrasada();
+        app(PropuestaBotService::class)->detectarAtrasos();
+        $propuesta = PropuestaBot::where('usuario_id', $estudiante->id)->firstOrFail();
+
+        Livewire::actingAs($estudiante)
+            ->test(Bandeja::class)
+            ->set("fechasAjustadas.{$propuesta->id}", 'no-es-una-fecha')
+            ->call('aceptar', $propuesta->id)
+            ->assertHasErrors("fechasAjustadas.{$propuesta->id}");
+
+        $this->assertSame('pendiente', $propuesta->fresh()->estado);
+        $this->assertSame(0, EventoCalendario::count());
     }
 }

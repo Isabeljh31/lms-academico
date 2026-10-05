@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Collection;
 
 class Comunicado extends Model
 {
@@ -18,12 +19,16 @@ class Comunicado extends Model
         'prioridad',
         'destinatario',
         'activo',
+        'publicar_en',
+        'notificado',
     ];
 
     protected function casts(): array
     {
         return [
             'activo' => 'boolean',
+            'publicar_en' => 'datetime',
+            'notificado' => 'boolean',
         ];
     }
 
@@ -37,9 +42,34 @@ class Comunicado extends Model
         return $this->belongsTo(Curso::class, 'curso_id');
     }
 
+    /**
+     * ERS RF-87: activo y con su fecha de publicación ya alcanzada.
+     */
     public function scopeActivos($query)
     {
-        return $query->where('activo', true);
+        return $query->where('activo', true)
+            ->where(fn ($q) => $q->whereNull('publicar_en')->orWhere('publicar_en', '<=', now()));
+    }
+
+    public function estaPublicado(): bool
+    {
+        return $this->activo && ($this->publicar_en === null || $this->publicar_en->lte(now()));
+    }
+
+    /**
+     * Usuarios que deben recibir la notificación del comunicado institucional.
+     *
+     * @return Collection<int, User>
+     */
+    public function destinatarios(): Collection
+    {
+        $roles = match ($this->destinatario) {
+            'profesores' => ['profesor'],
+            'estudiantes' => ['estudiante'],
+            default => ['profesor', 'estudiante'],
+        };
+
+        return User::role($roles)->where('activo', true)->get();
     }
 
     public function scopeInstitucionales($query)

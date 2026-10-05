@@ -2,41 +2,54 @@
 
 namespace App\Livewire\Usuarios;
 
-use App\Mail\BienvenidaMail;
-use App\Models\BitacoraAuditoria;
 use App\Models\User;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
+use App\Services\HojasCalculo\LectorXlsx;
+use App\Services\Usuarios\GestorCuentas;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
+use RuntimeException;
+use Throwable;
 
 /**
- * ERS RF-11: Importación masiva de usuarios desde CSV.
- * ERS RF-12: Validación fila por fila con reporte de errores.
- * ERS RF-13: Reporte final: creados / omitidos (ya existían) / con error.
+ * ERS RF-11: importación masiva de usuarios desde un libro de Excel (.xlsx)
+ *            o un archivo CSV (separador coma o punto y coma).
+ * ERS RF-12: validación fila por fila sin bloquear las filas válidas.
+ * ERS RF-13: reporte final: creados, omitidos (ya existían) y con error.
  *
- * Formato CSV esperado:
- *   nombre,correo,rol
- *   Ana García,ana@escuela.pe,estudiante
- *   Juan López,juan@escuela.pe,profesor
+ * Columnas: nombres, apellidos, correo, rol (también se acepta "nombre" con
+ * el nombre completo, y "email" en lugar de "correo").
  */
 #[Layout('layouts.app')]
 class ImportarCSV extends Component
 {
     use WithFileUploads;
 
+    public const MAX_FILAS = 1000;
+
     public $archivo = null;
+
     public bool $procesado = false;
 
-    // Resultados
+    /** @var array<int, array<string, string>> */
     public array $creados = [];
+
+    /** @var array<int, array<string, string|int>> */
     public array $omitidos = [];
+
+    /** @var array<int, array<string, string|int>> */
     public array $errores = [];
+
+    /** @var array<int, array<string, string>> */
     public array $preview = [];
 
     public bool $mostrarPreview = false;
+
+    public function mount(): void
+    {
+        Gate::authorize('verListado', User::class);
+    }
 
     public function updatedArchivo(): void
     {
@@ -48,112 +61,84 @@ class ImportarCSV extends Component
 
     public function previsualizar(): void
     {
-        if (!$this->archivo) return;
+        Gate::authorize('verListado', User::class);
 
-        $this->validate(['archivo' => ['required', 'file', 'mimes:csv,txt', 'max:2048']]);
+        if (! $this->archivo) {
+            return;
+        }
 
-        $path = $this->archivo->getRealPath();
-        $filas = $this->parsearCSV($path);
+        $this->validarArchivo();
+
+        $filas = $this->leerFilas();
+
+        if ($filas === null) {
+            return;
+        }
+
         $this->preview = array_slice($filas, 0, 10);
         $this->mostrarPreview = true;
     }
 
-    public function importar(): void
+    public function importar(GestorCuentas $gestor): void
     {
-        abort_unless(auth()->user()->hasRole('supervisor'), 403);
-        $this->validate(['archivo' => ['required', 'file', 'mimes:csv,txt', 'max:2048']]);
+        Gate::authorize('verListado', User::class);
+        $this->validarArchivo();
 
-        $path = $this->archivo->getRealPath();
-        $filas = $this->parsearCSV($path);
+        $filas = $this->leerFilas();
 
-        $rolesPermitidos = ['estudiante', 'profesor', 'supervisor'];
+        if ($filas === null) {
+            return;
+        }
+
+        if (count($filas) > self::MAX_FILAS) {
+            $this->addError('archivo', 'El archivo supera el máximo de '.self::MAX_FILAS.' filas por importación.');
+
+            return;
+        }
+
+        $correosVistos = [];
 
         foreach ($filas as $i => $fila) {
-            $linea = $i + 2; // +2 porque la fila 1 es el header
+            $linea = $i + 2; // la fila 1 es el encabezado
 
-            // ERS RF-12: Validar campos obligatorios
-            $nombre = trim($fila['nombre'] ?? '');
-            $correo = trim($fila['correo'] ?? $fila['email'] ?? '');
-            $rol    = strtolower(trim($fila['rol'] ?? 'estudiante'));
+            $nombre = $this->nombreCompleto($fila);
+            $correo = strtolower(trim($fila['correo'] ?? $fila['email'] ?? ''));
+            $rol = strtolower(trim($fila['rol'] ?? '')) ?: 'estudiante';
 
-            if (!$nombre || !$correo) {
-                $this->errores[] = [
-                    'linea' => $linea,
-                    'datos' => implode(', ', $fila),
-                    'error' => 'Nombre o correo vacío.',
-                ];
+            $error = match (true) {
+                $nombre === '' || $correo === '' => 'Nombre o correo vacío.',
+                ! filter_var($correo, FILTER_VALIDATE_EMAIL) => 'Correo electrónico con formato inválido.',
+                ! in_array($rol, GestorCuentas::ROLES_CREABLES, true) => "Rol \"{$rol}\" no válido. Usa: ".implode(', ', GestorCuentas::ROLES_CREABLES).'.',
+                isset($correosVistos[$correo]) => "Correo duplicado dentro del archivo (ya aparece en la línea {$correosVistos[$correo]}).",
+                default => null,
+            };
+
+            if ($error) {
+                $this->errores[] = ['linea' => $linea, 'datos' => trim("{$nombre} | {$correo}", ' |'), 'error' => $error];
+
                 continue;
             }
 
-            if (!filter_var($correo, FILTER_VALIDATE_EMAIL)) {
-                $this->errores[] = [
-                    'linea' => $linea,
-                    'datos' => "{$nombre} | {$correo}",
-                    'error' => 'Correo electrónico inválido.',
-                ];
-                continue;
-            }
+            $correosVistos[$correo] = $linea;
 
-            if (!in_array($rol, $rolesPermitidos)) {
-                $this->errores[] = [
-                    'linea' => $linea,
-                    'datos' => "{$nombre} | {$correo}",
-                    'error' => "Rol '{$rol}' no es válido. Usar: estudiante, profesor, supervisor.",
-                ];
-                continue;
-            }
-
-            // Verificar si ya existe
             if (User::where('email', $correo)->exists()) {
-                $this->omitidos[] = [
-                    'linea' => $linea,
-                    'nombre' => $nombre,
-                    'correo' => $correo,
-                    'razon'  => 'Ya existe una cuenta con este correo.',
-                ];
+                $this->omitidos[] = ['linea' => $linea, 'nombre' => $nombre, 'correo' => $correo, 'razon' => 'Ya existe una cuenta con este correo.'];
+
                 continue;
             }
-
-            // Crear cuenta con contraseña temporal (ERS RF-03)
-            $passwordTemporal = 'TMP-' . strtoupper(Str::random(8));
 
             try {
-                $usuario = User::create([
-                    'name'          => $nombre,
-                    'email'         => $correo,
-                    'password'      => Hash::make($passwordTemporal),
-                    'primer_login'  => true,
-                    'activo'        => true,
-                    'email_verified_at' => now(),
-                ]);
-
-                $usuario->assignRole($rol);
-
-                // ERS RF-04: enviar correo de bienvenida (si MAIL configurado)
-                try {
-                    Mail::to($usuario->email)->send(new BienvenidaMail($usuario, $passwordTemporal));
-                } catch (\Exception $e) {
-                    // Mail no fatal — se continúa aunque falle
-                }
-
-                // Auditoría
-                BitacoraAuditoria::registrarCreacionCuenta(
-                    ejecutor: auth()->user(),
-                    usuario: $usuario
-                );
+                $resultado = $gestor->crear($nombre, $correo, $rol, auth()->user(), 'importación masiva');
 
                 $this->creados[] = [
-                    'nombre'   => $nombre,
-                    'correo'   => $correo,
-                    'rol'      => $rol,
-                    'password' => $passwordTemporal,
+                    'nombre' => $nombre,
+                    'correo' => $correo,
+                    'rol' => $rol,
+                    'password' => $resultado['password_temporal'],
                 ];
-            } catch (\Exception $e) {
-                $this->errores[] = [
-                    'linea' => $linea,
-                    'datos' => "{$nombre} | {$correo}",
-                    'error' => 'Error al crear la cuenta: ' . $e->getMessage(),
-                ];
+            } catch (Throwable $e) {
+                report($e);
+                $this->errores[] = ['linea' => $linea, 'datos' => "{$nombre} | {$correo}", 'error' => 'No se pudo crear la cuenta. Revisa los datos e inténtalo de nuevo.'];
             }
         }
 
@@ -162,29 +147,122 @@ class ImportarCSV extends Component
         $this->mostrarPreview = false;
     }
 
-    private function parsearCSV(string $path): array
+    public function reiniciar(): void
+    {
+        $this->reset(['archivo', 'procesado', 'creados', 'omitidos', 'errores', 'preview', 'mostrarPreview']);
+    }
+
+    protected function validarArchivo(): void
+    {
+        $this->validate(
+            ['archivo' => ['required', 'file', 'extensions:csv,txt,xlsx', 'max:2048']],
+            [
+                'archivo.required' => 'Selecciona un archivo de Excel (.xlsx) o CSV.',
+                'archivo.extensions' => 'El archivo debe ser un libro de Excel (.xlsx) o un .csv.',
+                'archivo.max' => 'El archivo no debe superar 2 MB.',
+            ]
+        );
+    }
+
+    /**
+     * @param  array<string, string>  $fila
+     */
+    protected function nombreCompleto(array $fila): string
+    {
+        $partes = isset($fila['nombres']) || isset($fila['apellidos'])
+            ? [trim($fila['nombres'] ?? ''), trim($fila['apellidos'] ?? '')]
+            : [trim($fila['nombre'] ?? '')];
+
+        return trim(implode(' ', array_filter($partes)));
+    }
+
+    /**
+     * Filas del archivo como arreglos asociativos por encabezado, o null si no se pudo leer
+     * (el error queda en el campo "archivo").
+     *
+     * @return array<int, array<string, string>>|null
+     */
+    protected function leerFilas(): ?array
+    {
+        if (strtolower($this->archivo->getClientOriginalExtension()) !== 'xlsx') {
+            return $this->asociarEncabezados($this->filasCSV($this->archivo->getRealPath()));
+        }
+
+        try {
+            return $this->asociarEncabezados(app(LectorXlsx::class)->filas($this->archivo->getRealPath()));
+        } catch (RuntimeException $e) {
+            $this->addError('archivo', $e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
+     * @return list<list<string>>
+     */
+    protected function filasCSV(string $path): array
+    {
+        $handle = fopen($path, 'r');
+
+        if (! $handle) {
+            return [];
+        }
+
+        $primeraLinea = (string) fgets($handle);
+        $separador = substr_count($primeraLinea, ';') > substr_count($primeraLinea, ',') ? ';' : ',';
+        rewind($handle);
+
+        $filas = [];
+
+        while (($fila = fgetcsv($handle, 2000, $separador)) !== false) {
+            $filas[] = array_map(fn ($valor) => (string) $valor, $fila);
+        }
+
+        fclose($handle);
+
+        return $filas;
+    }
+
+    /**
+     * La primera fila es el encabezado; se ignoran las filas vacías.
+     *
+     * @param  list<list<string>>  $filasCrudas
+     * @return array<int, array<string, string>>
+     */
+    protected function asociarEncabezados(array $filasCrudas): array
     {
         $filas = [];
-        $handle = fopen($path, 'r');
-        if (!$handle) return [];
+        $encabezados = null;
 
-        $headers = null;
-        while (($row = fgetcsv($handle, 1000, ',')) !== false) {
-            if ($headers === null) {
-                $headers = array_map('strtolower', array_map('trim', $row));
+        foreach ($filasCrudas as $fila) {
+            if ($encabezados === null && count(array_filter($fila, fn ($valor) => trim((string) $valor) !== '')) === 0) {
                 continue;
             }
-            if (count($row) < count($headers)) {
-                $row = array_pad($row, count($headers), '');
+
+            if ($encabezados === null) {
+                $encabezados = array_map(
+                    fn ($columna) => strtolower(trim(preg_replace('/^\xEF\xBB\xBF/', '', (string) $columna))),
+                    $fila
+                );
+
+                continue;
             }
-            $filas[] = array_combine($headers, $row);
+
+            if (count(array_filter($fila, fn ($valor) => trim((string) $valor) !== '')) === 0) {
+                continue;
+            }
+
+            $fila = array_slice(array_pad($fila, count($encabezados), ''), 0, count($encabezados));
+            $filas[] = array_combine($encabezados, array_map(fn ($valor) => (string) $valor, $fila));
         }
-        fclose($handle);
+
         return $filas;
     }
 
     public function render()
     {
-        return view('livewire.usuarios.importar-csv');
+        return view('livewire.usuarios.importar-csv', [
+            'nombreVista' => fn (array $fila) => $this->nombreCompleto($fila),
+        ])->title('Importar usuarios — LearnUp');
     }
 }

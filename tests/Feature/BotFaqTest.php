@@ -61,7 +61,7 @@ class BotFaqTest extends TestCase
 
     public function test_los_tres_roles_pueden_usar_el_widget_del_bot(): void
     {
-        foreach ([Rol::Administrador, Rol::Profesor, Rol::Estudiante] as $rol) {
+        foreach ([Rol::Supervisor, Rol::Profesor, Rol::Estudiante] as $rol) {
             $usuario = User::factory()->create()->assignRole($rol->value);
 
             Livewire::actingAs($usuario)
@@ -95,10 +95,12 @@ class BotFaqTest extends TestCase
         $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
         $curso = Curso::factory()->create(['profesor_id' => $profesor->id]);
         $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+        $curso->inscripciones()->create(['estudiante_id' => $estudiante->id, 'fecha_inscripcion' => now()]);
 
+        // El curso de contexto lo fija el servidor (antes el test lo asignaba
+        // desde el cliente, lo que permitía consultar cursos ajenos: RF-94).
         Livewire::actingAs($estudiante)
-            ->test(Widget::class)
-            ->set('cursoId', $curso->id)
+            ->test(Widget::class, ['curso' => $curso])
             ->set('mensaje', '¿De qué trata este curso?')
             ->call('enviar');
 

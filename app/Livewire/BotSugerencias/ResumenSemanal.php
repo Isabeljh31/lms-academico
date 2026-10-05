@@ -19,10 +19,10 @@ class ResumenSemanal extends Component
     {
         $usuario = auth()->user();
 
-        $estudianteIds = $usuario->cursosComoProfesor()
-            ->with('inscripciones')
+        $estudianteIds = $usuario->cursosComoDocente()
+            ->with('inscripcionesActivas')
             ->get()
-            ->flatMap->inscripciones
+            ->flatMap->inscripcionesActivas
             ->pluck('estudiante_id')
             ->unique();
 

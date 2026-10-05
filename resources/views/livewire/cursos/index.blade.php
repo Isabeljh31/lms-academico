@@ -23,6 +23,7 @@
 <div class="py-8">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
+        @if($paletaFria)
         {{-- Encabezado --}}
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -32,7 +33,7 @@
                 <p class="text-sm text-slate-500 dark:text-slate-400">
                     @if(auth()->user()->hasRole('profesor')) Tus cursos como profesor.
                     @elseif(auth()->user()->hasRole('supervisor')) Todos los cursos de la plataforma.
-                    @else Catálogo de cursos disponibles. @endif
+                    @else Tus cursos matriculados. @endif
                 </p>
             </div>
             @if($puedeCrear)
@@ -62,8 +63,38 @@
             @endif
         </div>
 
-        @if($cursos->isEmpty())
+        @else
+        <x-gestion.encabezado titulo="Cursos" icono="libro"
+            :descripcion="auth()->user()->hasRole('supervisor') ? 'Todos los cursos de la plataforma: crea, edita, publica, archiva y clona cursos.' : 'Los cursos que tienes a cargo como profesor.'">
+            @if ($puedeCrear)
+                <x-gestion.boton icono="mas" :href="route('cursos.crear')">Nuevo curso</x-gestion.boton>
+            @endif
+        </x-gestion.encabezado>
+
+        <x-gestion.alertas />
+
+        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:w-2/3">
+            <x-gestion.campo etiqueta="Buscar" nombre="busqueda">
+                <x-gestion.control id="busqueda" type="search" wire:model.live.debounce.300ms="busqueda" placeholder="Nombre o código del curso" />
+            </x-gestion.campo>
+            <x-gestion.campo etiqueta="Estado" nombre="filtroEstado">
+                <x-gestion.control tipo="select" id="filtroEstado" wire:model.live="filtroEstado">
+                    <option value="">Todos los estados</option>
+                    <option value="publicado">Publicados</option>
+                    <option value="borrador">Borradores</option>
+                    <option value="despublicado">Ocultos</option>
+                    <option value="archivado">Archivados</option>
+                </x-gestion.control>
+            </x-gestion.campo>
+        </div>
+        @endif
+
+        @if($cursos->isEmpty() && $paletaFria)
             <p class="text-slate-500 dark:text-slate-400 py-8 text-center">No hay cursos que coincidan con tu búsqueda.</p>
+
+        @elseif($cursos->isEmpty())
+            <x-gestion.vacio icono="libro" titulo="No hay cursos para mostrar"
+                :descripcion="$puedeCrear ? 'Crea el primer curso o ajusta los filtros.' : 'Aún no tienes cursos asignados. El Supervisor te asignará tus cursos.'" />
 
         @elseif($paletaFria)
         {{-- =========== Vista Estudiante =========== --}}
@@ -91,7 +122,7 @@
                     {{-- Fechas ERS RF-19 --}}
                     @if($curso->fecha_inicio || $curso->fecha_fin)
                     <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                        📅 {{ $curso->fecha_inicio?->format('d/m/Y') ?? '?' }} – {{ $curso->fecha_fin?->format('d/m/Y') ?? '?' }}
+                        <x-icono nombre="calendario" class="inline h-3 w-3 -mt-0.5" /> {{ $curso->fecha_inicio?->formatoFecha() ?? '?' }} – {{ $curso->fecha_fin?->formatoFecha() ?? '?' }}
                     </p>
                     @endif
                     <div class="flex items-center justify-between mt-3 text-xs text-slate-500 dark:text-slate-400">
@@ -111,35 +142,35 @@
 
         @else
         {{-- =========== Vista Profesor / Supervisor =========== --}}
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             @foreach($cursos as $curso)
             @php $badge = $badgeEstado($curso->estado); @endphp
             <a href="{{ route('cursos.show', $curso) }}" wire:navigate wire:key="curso-{{ $curso->id }}"
-                class="block bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 transition">
-                <div class="relative h-32 bg-gradient-to-br from-menta-fondo to-stone-200 dark:from-stone-700 dark:to-stone-800"
+                class="block overflow-hidden rounded-xl border border-arena-medio bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-stone-700 dark:bg-stone-800">
+                <div class="relative flex h-28 items-center justify-center bg-menta-fondo dark:bg-stone-700"
                     @if($curso->imagen_portada_url) style="background-image:url('{{ $curso->imagen_portada_url }}');background-size:cover;background-position:center;" @endif>
-                    {{-- Badge de estado (ERS RF-22) --}}
-                    <span class="absolute top-2 right-2 inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $badge['color'] }}">
-                        {{ $badge['label'] }}
-                    </span>
+                    @unless($curso->imagen_portada_url)
+                        <span class="select-none text-3xl font-black tracking-tight text-menta-oscuro/60 dark:text-menta-base/60">{{ $codigoCurso($curso->nombre) }}</span>
+                    @endunless
+                    <span class="absolute right-2 top-2 inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $badge['color'] }}">{{ $badge['label'] }}</span>
                 </div>
-                <div class="p-4">
-                    <h2 class="font-semibold text-stone-800 dark:text-stone-100 truncate">{{ $curso->nombre }}</h2>
-                    <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">Prof. {{ $curso->profesor?->name }}</p>
-
-                    {{-- Fechas y duración (ERS RF-19) --}}
+                <div class="space-y-1 p-4">
+                    <h2 class="truncate font-semibold text-stone-800 dark:text-stone-100">{{ $curso->nombre }}</h2>
+                    <p class="text-xs text-stone-500 dark:text-stone-400">
+                        @if($curso->codigo) <span class="font-mono">{{ $curso->codigo }}</span> · @endif
+                        Prof. {{ $curso->docentes()->pluck('name')->join(', ') ?: 'sin asignar' }}
+                    </p>
                     @if($curso->fecha_inicio || $curso->semanas_duracion)
-                    <p class="text-xs text-stone-400 dark:text-stone-500 mt-1 flex items-center gap-1">
-                        📅
-                        @if($curso->fecha_inicio) {{ $curso->fecha_inicio->format('d/m/Y') }} @endif
-                        @if($curso->fecha_inicio && $curso->fecha_fin) – {{ $curso->fecha_fin->format('d/m/Y') }} @endif
+                    <p class="flex items-center gap-1 text-xs text-stone-500 dark:text-stone-400">
+                        <x-icono nombre="calendario" class="h-3.5 w-3.5" />
+                        @if($curso->fecha_inicio) {{ $curso->fecha_inicio->formatoFecha() }} @endif
+                        @if($curso->fecha_inicio && $curso->fecha_fin) – {{ $curso->fecha_fin->formatoFecha() }} @endif
                         @if($curso->semanas_duracion) · {{ $curso->semanas_duracion }} sem. @endif
                     </p>
                     @endif
-
-                    <div class="flex items-center justify-between mt-3 text-xs text-stone-500 dark:text-stone-400">
-                        <span>{{ $curso->modulos->count() }} unidades</span>
-                        <span>{{ $curso->inscripciones_count }} inscritos</span>
+                    <div class="flex items-center justify-between pt-2 text-xs text-stone-500 dark:text-stone-400">
+                        <span class="inline-flex items-center gap-1"><x-icono nombre="libro" class="h-3.5 w-3.5" /> {{ $curso->modulos->count() }} módulos</span>
+                        <span class="inline-flex items-center gap-1"><x-icono nombre="usuarios" class="h-3.5 w-3.5" /> {{ $curso->inscripciones_activas_count }} matriculados</span>
                     </div>
                 </div>
             </a>

@@ -21,7 +21,7 @@ class ProfileTest extends TestCase
             ->assertOk()
             ->assertSeeVolt('profile.update-profile-information-form')
             ->assertSeeVolt('profile.update-password-form')
-            ->assertSeeVolt('profile.delete-user-form');
+            ->assertDontSee('Eliminar cuenta');
     }
 
     public function test_profile_information_can_be_updated(): void
@@ -64,38 +64,18 @@ class ProfileTest extends TestCase
         $this->assertNotNull($user->refresh()->email_verified_at);
     }
 
-    public function test_user_can_delete_their_account(): void
+    /**
+     * ERS RF-17: ninguna cuenta se elimina físicamente desde la interfaz;
+     * solo el Supervisor puede desactivarla. El formulario de Breeze para
+     * borrar la propia cuenta se retiró.
+     */
+    public function test_el_usuario_no_puede_eliminar_su_propia_cuenta(): void
     {
         $user = User::factory()->create();
 
-        $this->actingAs($user);
+        $this->actingAs($user)->get('/profile')->assertOk()->assertDontSeeVolt('profile.delete-user-form');
 
-        $component = Volt::test('profile.delete-user-form')
-            ->set('password', 'password')
-            ->call('deleteUser');
-
-        $component
-            ->assertHasNoErrors()
-            ->assertRedirect('/');
-
-        $this->assertGuest();
-        $this->assertNull($user->fresh());
-    }
-
-    public function test_correct_password_must_be_provided_to_delete_account(): void
-    {
-        $user = User::factory()->create();
-
-        $this->actingAs($user);
-
-        $component = Volt::test('profile.delete-user-form')
-            ->set('password', 'wrong-password')
-            ->call('deleteUser');
-
-        $component
-            ->assertHasErrors('password')
-            ->assertNoRedirect();
-
+        $this->assertFalse(view()->exists('livewire.profile.delete-user-form'));
         $this->assertNotNull($user->fresh());
     }
 }

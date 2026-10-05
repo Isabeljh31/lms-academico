@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\CuentaActiva;
+use App\Http\Middleware\PrimerLogin;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,10 +22,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
-            'primer.login' => \App\Http\Middleware\PrimerLogin::class,
+            'primer.login' => PrimerLogin::class,
         ]);
+        // ERS RF-15: cerrar la sesión de cuentas desactivadas
+        $middleware->appendToGroup('web', CuentaActiva::class);
         // ERS RF-05: forzar cambio de contraseña en primer login
-        $middleware->appendToGroup('web', \App\Http\Middleware\PrimerLogin::class);
+        $middleware->appendToGroup('web', PrimerLogin::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

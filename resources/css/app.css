@@ -4,9 +4,9 @@
 
 /*
  * Flatpickr — tema con la paleta fría del rol Estudiante (ver
- * ARQUITECTURA.md § selector de fecha rediseñado). Flatpickr solo se carga
- * en la página de Calendario del estudiante, así que estas reglas globales
- * nunca se ejercitan para Profesor/Administrador.
+ * ARQUITECTURA.md § selector de fecha rediseñado). Flatpickr se carga bajo
+ * demanda (window.cargarFlatpickr, resources/js/app.js) en el Calendario y en
+ * el componente x-selector-fecha-hora (Propuestas del asistente).
  */
 .flatpickr-calendar {
     background: #ffffff;
@@ -140,4 +140,27 @@
         background: #1A3242;
         color: #7FA9C9;
     }
+}
+
+/*
+ * Calendario abierto desde otra pantalla (?fecha=...&evento=...): el día
+ * enfocado toma el color de acento de la paleta del rol (la misma variable
+ * de los botones de FullCalendar) y la actividad relacionada se resalta.
+ */
+.fc .dia-enfocado {
+    box-shadow: inset 0 0 0 2px var(--fc-button-bg-color);
+}
+.fc .evento-resaltado {
+    outline: 3px solid #F59E0B;
+    outline-offset: 1px;
+    animation: pulso-resaltado 1.4s ease-in-out 3;
+}
+.fc .fc-list-event.evento-resaltado td {
+    background-color: rgb(245 158 11 / 0.15);
+}
+@keyframes pulso-resaltado {
+    50% { outline-color: rgb(245 158 11 / 0.25); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .fc .evento-resaltado { animation: none; }
 }

@@ -3,9 +3,8 @@
 namespace App\Livewire\Forms;
 
 use App\Models\User;
-use Illuminate\Auth\Events\Lockout;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Validate;
@@ -22,9 +21,12 @@ class LoginForm extends Form
     public bool $remember = false;
 
     /**
-     * ERS RF-06: intentar autenticar al usuario.
-     * Bloqueo 15 min tras 3 intentos fallidos.
-     * ERS RF-05: redirección obligatoria si es primer login.
+     * ERS RF-01: autenticación por correo y contraseña.
+     * ERS RF-06: bloqueo temporal tras N intentos fallidos consecutivos
+     * (config/auth.php → bloqueo_login, por defecto 3 intentos / 15 minutos).
+     * ERS RNF-05: los intentos fallidos se registran en el log.
+     * ERS RF-15: una cuenta desactivada no puede ingresar. El aviso se da
+     * solo tras validar la contraseña, para no revelar qué cuentas existen.
      */
     public function authenticate(): void
     {
@@ -32,25 +34,21 @@ class LoginForm extends Form
 
         $user = User::where('email', $this->email)->first();
 
-        // ERS RF-06: verificar bloqueo por intentos fallidos
-        if ($user && $user->estaBloqueada()) {
-            $minutosRestantes = (int) now()->diffInMinutes($user->bloqueado_hasta, false);
-            throw ValidationException::withMessages([
-                'form.email' => "Cuenta bloqueada temporalmente. Intente en {$minutosRestantes} minuto(s) o recupere su contraseña.",
-            ]);
+        if ($user?->estaBloqueada()) {
+            $this->rechazarPorBloqueo($user);
         }
 
-        // ERS RF-15: cuenta desactivada
-        if ($user && !$user->activo) {
-            throw ValidationException::withMessages([
-                'form.email' => 'Esta cuenta ha sido desactivada. Contacte al Supervisor.',
-            ]);
-        }
+        if (! $user || ! Auth::validate(['email' => $this->email, 'password' => $this->password])) {
+            $user?->registrarIntentoFallido();
 
-        if (!Auth::attempt($this->only(['email', 'password']), $this->remember)) {
-            // ERS RF-06: registrar intento fallido
-            if ($user) {
-                $user->registrarIntentoFallido();
+            Log::warning('Inicio de sesión fallido', [
+                'email' => $this->email,
+                'ip' => request()->ip(),
+                'bloqueada' => (bool) $user?->estaBloqueada(),
+            ]);
+
+            if ($user?->estaBloqueada()) {
+                $this->rechazarPorBloqueo($user);
             }
 
             throw ValidationException::withMessages([
@@ -58,11 +56,24 @@ class LoginForm extends Form
             ]);
         }
 
-        // Login exitoso: limpiar intentos fallidos
-        if ($user) {
-            $user->limpiarIntentosFallidos();
+        if (! $user->activo) {
+            throw ValidationException::withMessages([
+                'form.email' => 'Esta cuenta ha sido desactivada. Contacta al Supervisor.',
+            ]);
         }
 
+        Auth::login($user, $this->remember);
+        $user->limpiarIntentosFallidos();
+
         Session::regenerate();
+    }
+
+    protected function rechazarPorBloqueo(User $user): never
+    {
+        $minutos = max(1, (int) ceil(now()->diffInSeconds($user->bloqueado_hasta, false) / 60));
+
+        throw ValidationException::withMessages([
+            'form.email' => "Cuenta bloqueada temporalmente por intentos fallidos. Intenta de nuevo en {$minutos} minuto(s) o usa \"¿Olvidaste tu contraseña?\".",
+        ]);
     }
 }

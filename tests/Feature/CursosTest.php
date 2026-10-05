@@ -26,21 +26,52 @@ class CursosTest extends TestCase
         }
     }
 
-    public function test_profesor_puede_crear_un_curso(): void
+    /**
+     * ERS RF-18 y matriz de permisos: solo el Supervisor crea cursos. Esta
+     * prueba reemplaza a "profesor_puede_crear_un_curso", que contradecía el ERS.
+     */
+    public function test_supervisor_crea_un_curso_asignando_un_profesor(): void
     {
+        $supervisor = User::factory()->create()->assignRole(Rol::Supervisor->value);
         $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
 
-        Livewire::actingAs($profesor)
+        Livewire::actingAs($supervisor)
             ->test(Formulario::class)
             ->set('nombre', 'Matemática Básica')
             ->set('descripcion', 'Curso introductorio')
+            ->set('profesor_id', $profesor->id)
             ->call('guardar')
             ->assertHasNoErrors();
 
         $this->assertDatabaseHas('cursos', [
             'nombre' => 'Matemática Básica',
             'profesor_id' => $profesor->id,
+            'estado' => 'borrador',
         ]);
+    }
+
+    public function test_profesor_no_puede_crear_cursos(): void
+    {
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+
+        $this->actingAs($profesor)->get(route('cursos.crear'))->assertForbidden();
+    }
+
+    /**
+     * ERS RF-25: un curso sin módulos no puede publicarse.
+     */
+    public function test_no_se_puede_publicar_un_curso_sin_modulos(): void
+    {
+        $supervisor = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $curso = Curso::factory()->borrador()->create();
+
+        Livewire::actingAs($supervisor)
+            ->test(Formulario::class, ['curso' => $curso])
+            ->set('estado', 'publicado')
+            ->call('guardar')
+            ->assertHasErrors('estado');
+
+        $this->assertSame('borrador', $curso->fresh()->estado);
     }
 
     public function test_estudiante_no_puede_crear_un_curso(): void
@@ -65,42 +96,56 @@ class CursosTest extends TestCase
     public function test_administrador_puede_editar_cualquier_curso(): void
     {
         $curso = Curso::factory()->create();
-        $admin = User::factory()->create()->assignRole(Rol::Administrador->value);
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
 
         $this->actingAs($admin)
             ->get(route('cursos.editar', $curso))
             ->assertOk();
     }
 
-    public function test_estudiante_puede_inscribirse_en_un_curso(): void
+    /**
+     * ERS 2.4 y RF-26: no hay autoinscripción. Reemplaza a
+     * "estudiante_puede_inscribirse_en_un_curso", que contradecía el ERS.
+     */
+    public function test_estudiante_no_puede_autoinscribirse_ni_ver_cursos_ajenos(): void
     {
         $curso = Curso::factory()->create();
         $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
 
-        Livewire::actingAs($estudiante)
-            ->test(Show::class, ['curso' => $curso])
-            ->call('inscribirme');
-
-        $this->assertDatabaseHas('inscripciones', [
-            'curso_id' => $curso->id,
-            'estudiante_id' => $estudiante->id,
-        ]);
+        $this->actingAs($estudiante)->get(route('cursos.show', $curso))->assertForbidden();
+        $this->assertDatabaseMissing('inscripciones', ['curso_id' => $curso->id, 'estudiante_id' => $estudiante->id]);
     }
 
-    public function test_profesor_puede_agregar_una_unidad_a_su_curso(): void
+    public function test_estudiante_matriculado_no_puede_invocar_la_autoinscripcion(): void
+    {
+        $curso = Curso::factory()->create();
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+        $curso->inscripciones()->create(['estudiante_id' => $estudiante->id, 'fecha_inscripcion' => now()]);
+
+        Livewire::actingAs($estudiante)
+            ->test(Show::class, ['curso' => $curso])
+            ->call('inscribirme')
+            ->assertForbidden();
+    }
+
+    public function test_profesor_prepara_una_semana_de_su_curso_con_su_tema(): void
     {
         $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
-        $curso = Curso::factory()->create(['profesor_id' => $profesor->id]);
+        $curso = Curso::factory()->create(['profesor_id' => $profesor->id, 'semanas_duracion' => 16]);
 
         Livewire::actingAs($profesor)
             ->test(Show::class, ['curso' => $curso])
-            ->set('nuevoModuloTitulo', 'Unidad 1: Introducción')
-            ->call('agregarModulo')
+            ->call('prepararSeccion', 3)
+            ->assertSet('mostrarModalModulo', true)
+            ->set('moduloTitulo', 'La derivada')
+            ->call('guardarModulo')
             ->assertHasNoErrors();
 
         $this->assertDatabaseHas('modulos', [
             'curso_id' => $curso->id,
-            'titulo' => 'Unidad 1: Introducción',
+            'semana' => 3,
+            'tipo_seccion' => 'semana',
+            'titulo' => 'La derivada',
         ]);
     }
 
@@ -108,14 +153,14 @@ class CursosTest extends TestCase
     {
         $curso = Curso::factory()->create();
         $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+        $curso->inscripciones()->create(['estudiante_id' => $estudiante->id, 'fecha_inscripcion' => now()]);
 
         Livewire::actingAs($estudiante)
             ->test(Show::class, ['curso' => $curso])
-            ->set('nuevoModuloTitulo', 'Intento no autorizado')
-            ->call('agregarModulo')
+            ->call('prepararSeccion', 1)
             ->assertForbidden();
 
-        $this->assertDatabaseMissing('modulos', ['titulo' => 'Intento no autorizado']);
+        $this->assertDatabaseMissing('modulos', ['curso_id' => $curso->id]);
     }
 
     public function test_catalogo_de_profesor_solo_muestra_sus_propios_cursos(): void

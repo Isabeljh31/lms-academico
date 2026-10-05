@@ -6,61 +6,106 @@ use App\Models\Asistencia;
 use App\Models\Curso;
 use App\Models\SesionClase;
 use App\Models\User;
+use App\Services\Asistencia\CalculadoraAsistencia;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
- * ERS RF-70: Registro de asistencia (Presente/Ausente/Tardanza/Justificado).
- * RF-71: % de asistencia acumulado por sesión.
- * RF-72: Historial de asistencia por estudiante.
- * RF-73: Asistencia es opcional por curso (solo si tiene sesiones configuradas).
+ * ERS RF-70: registro de asistencia por Sesión de Clase
+ *            (Presente, Ausente, Tardanza, Justificado).
+ * ERS RF-71: porcentaje de asistencia acumulado por estudiante.
+ * ERS RF-73: el Profesor del curso decide si usa o no el control de asistencia
+ *            (también lo puede fijar el Supervisor al editar el curso).
  */
 #[Layout('layouts.app')]
 class Index extends Component
 {
+    public const ESTADOS = ['presente', 'tardanza', 'justificado', 'ausente'];
+
     public Curso $curso;
 
-    // Vista activa: 'sesiones' | 'pase_lista' | 'historial'
+    // 'sesiones' | 'pase_lista' | 'resumen'
     public string $vista = 'sesiones';
+
+    #[Locked]
     public ?int $sesionActivaId = null;
 
-    // Formulario nueva sesión
-    public bool $mostrarFormSesion = false;
-    public string $sesionTitulo = '';
-    public string $sesionFecha = '';
-    public string $sesionDuracion = '90';
-    public string $sesionDescripcion = '';
+    /** @var array<int, string> estudiante_id => estado */
+    public array $marcas = [];
 
-    // Filtro historial
-    public ?int $estudianteHistorialId = null;
+    public bool $mostrarFormSesion = false;
+
+    public string $sesionTitulo = '';
+
+    public string $sesionFecha = '';
+
+    public string $sesionDuracion = '90';
+
+    public string $sesionDescripcion = '';
 
     public function mount(Curso $curso): void
     {
-        abort_unless(auth()->user()->hasAnyRole(['supervisor', 'profesor']), 403);
-        Gate::authorize('gestionar', $curso);
+        // Consulta: Profesor del curso y Supervisor. Registro: solo el Profesor (matriz ERS § 5).
+        Gate::authorize('supervisar', $curso);
+
         $this->curso = $curso;
         $this->sesionFecha = now()->format('Y-m-d\TH:i');
     }
 
+    public function getEditableProperty(): bool
+    {
+        return $this->curso->usa_asistencia
+            && ! $this->curso->estaFinalizado()
+            && Gate::allows('gestionar', $this->curso);
+    }
+
+    public function getPuedeConfigurarProperty(): bool
+    {
+        return Gate::allows('gestionar', $this->curso) && ! $this->curso->estaFinalizado();
+    }
+
+    /**
+     * ERS RF-73: activa u omite el módulo de asistencia en este curso. Los
+     * registros ya guardados se conservan aunque se desactive.
+     */
+    public function alternarUsoAsistencia(): void
+    {
+        abort_unless($this->puedeConfigurar, 403);
+
+        $this->curso->update(['usa_asistencia' => ! $this->curso->usa_asistencia]);
+        $this->vista = 'sesiones';
+
+        session()->flash('estado', $this->curso->usa_asistencia
+            ? 'Control de asistencia activado para este curso.'
+            : 'Control de asistencia desactivado. Los registros anteriores se conservan.');
+    }
+
     public function crearSesion(): void
     {
+        $this->autorizarEdicion();
+
         $this->validate([
-            'sesionTitulo'    => ['required', 'string', 'max:255'],
-            'sesionFecha'     => ['required', 'date'],
-            'sesionDuracion'  => ['required', 'integer', 'min:15', 'max:480'],
+            'sesionTitulo' => ['required', 'string', 'max:255'],
+            'sesionFecha' => ['required', 'date'],
+            'sesionDuracion' => ['required', 'integer', 'min:15', 'max:480'],
             'sesionDescripcion' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'sesionTitulo.required' => 'Escribe el título de la sesión.',
         ]);
 
-        $numero = $this->curso->sesionesClase()->count() + 1;
+        $numero = ((int) $this->curso->sesionesClase()->max('numero_sesion')) + 1;
 
-        SesionClase::create([
-            'curso_id'        => $this->curso->id,
-            'titulo'          => $this->sesionTitulo,
-            'fecha'           => $this->sesionFecha,
-            'duracion_minutos' => $this->sesionDuracion,
-            'descripcion'     => $this->sesionDescripcion ?: null,
-            'numero_sesion'   => $numero,
+        $this->curso->sesionesClase()->create([
+            'titulo' => $this->sesionTitulo,
+            'fecha' => $this->sesionFecha,
+            'duracion_minutos' => (int) $this->sesionDuracion,
+            'descripcion' => $this->sesionDescripcion ?: null,
+            'numero_sesion' => $numero,
         ]);
 
         $this->mostrarFormSesion = false;
@@ -72,73 +117,110 @@ class Index extends Component
 
     public function eliminarSesion(int $id): void
     {
-        SesionClase::findOrFail($id)->delete();
+        $this->autorizarEdicion();
+
+        $sesion = $this->sesion($id);
+
+        if ($sesion->asistencias()->exists()) {
+            session()->flash('error', 'La sesión ya tiene asistencia registrada y no se puede eliminar.');
+
+            return;
+        }
+
+        $sesion->delete();
         session()->flash('estado', 'Sesión eliminada.');
     }
 
     public function abrirPaseLista(int $sesionId): void
     {
-        $this->sesionActivaId = $sesionId;
+        Gate::authorize('supervisar', $this->curso);
+
+        $sesion = $this->sesion($sesionId);
+        $registradas = $sesion->asistencias()->pluck('estado', 'estudiante_id');
+
+        $this->sesionActivaId = $sesion->id;
+        $this->marcas = $this->estudiantesActivos()
+            ->mapWithKeys(fn (User $e) => [$e->id => $registradas[$e->id] ?? ''])
+            ->all();
         $this->vista = 'pase_lista';
     }
 
-    /**
-     * ERS RF-70: Registrar o actualizar asistencia de un estudiante.
-     */
-    public function marcarAsistencia(int $estudianteId, string $estado): void
+    public function marcarTodos(string $estado): void
     {
-        abort_unless(in_array($estado, ['presente', 'ausente', 'tardanza', 'justificado']), 422);
+        abort_unless(in_array($estado, self::ESTADOS, true), 422);
 
-        Asistencia::updateOrCreate(
-            ['sesion_id' => $this->sesionActivaId, 'estudiante_id' => $estudianteId],
-            ['estado' => $estado, 'registrado_por' => auth()->id()]
-        );
+        foreach (array_keys($this->marcas) as $estudianteId) {
+            $this->marcas[$estudianteId] = $estado;
+        }
     }
 
-    public function render()
+    /**
+     * ERS RF-70: guarda el pase de lista completo de la sesión activa.
+     */
+    public function guardarAsistencia(): void
+    {
+        $this->autorizarEdicion();
+        $sesion = $this->sesion($this->sesionActivaId);
+        $idsValidos = $this->estudiantesActivos()->pluck('id')->all();
+
+        $this->validate([
+            'marcas' => ['array'],
+            'marcas.*' => ['required', Rule::in(self::ESTADOS)],
+        ], [
+            'marcas.*.required' => 'Marca el estado de todos los estudiantes.',
+        ]);
+
+        DB::transaction(function () use ($sesion, $idsValidos) {
+            foreach ($this->marcas as $estudianteId => $estado) {
+                if (! in_array((int) $estudianteId, $idsValidos, true)) {
+                    continue;
+                }
+
+                Asistencia::updateOrCreate(
+                    ['sesion_id' => $sesion->id, 'estudiante_id' => (int) $estudianteId],
+                    ['estado' => $estado, 'registrado_por' => auth()->id()]
+                );
+            }
+        });
+
+        session()->flash('estado', "Asistencia de la sesión #{$sesion->numero_sesion} guardada.");
+    }
+
+    protected function sesion(?int $id): SesionClase
+    {
+        return $this->curso->sesionesClase()->findOrFail($id);
+    }
+
+    protected function estudiantesActivos(): Collection
+    {
+        return $this->curso->inscripcionesActivas()->with('estudiante')->get()
+            ->pluck('estudiante')->filter()->sortBy('name')->values();
+    }
+
+    protected function autorizarEdicion(): void
+    {
+        Gate::authorize('gestionar', $this->curso);
+        abort_unless($this->editable, 403, 'Este curso no registra asistencia o está archivado.');
+    }
+
+    public function render(CalculadoraAsistencia $calculadora)
     {
         $sesiones = $this->curso->sesionesClase()->withCount('asistencias')->get();
-
-        $sesionActiva = null;
-        $estudiantesConAsistencia = collect();
-
-        if ($this->sesionActivaId) {
-            $sesionActiva = SesionClase::with('asistencias')->find($this->sesionActivaId);
-            $inscriptos = $this->curso->inscripcionesActivas()->with('estudiante')->get()->pluck('estudiante')->filter();
-            $asistenciasMap = $sesionActiva?->asistencias->keyBy('estudiante_id') ?? collect();
-
-            $estudiantesConAsistencia = $inscriptos->map(fn (User $est) => [
-                'estudiante'  => $est,
-                'asistencia'  => $asistenciasMap->get($est->id),
-                'estado'      => $asistenciasMap->get($est->id)?->estado ?? 'ausente',
-            ]);
-        }
-
-        // ERS RF-72: historial por estudiante
-        $historialEstudiante = collect();
-        $estudianteFiltrado  = null;
-        if ($this->estudianteHistorialId) {
-            $estudianteFiltrado = User::find($this->estudianteHistorialId);
-            $historialEstudiante = Asistencia::where('estudiante_id', $this->estudianteHistorialId)
-                ->whereHas('sesion', fn ($q) => $q->where('curso_id', $this->curso->id))
-                ->with('sesion')
-                ->orderByDesc('created_at')
-                ->get();
-        }
-
-        // ERS RF-71: % asistencia total del curso
-        $totalSesiones   = $sesiones->count();
-        $estudiantesActivos = $this->curso->inscripcionesActivas()->count();
+        $estudiantes = $this->estudiantesActivos();
 
         return view('livewire.asistencia.index', [
-            'sesiones'                => $sesiones,
-            'totalSesiones'           => $totalSesiones,
-            'estudiantesActivos'      => $estudiantesActivos,
-            'sesionActiva'            => $sesionActiva,
-            'estudiantesConAsistencia' => $estudiantesConAsistencia,
-            'historialEstudiante'     => $historialEstudiante,
-            'estudianteFiltrado'      => $estudianteFiltrado,
-            'estudiantesParaFiltro'   => $this->curso->inscripcionesActivas()->with('estudiante')->get()->pluck('estudiante')->filter(),
+            'sesiones' => $sesiones,
+            'totalSesiones' => $sesiones->count(),
+            'sesionActiva' => $this->sesionActivaId ? $sesiones->firstWhere('id', $this->sesionActivaId) : null,
+            'estudiantes' => $estudiantes,
+            'resumen' => $this->vista === 'resumen'
+                ? $estudiantes->map(fn (User $e) => [
+                    'estudiante' => $e,
+                    'historial' => $historial = $calculadora->historial($e, $this->curso),
+                    'porcentaje' => $calculadora->porcentaje($historial->pluck('estado')),
+                    'conteo' => $historial->countBy('estado'),
+                ])
+                : collect(),
         ])->title("Asistencia — {$this->curso->nombre}");
     }
 }

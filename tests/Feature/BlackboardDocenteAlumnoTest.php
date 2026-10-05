@@ -71,7 +71,7 @@ class BlackboardDocenteAlumnoTest extends TestCase
         // Docente ve la entrega en la cola centralizada
         Livewire::actingAs($profesor)
             ->test(PorCalificarIndex::class)
-            ->assertSee('Bandeja Por Calificar')
+            ->assertSee('Por calificar')
             ->assertSee('Ana Martinez')
             ->assertSee('Laboratorio 1')
             ->call('abrirCalificar', $entrega->id)
@@ -102,14 +102,15 @@ class BlackboardDocenteAlumnoTest extends TestCase
         // El docente abre el libro de calificaciones del curso
         Livewire::actingAs($profesor)
             ->test(LibroCalificaciones::class, ['curso' => $curso])
-            ->assertSee('Libro de Calificaciones')
+            ->assertSee('Libro de calificaciones')
             ->assertSee('Matemática Discreta')
+            ->set('vistaActiva', 'actividades')
             ->assertSee('Ana Martinez')
             ->assertSee('Laboratorio 1')
             ->call('abrirEdicionNota', $estudiante->id, $tarea->id)
-            ->set('nota', '19')
-            ->set('feedback', 'Nota asignada en libro')
-            ->call('guardarNota')
+            ->set('notaTareaInput', '19')
+            ->set('feedbackTareaInput', 'Nota asignada en libro')
+            ->call('guardarNotaTarea')
             ->assertHasNoErrors();
 
         $entrega = Entrega::where('tarea_id', $tarea->id)
@@ -136,7 +137,7 @@ class BlackboardDocenteAlumnoTest extends TestCase
 
         Livewire::actingAs($profesor)
             ->test(Show::class, ['curso' => $curso])
-            ->assertSee('Anuncios del Curso')
+            ->assertSee('Anuncios del curso')
             ->set('nuevoAnuncioTitulo', 'Suspensión de clase por feriado')
             ->set('nuevoAnuncioTexto', 'La sesión del viernes se reprogramará para el lunes.')
             ->set('nuevoAnuncioPrioridad', 'importante')

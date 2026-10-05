@@ -55,7 +55,7 @@
         </div>
 
         @if($cursoContextoId)
-            @if(auth()->user()->hasAnyRole(['supervisor', 'profesor']))
+            @if(auth()->user()->hasRole('profesor'))
             <div class="flex items-center gap-3">
                 <input wire:model.live="enviarATodos" type="checkbox" id="enviar-todos" class="rounded text-terracota-base focus:ring-terracota-base">
                 <label for="enviar-todos" class="text-sm text-stone-700 dark:text-stone-300">
@@ -94,7 +94,7 @@
         </div>
 
         <div>
-            <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Adjunto (máx. 5 MB)</label>
+            <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Adjunto (máx. 10 MB)</label>
             <input wire:model="adjunto" type="file"
                 class="w-full text-sm text-stone-500 file:mr-4 file:rounded-lg file:border-0 file:bg-stone-100 dark:file:bg-stone-700 file:px-3 file:py-1.5 file:text-sm file:text-stone-700 dark:file:text-stone-300">
             @error('adjunto') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
@@ -136,7 +136,7 @@
         </div>
         <div class="text-sm text-stone-700 dark:text-stone-300 whitespace-pre-wrap leading-relaxed">{{ $mensajeAbierto->cuerpo }}</div>
         @if($mensajeAbierto->archivo_url)
-        <a href="{{ $mensajeAbierto->archivo_url }}" target="_blank"
+        <a href="{{ $mensajeAbierto->archivo_url }}" target="_blank" rel="noopener noreferrer"
             class="inline-flex items-center gap-2 text-sm text-menta-oscuro dark:text-menta-base hover:underline">
             Ver adjunto
         </a>

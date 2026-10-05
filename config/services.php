@@ -57,6 +57,11 @@ return [
         'model' => env('ANTHROPIC_MODEL', 'claude-sonnet-4-5'),
     ],
 
+    // ERS RF-100 a RF-106: API de integración de matrículas.
+    'integracion' => [
+        'limite_por_minuto' => (int) env('API_INTEGRACION_LIMITE_POR_MINUTO', 60),
+    ],
+
     'groq' => [
         'key' => env('GROQ_API_KEY'),
         'model' => env('GROQ_MODEL', 'openai/gpt-oss-120b'),

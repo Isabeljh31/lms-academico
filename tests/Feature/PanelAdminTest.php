@@ -32,7 +32,7 @@ class PanelAdminTest extends TestCase
 
     public function test_administrador_puede_ver_las_metricas_y_la_configuracion(): void
     {
-        $admin = User::factory()->create()->assignRole(Rol::Administrador->value);
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
 
         $this->actingAs($admin)->get(route('admin.metricas'))->assertOk();
         $this->actingAs($admin)->get(route('admin.configuracion'))->assertOk();
@@ -49,7 +49,7 @@ class PanelAdminTest extends TestCase
 
     public function test_las_metricas_reflejan_los_cursos_con_atraso(): void
     {
-        $admin = User::factory()->create()->assignRole(Rol::Administrador->value);
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
         $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
         $curso = Curso::factory()->create(['profesor_id' => $profesor->id, 'nombre' => 'Curso con atraso']);
         $modulo = Modulo::factory()->create(['curso_id' => $curso->id]);
@@ -70,7 +70,7 @@ class PanelAdminTest extends TestCase
         // archivo para que el test no dependa de ni deje estado en disco.
         Storage::fake('local');
 
-        $admin = User::factory()->create()->assignRole(Rol::Administrador->value);
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
 
         $this->assertTrue(app(ConfiguracionPlataforma::class)->botActivo(), 'debe empezar activo por defecto');
 

@@ -6,253 +6,158 @@ use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
 use App\Models\EsquemaEvaluacion as EsquemaModel;
 use App\Models\NotaRubro;
-use App\Models\RubroEvaluacion;
-use App\Models\User;
+use App\Services\Evaluacion\CalculadoraNotas;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 /**
- * Gestión del Esquema de Evaluación de un Curso.
- * ERS RF-54 a RF-65: solo el Supervisor define rubros y pesos.
+ * Esquema de Evaluación de un Curso (solo Supervisor).
+ * ERS RF-54/RF-55: rubros con nombre, semana y peso.
+ * ERS RF-56 (regla 1): se guarda solo si los pesos suman exactamente 100 %;
+ *   la validación está en el backend (CalculadoraNotas), no solo en la vista.
+ * ERS RF-62 (regla 8): un curso archivado no admite cambios en su esquema.
+ * ERS RF-96: toda modificación queda en la auditoría con valores antes/después.
+ * Un rubro con notas registradas no se elimina (conservaría el historial).
  */
 #[Layout('layouts.app')]
 class EsquemaEvaluacion extends Component
 {
     public Curso $curso;
 
-    // Modal de rubro
-    public bool $mostrarModal = false;
-    public ?int $rubroId = null;
-    public string $nombre = '';
-    public string $semana = '';
-    public string $peso = '';
-    public int $orden = 1;
-
-    // Modal de nota por estudiante
-    public bool $mostrarModalNota = false;
-    public ?int $rubroIdNota = null;
-    public ?int $estudianteIdNota = null;
-    public string $notaInput = '';
-    public string $motivoInput = '';
+    /** @var array<int, array{id: int|null, nombre: string, semana: int|string|null, peso: float|string}> */
+    public array $rubros = [];
 
     public function mount(Curso $curso): void
     {
-        // Solo el Supervisor puede gestionar el esquema
-        abort_unless(auth()->user()->hasRole('supervisor'), 403);
+        Gate::authorize('administrar', $curso);
+
         $this->curso = $curso;
+        $esquema = EsquemaModel::firstOrCreate(['curso_id' => $curso->id]);
 
-        // Crear esquema si no existe aún
-        EsquemaModel::firstOrCreate(['curso_id' => $curso->id]);
+        $this->rubros = $esquema->rubros->map(fn ($rubro) => [
+            'id' => $rubro->id,
+            'nombre' => $rubro->nombre,
+            'semana' => $rubro->semana,
+            'peso' => (float) $rubro->peso,
+        ])->all();
+
+        if ($this->rubros === []) {
+            $this->agregarRubro();
+        }
     }
 
-    // ==========================================
-    // CRUD DE RUBROS
-    // ==========================================
-
-    public function abrirModalNuevo(): void
+    public function getEditableProperty(): bool
     {
-        $this->reset(['rubroId', 'nombre', 'semana', 'peso']);
-        $this->orden = ($this->curso->esquemaEvaluacion->rubros()->max('orden') ?? 0) + 1;
-        $this->mostrarModal = true;
+        return ! $this->curso->estaFinalizado() && ! $this->curso->esquemaEvaluacion?->estaBloqueado();
     }
 
-    public function abrirModalEditar(int $rubroId): void
+    public function getSumaPesosProperty(): float
     {
-        $rubro = RubroEvaluacion::findOrFail($rubroId);
-        $this->rubroId = $rubro->id;
-        $this->nombre  = $rubro->nombre;
-        $this->semana  = (string) ($rubro->semana ?? '');
-        $this->peso    = (string) $rubro->peso;
-        $this->orden   = $rubro->orden;
-        $this->mostrarModal = true;
+        return app(CalculadoraNotas::class)->sumarPesos(array_column($this->rubros, 'peso'));
     }
 
-    public function guardarRubro(): void
+    public function agregarRubro(): void
     {
-        // ERS RF-62: no editar esquema de curso finalizado
-        abort_if($this->curso->estaFinalizado(), 403, 'El curso está finalizado.');
+        $this->rubros[] = ['id' => null, 'nombre' => 'Evaluación '.(count($this->rubros) + 1), 'semana' => null, 'peso' => 0];
+    }
 
-        $this->validate([
-            'nombre' => 'required|string|max:100',
-            'semana' => 'nullable|integer|min:1|max:52',
-            'peso'   => 'required|numeric|min:0.01|max:100',
-        ]);
+    public function quitarRubro(int $indice): void
+    {
+        Gate::authorize('administrar', $this->curso);
+        abort_unless($this->editable, 403, 'El esquema de un curso finalizado no se puede modificar.');
 
-        $esquema = $this->curso->esquemaEvaluacion;
+        $id = $this->rubros[$indice]['id'] ?? null;
 
-        if ($this->rubroId) {
-            $rubro = RubroEvaluacion::findOrFail($this->rubroId);
-            $rubro->update([
-                'nombre' => $this->nombre,
-                'semana' => $this->semana ?: null,
-                'peso'   => $this->peso,
-                'orden'  => $this->orden,
-            ]);
-        } else {
-            $esquema->rubros()->create([
-                'nombre' => $this->nombre,
-                'semana' => $this->semana ?: null,
-                'peso'   => $this->peso,
-                'orden'  => $this->orden,
-            ]);
+        if ($id && NotaRubro::where('rubro_id', $id)->whereNotNull('nota')->exists()) {
+            $this->addError("rubros.$indice.nombre", 'Este rubro ya tiene notas registradas y no se puede eliminar.');
+
+            return;
         }
 
-        // ERS RF-56: validar que la suma sea 100%
-        $esquema->refresh();
-        if (!$esquema->pesosValidos()) {
-            session()->flash('advertencia', "Suma de pesos: {$esquema->sumaPesos()}%. Debe ser exactamente 100% para guardar el esquema como válido.");
-        }
-
-        // ERS RF-96: auditar modificación del esquema
-        BitacoraAuditoria::registrarAccionAdmin(
-            ejecutor: auth()->user(),
-            tipoEvento: 'modificacion_esquema',
-            descripcion: ($this->rubroId ? 'Editó' : 'Creó') . " rubro '{$this->nombre}' (peso: {$this->peso}%) en curso: {$this->curso->nombre}",
-            curso: $this->curso
-        );
-
-        $this->mostrarModal = false;
-        $this->reset(['rubroId', 'nombre', 'semana', 'peso']);
-        session()->flash('estado', 'Rubro guardado.');
+        unset($this->rubros[$indice]);
+        $this->rubros = array_values($this->rubros);
     }
 
-    public function eliminarRubro(int $rubroId): void
+    public function guardar(CalculadoraNotas $calculadora): void
     {
-        abort_if($this->curso->estaFinalizado(), 403);
-        $rubro = RubroEvaluacion::findOrFail($rubroId);
-        $nombre = $rubro->nombre;
-        $rubro->delete();
+        Gate::authorize('administrar', $this->curso);
+        abort_unless($this->editable, 403, 'El esquema de un curso finalizado no se puede modificar.');
 
-        BitacoraAuditoria::registrarAccionAdmin(
-            ejecutor: auth()->user(),
-            tipoEvento: 'modificacion_esquema',
-            descripcion: "Eliminó rubro '{$nombre}' del esquema de '{$this->curso->nombre}'",
-            curso: $this->curso
-        );
-
-        session()->flash('estado', 'Rubro eliminado.');
-    }
-
-    // ==========================================
-    // REGISTRO DE NOTAS POR RUBRO (Profesor)
-    // ERS RF-57, RF-65
-    // ==========================================
-
-    public function abrirModalNota(int $rubroId, int $estudianteId): void
-    {
-        abort_unless(
-            auth()->user()->hasAnyRole(['supervisor', 'profesor']),
-            403
-        );
-        $nota = NotaRubro::where('rubro_id', $rubroId)
-            ->where('estudiante_id', $estudianteId)
-            ->first();
-
-        $this->rubroIdNota     = $rubroId;
-        $this->estudianteIdNota = $estudianteId;
-        $this->notaInput       = $nota ? (string) $nota->nota : '';
-        $this->motivoInput     = '';
-        $this->mostrarModalNota = true;
-    }
-
-    public function guardarNota(): void
-    {
         $this->validate([
-            'notaInput'    => 'required|numeric|min:0|max:20',
-            'motivoInput'  => 'nullable|string|max:500',
+            'rubros' => ['required', 'array', 'min:1', 'max:20'],
+            'rubros.*.nombre' => ['required', 'string', 'max:100', 'distinct:ignore_case'],
+            'rubros.*.semana' => ['nullable', 'integer', 'min:1', 'max:'.($this->curso->semanas_duracion ?: 52)],
+            'rubros.*.peso' => ['required', 'numeric', 'min:0.01', 'max:100'],
+        ], [
+            'rubros.*.nombre.required' => 'Escribe el nombre del rubro.',
+            'rubros.*.nombre.distinct' => 'Hay dos rubros con el mismo nombre.',
+            'rubros.*.peso.required' => 'Indica el peso del rubro.',
+            'rubros.*.peso.min' => 'El peso debe ser mayor que 0.',
+            'rubros.*.semana.max' => 'La semana no puede superar la duración del curso.',
         ]);
 
-        $notaAnterior = NotaRubro::where('rubro_id', $this->rubroIdNota)
-            ->where('estudiante_id', $this->estudianteIdNota)
-            ->value('nota');
+        // ERS RF-56: validación de backend obligatoria.
+        if (! $calculadora->pesosSumanCien(array_column($this->rubros, 'peso'))) {
+            $this->addError('rubros', "Los pesos suman {$this->sumaPesos} %. Deben sumar exactamente 100 % para guardar el esquema.");
 
-        $notaRubro = NotaRubro::updateOrCreate(
-            ['rubro_id' => $this->rubroIdNota, 'estudiante_id' => $this->estudianteIdNota],
-            ['nota' => $this->notaInput, 'registrado_por' => auth()->id()]
-        );
+            return;
+        }
 
-        // ERS RF-65 / RF-95: auditar cambio de nota
-        $rubro = RubroEvaluacion::find($this->rubroIdNota);
-        $estudiante = User::find($this->estudianteIdNota);
+        $esquema = EsquemaModel::firstOrCreate(['curso_id' => $this->curso->id]);
+        $anterior = $esquema->rubros->map->only(['nombre', 'semana', 'peso'])->values()->all();
+        $idsActuales = array_filter(array_column($this->rubros, 'id'));
 
-        BitacoraAuditoria::registrarCambioNota(
-            ejecutor: auth()->user(),
-            curso: $this->curso,
-            estudiante: $estudiante,
-            entidad: 'nota_rubro',
-            entidadId: $notaRubro->id,
-            valorAnterior: $notaAnterior,
-            valorNuevo: $this->notaInput,
-            motivo: $this->motivoInput ?: null
-        );
+        $conNotas = $esquema->rubros()->whereNotIn('id', $idsActuales)
+            ->whereHas('notas', fn ($q) => $q->whereNotNull('nota'))
+            ->pluck('nombre');
 
-        $this->mostrarModalNota = false;
-        $this->reset(['rubroIdNota', 'estudianteIdNota', 'notaInput', 'motivoInput']);
-        session()->flash('estado', 'Nota registrada.');
-    }
+        if ($conNotas->isNotEmpty()) {
+            $this->addError('rubros', 'No se pueden eliminar rubros con notas registradas: '.$conNotas->implode(', ').'.');
 
-    // ==========================================
-    // RENDER
-    // ==========================================
+            return;
+        }
 
-    public function render()
-    {
-        $esquema  = $this->curso->esquemaEvaluacion()->with('rubros')->first();
-        $rubros   = $esquema?->rubros ?? collect();
-        $sumaPesos = $esquema?->sumaPesos() ?? 0;
-        $pesosOk   = abs($sumaPesos - 100) < 0.01;
+        DB::transaction(function () use ($esquema, $idsActuales) {
+            $esquema->rubros()->whereNotIn('id', $idsActuales)->delete();
 
-        $estudiantes = $this->curso->inscripcionesActivas()
-            ->with('estudiante')
-            ->get()
-            ->pluck('estudiante')
-            ->filter();
+            foreach (array_values($this->rubros) as $orden => $rubro) {
+                $datos = [
+                    'nombre' => trim($rubro['nombre']),
+                    'semana' => $rubro['semana'] ?: null,
+                    'peso' => round((float) $rubro['peso'], 2),
+                    'orden' => $orden + 1,
+                ];
 
-        // Notas agrupadas por [rubro_id][estudiante_id]
-        $rubroIds = $rubros->pluck('id');
-        $estudianteIds = $estudiantes->pluck('id');
-
-        $notasMap = NotaRubro::whereIn('rubro_id', $rubroIds)
-            ->whereIn('estudiante_id', $estudianteIds)
-            ->get()
-            ->keyBy(fn ($n) => "{$n->rubro_id}_{$n->estudiante_id}");
-
-        // Calcular nota final ponderada por estudiante (ERS RF-58)
-        $notaMinima = config('app.nota_minima_aprobatoria', 10.5);
-
-        $filas = $estudiantes->map(function (User $est) use ($rubros, $notasMap, $notaMinima) {
-            $sumaTotal  = 0;
-            $pesoTotal  = 0;
-            $notas      = [];
-
-            foreach ($rubros as $rubro) {
-                $key  = "{$rubro->id}_{$est->id}";
-                $nota = $notasMap->get($key);
-                $notas[$rubro->id] = $nota;
-                if ($nota && $nota->nota !== null) {
-                    $sumaTotal += $nota->nota * ($rubro->peso / 100);
-                    $pesoTotal += $rubro->peso;
-                }
+                $rubro['id']
+                    ? $esquema->rubros()->whereKey($rubro['id'])->firstOrFail()->update($datos)
+                    : $esquema->rubros()->create($datos);
             }
-
-            $notaFinal = $pesoTotal > 0 ? round($sumaTotal, 1) : null;
-
-            return [
-                'estudiante' => $est,
-                'notas'      => $notas,
-                'nota_final' => $notaFinal,
-                'aprobado'   => $notaFinal !== null && $notaFinal >= $notaMinima,
-            ];
         });
 
+        $esquema->refresh();
+
+        BitacoraAuditoria::registrarAccionAdmin(
+            ejecutor: auth()->user(),
+            tipoEvento: 'modificacion_esquema',
+            descripcion: "Esquema de evaluación guardado para \"{$this->curso->nombre}\" ({$esquema->rubros->count()} rubros, 100 %).",
+            curso: $this->curso,
+            valorAnterior: $anterior,
+            valorNuevo: $esquema->rubros->map->only(['nombre', 'semana', 'peso'])->values()->all(),
+        );
+
+        $this->rubros = $esquema->rubros->map(fn ($r) => ['id' => $r->id, 'nombre' => $r->nombre, 'semana' => $r->semana, 'peso' => (float) $r->peso])->all();
+        session()->flash('estado', 'Esquema de evaluación guardado. Los pesos suman 100 %.');
+    }
+
+    public function render(CalculadoraNotas $calculadora)
+    {
         return view('livewire.cursos.esquema-evaluacion', [
-            'esquema'   => $esquema,
-            'rubros'    => $rubros,
-            'sumaPesos' => $sumaPesos,
-            'pesosOk'   => $pesosOk,
-            'filas'     => $filas,
-            'notaMinima' => $notaMinima,
-        ])->title("Esquema de Evaluación — {$this->curso->nombre}");
+            'pesosOk' => $calculadora->pesosSumanCien(array_column($this->rubros, 'peso')),
+            'notaMinima' => $calculadora->notaMinima(),
+            'totalEstudiantes' => $this->curso->inscripcionesActivas()->count(),
+            'notasRegistradas' => NotaRubro::whereIn('rubro_id', array_filter(array_column($this->rubros, 'id')))->whereNotNull('nota')->count(),
+        ])->title("Esquema de evaluación — {$this->curso->nombre}");
     }
 }

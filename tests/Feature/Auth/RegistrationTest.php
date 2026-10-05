@@ -2,40 +2,39 @@
 
 namespace Tests\Feature\Auth;
 
-use App\Enums\Rol;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Livewire\Volt\Volt;
-use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
+/**
+ * ERS 2.4: no existe registro público ni autoservicio de cuentas. Estas
+ * pruebas reemplazan a las de Breeze, que verificaban lo contrario.
+ */
 class RegistrationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_registration_screen_can_be_rendered(): void
+    public function test_la_ruta_de_registro_publico_no_existe(): void
     {
-        $response = $this->get('/register');
+        $this->assertFalse(Route::has('register'));
 
-        $response
-            ->assertOk()
-            ->assertSeeVolt('pages.auth.register');
+        $this->get('/register')->assertNotFound();
     }
 
-    public function test_new_users_can_register(): void
+    public function test_no_se_puede_crear_una_cuenta_enviando_datos_a_register(): void
     {
-        Role::firstOrCreate(['name' => Rol::Estudiante->value]);
+        $this->post('/register', [
+            'name' => 'Intruso',
+            'email' => 'intruso@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertStatus(404);
 
-        $component = Volt::test('pages.auth.register')
-            ->set('name', 'Test User')
-            ->set('email', 'test@example.com')
-            ->set('password', 'password')
-            ->set('password_confirmation', 'password');
+        $this->assertDatabaseMissing('users', ['email' => 'intruso@example.com']);
+    }
 
-        $component->call('register');
-
-        $component->assertRedirect(route('dashboard', absolute: false));
-
-        $this->assertAuthenticated();
-        $this->assertTrue($this->app['auth']->user()->hasRole(Rol::Estudiante->value));
+    public function test_la_pantalla_de_login_no_enlaza_a_registro(): void
+    {
+        $this->get('/login')->assertOk()->assertDontSee('/register');
     }
 }

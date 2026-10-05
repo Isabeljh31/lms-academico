@@ -2,26 +2,38 @@
 
 namespace App\Livewire\Docente\PorCalificar;
 
+use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Notifications\TareaCalificada;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
+/**
+ * ERS RF-49 y RF-88: bandeja de entregas pendientes de calificar de todos
+ * los cursos del profesor. Solo se listan y califican entregas de cursos
+ * cuyo titular es el usuario (sin acceso a entregas de otros cursos).
+ */
 #[Layout('layouts.app')]
 class Index extends Component
 {
     use WithPagination;
 
     public ?int $cursoFiltroId = null;
+
     public string $busqueda = '';
 
-    // Modal de calificación rápida
     public bool $mostrarModalCalificar = false;
+
+    #[Locked]
     public ?int $entregaSeleccionadaId = null;
-    public ?Entrega $entregaSeleccionada = null;
+
     public string $nota = '';
+
     public string $feedback = '';
 
     public function mount(): void
@@ -29,106 +41,103 @@ class Index extends Component
         abort_unless(auth()->user()->hasAnyRole(['profesor', 'supervisor']), 403);
     }
 
-    public function updatingBusqueda(): void
+    public function updating(string $propiedad): void
     {
-        $this->resetPage();
-    }
-
-    public function updatingCursoFiltroId(): void
-    {
-        $this->resetPage();
+        if (in_array($propiedad, ['busqueda', 'cursoFiltroId'], true)) {
+            $this->resetPage();
+        }
     }
 
     public function abrirCalificar(int $entregaId): void
     {
-        $this->entregaSeleccionada = Entrega::with(['estudiante', 'tarea.curso'])->findOrFail($entregaId);
-        $this->entregaSeleccionadaId = $entregaId;
-        $this->nota = (string) ($this->entregaSeleccionada->nota ?? '');
-        $this->feedback = $this->entregaSeleccionada->feedback ?? '';
+        $entrega = $this->entregasCalificables()->findOrFail($entregaId);
+        Gate::authorize('calificar', $entrega);
+
+        $this->resetErrorBag();
+        $this->entregaSeleccionadaId = $entrega->id;
+        $this->nota = $entrega->nota !== null ? (string) (float) $entrega->nota : '';
+        $this->feedback = $entrega->feedback ?? '';
         $this->mostrarModalCalificar = true;
     }
 
     public function guardarCalificacion(): void
     {
+        $entrega = $this->entregasCalificables()->with('tarea.curso')->findOrFail($this->entregaSeleccionadaId);
+        Gate::authorize('calificar', $entrega);
+
         $this->validate([
             'nota' => ['required', 'numeric', 'min:0', 'max:20'],
             'feedback' => ['nullable', 'string', 'max:2000'],
+        ], [
+            'nota.required' => 'Ingresa la nota (0 a 20).',
         ]);
 
-        $entrega = Entrega::with('tarea')->findOrFail($this->entregaSeleccionadaId);
-        $tarea = $entrega->tarea;
+        $nota = round((float) $this->nota, 2);
+        $miembros = $entrega->grupo_id
+            ? Entrega::where('tarea_id', $entrega->tarea_id)->where('grupo_id', $entrega->grupo_id)->with('estudiante')->get()
+            : collect([$entrega]);
 
-        if ($tarea->esGrupal() && $entrega->grupo_id) {
-            // Calificación grupal: propaga a todos los integrantes del grupo
-            $entregasGrupo = Entrega::where('tarea_id', $tarea->id)
-                ->where('grupo_id', $entrega->grupo_id)
-                ->get();
+        foreach ($miembros as $item) {
+            $anterior = $item->nota;
+            $item->update(['nota' => $nota, 'feedback' => $this->feedback ?: null, 'estado' => 'calificado']);
 
-            foreach ($entregasGrupo as $item) {
-                $item->update([
-                    'nota' => $this->nota,
-                    'feedback' => $this->feedback,
-                    'estado' => 'calificado',
-                ]);
-
-                if ($item->estudiante) {
-                    $item->estudiante->notify(new TareaCalificada($item));
-                }
+            if ($anterior !== null && (float) $anterior !== $nota) {
+                BitacoraAuditoria::registrarCambioNota(
+                    ejecutor: auth()->user(),
+                    curso: $entrega->tarea->curso,
+                    estudiante: $item->estudiante,
+                    entidad: 'entrega_tarea',
+                    entidadId: $item->id,
+                    valorAnterior: $anterior,
+                    valorNuevo: $nota,
+                    motivo: 'Recalificación desde la bandeja Por calificar.'
+                );
             }
 
-            session()->flash('estado', "Calificación grupal ({$this->nota}/20) propagada exitosamente a los integrantes del equipo.");
-        } else {
-            $entrega->update([
-                'nota' => $this->nota,
-                'feedback' => $this->feedback,
-                'estado' => 'calificado',
-            ]);
-
-            if ($entrega->estudiante) {
-                $entrega->estudiante->notify(new TareaCalificada($entrega));
-            }
-
-            session()->flash('estado', "Entrega de '{$entrega->estudiante?->name}' calificada con {$this->nota}/20.");
+            $item->estudiante?->notify(new TareaCalificada($item));
         }
 
+        session()->flash('estado', $entrega->grupo_id
+            ? "Calificación {$nota}/20 aplicada a todo el grupo."
+            : "Entrega de {$entrega->estudiante?->name} calificada con {$nota}/20.");
+
         $this->mostrarModalCalificar = false;
-        $this->reset(['entregaSeleccionadaId', 'entregaSeleccionada', 'nota', 'feedback']);
+        $this->reset(['entregaSeleccionadaId', 'nota', 'feedback']);
+    }
+
+    /**
+     * Entregas de los cursos que dicta el usuario (titular o adicional) y que no están archivados.
+     */
+    protected function entregasCalificables(): Builder
+    {
+        return Entrega::query()->whereHas('tarea.curso', fn ($q) => $q
+            ->dictadosPor(auth()->id())
+            ->where('estado', '!=', 'archivado'));
     }
 
     public function render()
     {
-        $usuario = auth()->user();
+        $cursos = Curso::dictadosPor(auth()->id())->where('estado', '!=', 'archivado')->orderBy('nombre')->get();
 
-        // Cursos asignados al docente o todos si es administrador
-        $cursosQuery = $usuario->hasRole('supervisor')
-            ? Curso::query()
-            : $usuario->cursosComoProfesor();
+        $pendientes = $this->entregasCalificables()
+            ->whereIn('estado', ['entregado'])
+            ->when($this->cursoFiltroId, fn ($q) => $q->whereHas('tarea', fn ($t) => $t->where('curso_id', $this->cursoFiltroId)))
+            ->when($this->busqueda, fn ($q) => $q->where(fn ($sub) => $sub
+                ->whereHas('estudiante', fn ($e) => $e->where('name', 'like', "%{$this->busqueda}%"))
+                ->orWhereHas('tarea', fn ($t) => $t->where('titulo', 'like', "%{$this->busqueda}%"))
+            ));
 
-        $cursos = $cursosQuery->orderBy('nombre')->get();
-        $cursoIds = $cursos->pluck('id');
-
-        // Entregas pendientes de calificar
-        $entregasQuery = Entrega::query()
-            ->whereHas('tarea', fn ($q) => $q->whereIn('curso_id', $cursoIds))
-            ->where('estado', '!=', 'calificado')
-            ->when($this->cursoFiltroId, fn ($q) => $q->whereHas('tarea', fn ($q2) => $q2->where('curso_id', $this->cursoFiltroId)))
-            ->when($this->busqueda, fn ($q) => $q->where(function ($sub) {
-                $sub->whereHas('estudiante', fn ($qEst) => $qEst->where('name', 'like', "%{$this->busqueda}%"))
-                    ->orWhereHas('tarea', fn ($qTar) => $qTar->where('titulo', 'like', "%{$this->busqueda}%"));
-            }))
-            ->with(['estudiante', 'tarea.curso', 'grupo'])
-            ->orderBy('created_at', 'asc'); // Más antiguas primero (cola FIFO de revisión)
-
-        $totalPendientes = (clone $entregasQuery)->count();
-        $conAtraso = (clone $entregasQuery)->where('created_at', '<', now()->subDays(3))->count();
-
-        $entregas = $entregasQuery->paginate(10);
+        $totalPendientes = (clone $pendientes)->count();
+        $conAtraso = (clone $pendientes)->where('updated_at', '<', now()->subDays(3))->count();
 
         return view('livewire.docente.por-calificar.index', [
-            'entregas' => $entregas,
+            'entregas' => $pendientes->with(['estudiante', 'tarea.curso', 'grupo'])->orderBy('updated_at')->paginate(10),
             'cursos' => $cursos,
             'totalPendientes' => $totalPendientes,
             'conAtraso' => $conAtraso,
-        ]);
+            'entregaSeleccionada' => $this->entregaSeleccionadaId
+                ? $this->entregasCalificables()->with(['estudiante', 'tarea', 'grupo'])->find($this->entregaSeleccionadaId)
+                : null,
+        ])->title('Por calificar — LearnUp');
     }
 }

@@ -20,6 +20,23 @@ class CursoFactory extends Factory
             'profesor_id' => User::role(Rol::Profesor->value)->inRandomOrder()->first()?->id
                 ?? User::factory()->create()->assignRole(Rol::Profesor->value)->id,
             'imagen_portada_url' => null,
+            'estado' => 'publicado',
         ];
+    }
+
+    /**
+     * Curso aún no visible para estudiantes.
+     */
+    public function borrador(): static
+    {
+        return $this->state(fn (array $attributes) => ['estado' => 'borrador']);
+    }
+
+    /**
+     * Curso finalizado: no admite cambios retroactivos (ERS RNF-14).
+     */
+    public function archivado(): static
+    {
+        return $this->state(fn (array $attributes) => ['estado' => 'archivado']);
     }
 }

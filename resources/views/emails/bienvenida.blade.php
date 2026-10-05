@@ -6,7 +6,7 @@
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
         .container { max-width: 560px; margin: 40px auto; background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
-        .header { background: linear-gradient(135deg, #4f7f7a 0%, #2f5a5a 100%); padding: 32px; text-align: center; }
+        .header { background: #2f5a5a; padding: 32px; text-align: center; }
         .header h1 { color: #fff; margin: 0; font-size: 24px; }
         .header p { color: rgba(255,255,255,.7); margin: 8px 0 0; }
         .body { padding: 32px; }
@@ -21,7 +21,7 @@
 <body>
 <div class="container">
     <div class="header">
-        <h1>🎓 Bienvenido a LearnUp</h1>
+        <h1>Bienvenido a LearnUp</h1>
         <p>Tu cuenta ha sido creada</p>
     </div>
     <div class="body">
@@ -38,7 +38,7 @@
         <a href="{{ $urlLogin }}" class="btn">Iniciar sesión en LearnUp</a>
 
         <div class="warning">
-            ⚠️ <strong>Importante:</strong> Al iniciar sesión por primera vez, el sistema te pedirá que cambies tu contraseña temporal. Este paso es obligatorio antes de acceder a cualquier otra sección.
+            <strong>Importante:</strong> Al iniciar sesión por primera vez, el sistema te pedirá que cambies tu contraseña temporal. Este paso es obligatorio antes de acceder a cualquier otra sección.
         </div>
     </div>
     <div class="footer">

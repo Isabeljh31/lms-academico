@@ -2,17 +2,30 @@
 
 namespace App\Livewire\Tareas;
 
+use App\Models\BitacoraAuditoria;
 use App\Models\Entrega;
 use App\Models\Grupo;
 use App\Models\Tarea;
+use App\Models\User;
+use App\Notifications\EntregaDevuelta;
 use App\Notifications\TareaCalificada;
+use App\Services\ConfiguracionPlataforma;
 use App\Services\Multimedia\SubidorArchivos;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
+/**
+ * Detalle de una tarea.
+ * - Estudiante (RF-42, RF-43): entrega archivo, respuesta escrita y/o enlace;
+ *   reentrega mientras tenga intentos o si el profesor la devolvió.
+ * - Profesor titular (RF-49): revisa, comenta, califica o devuelve. Toda
+ *   modificación de una nota ya registrada queda en la auditoría (RF-95).
+ */
 #[Layout('layouts.app')]
 class Detalle extends Component
 {
@@ -24,6 +37,10 @@ class Detalle extends Component
 
     public string $comentario = '';
 
+    public string $respuestaTexto = '';
+
+    public string $enlace = '';
+
     /** @var array<int, string> */
     public array $notas = [];
 
@@ -33,7 +50,6 @@ class Detalle extends Component
     public function mount(Tarea $tarea): void
     {
         Gate::authorize('ver', $tarea);
-
         $this->tarea = $tarea;
     }
 
@@ -42,9 +58,19 @@ class Detalle extends Component
         return Gate::allows('gestionar', $this->tarea);
     }
 
+    public function getPuedeCalificarProperty(): bool
+    {
+        return Gate::allows('calificar', $this->tarea->curso) && ! $this->tarea->curso->estaFinalizado();
+    }
+
     public function getMiEntregaProperty(): ?Entrega
     {
         return $this->tarea->entregaDe(auth()->user());
+    }
+
+    public function getMiEstadoProperty(): string
+    {
+        return $this->tarea->estadoPara($this->miEntrega);
     }
 
     public function getMiGrupoProperty(): ?Grupo
@@ -56,12 +82,41 @@ class Detalle extends Component
         return auth()->user()->grupoEnCurso($this->tarea->curso);
     }
 
+    /**
+     * El estudiante puede volver a entregar si el profesor devolvió la
+     * entrega, o si aún tiene intentos y la entrega no fue calificada.
+     */
+    public function getPuedeReentregarProperty(): bool
+    {
+        $entrega = $this->miEntrega;
+
+        if (! $entrega || $entrega->estado === 'calificado') {
+            return false;
+        }
+
+        return $entrega->estado === 'devuelto'
+            || $entrega->intentos_usados < $this->tarea->intentos_permitidos;
+    }
+
+    public function getNotaMinimaProperty(): float
+    {
+        return app(ConfiguracionPlataforma::class)->notaMinimaAprobatoria();
+    }
+
+    // ==========================================
+    // ENTREGA DEL ESTUDIANTE (RF-42)
+    // ==========================================
+
     public function entregar(SubidorArchivos $subidor): void
     {
         Gate::authorize('crear', [Entrega::class, $this->tarea]);
 
-        if ($this->miEntrega) {
-            $this->addError('archivo', 'Ya entregaste esta tarea.');
+        $entregaPrevia = $this->miEntrega;
+
+        if ($entregaPrevia && ! $this->puedeReentregar) {
+            $this->addError('archivo', $entregaPrevia->estado === 'calificado'
+                ? 'Tu entrega ya fue calificada.'
+                : 'Ya usaste todos los intentos de entrega de esta tarea.');
 
             return;
         }
@@ -73,64 +128,91 @@ class Detalle extends Component
         }
 
         $this->validate([
-            'archivo' => ['required', 'file', 'max:20480'],
+            'archivo' => SubidorArchivos::reglas($this->tarea->formatosPermitidos() ?: null, requerido: false),
+            'respuestaTexto' => ['nullable', 'string', 'max:10000'],
+            'enlace' => ['nullable', 'url:http,https', 'max:500'],
             'comentario' => ['nullable', 'string', 'max:1000'],
+        ], [
+            'enlace.url' => 'El enlace debe empezar con http:// o https://.',
+            ...SubidorArchivos::mensajes('archivo'),
         ]);
 
-        $url = $subidor->subir($this->archivo, 'entregas');
+        if (! $this->archivo && trim($this->respuestaTexto) === '' && trim($this->enlace) === '') {
+            $this->addError('archivo', 'Adjunta un archivo, escribe una respuesta o agrega un enlace.');
 
-        if ($this->tarea->esGrupal()) {
-            // Una entrega grupal crea/actualiza una fila por cada integrante
-            // del grupo (mismo archivo), así el resto de la plataforma
-            // (progreso, badges, notificaciones) sigue leyendo entregas por
-            // estudiante_id exactamente igual que antes.
-            foreach ($this->miGrupo->estudiantes as $miembro) {
-                $this->tarea->entregas()->updateOrCreate(
-                    ['estudiante_id' => $miembro->id],
-                    [
-                        'grupo_id' => $this->miGrupo->id,
-                        'archivo_url' => $url,
-                        'comentario' => $this->comentario,
-                        'estado' => 'entregado',
-                    ]
-                );
-            }
-        } else {
-            $this->tarea->entregas()->create([
-                'estudiante_id' => auth()->id(),
-                'archivo_url' => $url,
-                'comentario' => $this->comentario,
-                'estado' => 'entregado',
-            ]);
+            return;
         }
 
-        $this->archivo = null;
-        $this->comentario = '';
+        $url = $this->archivo
+            ? $subidor->subir($this->archivo, 'entregas', 'archivo', $this->tarea->formatosPermitidos() ?: null)
+            : null;
+
+        $datos = [
+            'archivo_url' => $url ?? ($entregaPrevia?->archivo_url),
+            'respuesta_texto' => $this->respuestaTexto ?: null,
+            'enlace' => $this->enlace ?: null,
+            'comentario' => $this->comentario ?: null,
+            'estado' => 'entregado',
+            'nota' => null,
+            'intentos_usados' => ($entregaPrevia?->intentos_usados ?? 0) + 1,
+        ];
+
+        DB::transaction(function () use ($datos) {
+            // Una entrega grupal crea/actualiza una fila por cada integrante del grupo.
+            $miembros = $this->tarea->esGrupal() ? $this->miGrupo->estudiantes : collect([auth()->user()]);
+
+            foreach ($miembros as $miembro) {
+                $this->tarea->entregas()->updateOrCreate(
+                    ['estudiante_id' => $miembro->id],
+                    [...$datos, 'grupo_id' => $this->miGrupo?->id]
+                );
+            }
+        });
+
+        $this->tarea->unsetRelation('entregas');
+        $this->reset(['archivo', 'comentario', 'respuestaTexto', 'enlace']);
+        session()->flash('estado', 'Entrega registrada correctamente.');
     }
+
+    // ==========================================
+    // CALIFICACIÓN (RF-49, RF-95)
+    // ==========================================
 
     public function calificar(int $entregaId): void
     {
-        $entrega = Entrega::findOrFail($entregaId);
-
+        $entrega = $this->entregaDeEstaTarea($entregaId);
         Gate::authorize('calificar', $entrega);
-
-        $nota = $this->notas[$entregaId] ?? null;
 
         $this->validate([
             "notas.$entregaId" => ['required', 'numeric', 'min:0', 'max:20'],
-            "feedbacks.$entregaId" => ['nullable', 'string', 'max:1000'],
+            "feedbacks.$entregaId" => ['nullable', 'string', 'max:2000'],
+        ], [
+            "notas.$entregaId.required" => 'Ingresa la nota (0 a 20).',
+            "notas.$entregaId.max" => 'La nota máxima es 20.',
+            "notas.$entregaId.min" => 'La nota mínima es 0.',
         ]);
 
+        $nota = round((float) $this->notas[$entregaId], 2);
         $feedback = $this->feedbacks[$entregaId] ?? null;
 
-        // Calificar una entrega grupal aplica la misma nota/feedback a todos
-        // los integrantes del grupo, en una sola acción del profesor.
-        $entregasACalificar = $entrega->grupo_id
-            ? Entrega::where('tarea_id', $entrega->tarea_id)->where('grupo_id', $entrega->grupo_id)->with('estudiante')->get()
-            : collect([$entrega]);
+        foreach ($this->miembrosDe($entrega) as $entregaMiembro) {
+            $notaAnterior = $entregaMiembro->nota;
 
-        foreach ($entregasACalificar as $entregaMiembro) {
             $entregaMiembro->update(['nota' => $nota, 'feedback' => $feedback, 'estado' => 'calificado']);
+
+            if ($notaAnterior !== null && (float) $notaAnterior !== $nota) {
+                BitacoraAuditoria::registrarCambioNota(
+                    ejecutor: auth()->user(),
+                    curso: $this->tarea->curso,
+                    estudiante: $entregaMiembro->estudiante,
+                    entidad: 'entrega_tarea',
+                    entidadId: $entregaMiembro->id,
+                    valorAnterior: $notaAnterior,
+                    valorNuevo: $nota,
+                    motivo: 'Recalificación de la tarea "'.$this->tarea->titulo.'".'
+                );
+            }
+
             $entregaMiembro->estudiante->notify(new TareaCalificada($entregaMiembro));
         }
 
@@ -139,17 +221,67 @@ class Detalle extends Component
             : 'Calificación guardada para '.$entrega->estudiante->name.'.');
     }
 
-    public function render()
+    /**
+     * ERS RF-49: devuelve la entrega para corrección con un comentario.
+     */
+    public function devolver(int $entregaId): void
     {
-        $entregas = $this->puedeGestionar
-            ? $this->tarea->entregas()->with('estudiante', 'grupo')->get()
-            : collect();
+        $entrega = $this->entregaDeEstaTarea($entregaId);
+        Gate::authorize('calificar', $entrega);
 
-        foreach ($entregas as $entrega) {
-            $this->notas[$entrega->id] ??= (string) ($entrega->nota ?? '');
-            $this->feedbacks[$entrega->id] ??= $entrega->feedback ?? '';
+        $this->validate(
+            ["feedbacks.$entregaId" => ['required', 'string', 'max:2000']],
+            ["feedbacks.$entregaId.required" => 'Escribe un comentario para que el estudiante sepa qué corregir.']
+        );
+
+        foreach ($this->miembrosDe($entrega) as $entregaMiembro) {
+            $entregaMiembro->update(['estado' => 'devuelto', 'feedback' => $this->feedbacks[$entregaId]]);
+            $entregaMiembro->estudiante->notify(new EntregaDevuelta($entregaMiembro));
         }
 
-        return view('livewire.tareas.detalle', ['entregas' => $entregas]);
+        session()->flash('estado', 'Entrega devuelta para corrección. Se notificó al estudiante.');
+    }
+
+    protected function entregaDeEstaTarea(int $entregaId): Entrega
+    {
+        return $this->tarea->entregas()->with('estudiante', 'grupo', 'tarea.curso')->findOrFail($entregaId);
+    }
+
+    /**
+     * @return Collection<int, Entrega>
+     */
+    protected function miembrosDe(Entrega $entrega): Collection
+    {
+        return $entrega->grupo_id
+            ? $this->tarea->entregas()->where('grupo_id', $entrega->grupo_id)->with('estudiante', 'tarea.curso')->get()
+            : collect([$entrega]);
+    }
+
+    public function render()
+    {
+        $entregas = collect();
+        $sinEntregar = collect();
+
+        if (Gate::allows('supervisar', $this->tarea)) {
+            // Primero lo que falta calificar, luego lo devuelto y al final lo ya calificado.
+            $prioridad = ['entregado' => 0, 'devuelto' => 1, 'calificado' => 2];
+            $entregas = $this->tarea->entregas()->with('estudiante', 'grupo')->latest('updated_at')->get()
+                ->sortBy(fn ($entrega) => $prioridad[$entrega->estado] ?? 3)->values();
+
+            foreach ($entregas as $entrega) {
+                $this->notas[$entrega->id] ??= $entrega->nota !== null ? (string) (float) $entrega->nota : '';
+                $this->feedbacks[$entrega->id] ??= $entrega->feedback ?? '';
+            }
+
+            $sinEntregar = User::whereIn('id', $this->tarea->curso->inscripcionesActivas()->select('estudiante_id'))
+                ->whereNotIn('id', $entregas->pluck('estudiante_id'))
+                ->orderBy('name')
+                ->get();
+        }
+
+        return view('livewire.tareas.detalle', [
+            'entregas' => $entregas,
+            'sinEntregar' => $sinEntregar,
+        ])->title("{$this->tarea->titulo} — LearnUp");
     }
 }

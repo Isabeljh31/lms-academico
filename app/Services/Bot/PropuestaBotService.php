@@ -28,7 +28,8 @@ class PropuestaBotService
      */
     public function leerProgresoEstudiante(User $estudiante, Curso $curso): array
     {
-        $tareas = $curso->tareas()->with(['entregas' => fn ($q) => $q->where('estudiante_id', $estudiante->id)])->get();
+        // Solo tareas publicadas para el estudiante (RF-38).
+        $tareas = $curso->tareas()->visiblesParaEstudiante()->with(['entregas' => fn ($q) => $q->where('estudiante_id', $estudiante->id)])->get();
 
         $vencidasSinEntrega = $tareas->filter(fn ($t) => $t->estaVencida() && $t->entregas->isEmpty());
         $calificadas = $tareas->flatMap->entregas->where('estado', 'calificado');
@@ -83,7 +84,7 @@ class PropuestaBotService
                 'tarea_titulo' => $tareaAtrasada->titulo,
                 'curso_id' => $curso->id,
                 'curso_nombre' => $curso->nombre,
-                'motivo' => 'La tarea venció el '.$tareaAtrasada->fecha_entrega->format('d/m/Y').' sin que se registrara una entrega.',
+                'motivo' => 'La tarea venció el '.$tareaAtrasada->fecha_entrega->formatoFecha().' sin que se registrara una entrega.',
                 'nueva_fecha_recordatorio' => now()->addDay()->setTime(18, 0)->toIso8601String(),
             ],
         ]);
@@ -98,8 +99,9 @@ class PropuestaBotService
     {
         $creadas = 0;
 
-        Curso::with('inscripciones.estudiante')->get()->each(function (Curso $curso) use (&$creadas) {
-            $curso->inscripciones->each(function ($inscripcion) use ($curso, &$creadas) {
+        // Solo cursos en curso y matrículas activas: un estudiante dado de baja no recibe propuestas.
+        Curso::where('estado', 'publicado')->with('inscripcionesActivas.estudiante')->get()->each(function (Curso $curso) use (&$creadas) {
+            $curso->inscripcionesActivas->each(function ($inscripcion) use ($curso, &$creadas) {
                 if ($this->sugerirRedistribucionPlan($inscripcion->estudiante, $curso)) {
                     $creadas++;
                 }

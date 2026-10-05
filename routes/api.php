@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\MatriculaController;
+use App\Http\Middleware\ValidarApiKey;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('v1')
-    ->middleware(App\Http\Middleware\ValidarApiKey::class)
+    ->middleware(['throttle:api-integracion', ValidarApiKey::class])
     ->group(function () {
         // ERS RF-100: sincronizar matrículas desde sistema externo (SIS/ERP)
         Route::post('/matriculas', [MatriculaController::class, 'sincronizar']);

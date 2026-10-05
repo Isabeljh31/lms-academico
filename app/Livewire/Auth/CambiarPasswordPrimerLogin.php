@@ -4,59 +4,61 @@ namespace App\Livewire\Auth;
 
 use App\Models\BitacoraAuditoria;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 /**
  * ERS RF-05: cambio obligatorio de contraseña en el primer inicio de sesión.
- * El sistema no permite acceder a ninguna otra sección hasta completar este paso.
+ * El sistema no permite acceder a ninguna otra sección hasta completar este
+ * paso (ver App\Http\Middleware\PrimerLogin).
  */
 #[Layout('layouts.guest')]
 class CambiarPasswordPrimerLogin extends Component
 {
     public string $password = '';
+
     public string $password_confirmation = '';
 
     public function mount(): void
     {
-        if (!auth()->user()?->primer_login) {
+        if (! auth()->user()?->primer_login) {
             $this->redirect(route('dashboard'), navigate: true);
         }
     }
 
-    public function guardar()
+    public function guardar(): void
     {
-        \Illuminate\Support\Facades\Log::info('Guardar invocado', ['password' => $this->password]);
+        $usuario = auth()->user();
+        abort_unless($usuario?->primer_login, 403);
 
         $this->validate([
-            'password'              => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'confirmed', Password::min(8)->letters()->numbers()],
             'password_confirmation' => ['required', 'string'],
+        ], [
+            'password.confirmed' => 'Las contraseñas no coinciden.',
         ]);
 
-        \Illuminate\Support\Facades\Log::info('Validacion exitosa');
+        if (Hash::check($this->password, $usuario->password)) {
+            $this->addError('password', 'La nueva contraseña debe ser distinta de la contraseña temporal.');
 
-        try {
-            $user = auth()->user();
-            $user->update([
-                'password'    => Hash::make($this->password),
-                'primer_login' => false,
-            ]);
-
-            // ERS RF-95: auditar el cambio de contraseña inicial
-            BitacoraAuditoria::registrarAccionAdmin(
-                ejecutor: $user,
-                tipoEvento: 'otro_admin',
-                descripcion: 'El usuario completó el cambio de contraseña obligatorio en primer login.',
-                usuarioAfectado: $user
-            );
-
-            \Illuminate\Support\Facades\Log::info('Actualizacion y auditoria exitosa, redirigiendo a dashboard');
-            return $this->redirect(route('dashboard'), navigate: false);
-            
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Error en guardar: ' . $e->getMessage());
-            session()->flash('error', 'Error interno: ' . $e->getMessage());
+            return;
         }
+
+        $usuario->forceFill([
+            'password' => $this->password,
+            'primer_login' => false,
+        ])->save();
+
+        BitacoraAuditoria::registrarAccionAdmin(
+            ejecutor: $usuario,
+            tipoEvento: 'cambio_password_inicial',
+            descripcion: 'El usuario completó el cambio de contraseña obligatorio del primer ingreso.',
+            usuarioAfectado: $usuario
+        );
+
+        $this->reset(['password', 'password_confirmation']);
+        $this->redirect(route('dashboard'));
     }
 
     public function render()

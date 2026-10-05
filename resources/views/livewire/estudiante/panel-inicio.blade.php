@@ -22,7 +22,7 @@
 
     // Bloque de estadísticas del hero — mismos datos que ya trae el panel,
     // solo resumidos en tres cifras rápidas (ver Figma de referencia).
-    $proximaEntregaFecha = $proximas_entregas->first()['fecha'] ?? null;
+    $proximaEntregaFecha = $proxima_entrega ?? null;
 @endphp
 
 <div class="space-y-8">
@@ -41,13 +41,13 @@
             <h1 class="text-2xl sm:text-3xl font-bold mt-1">Hola, {{ explode(' ', auth()->user()->name)[0] }}</h1>
             <p class="text-white/80 text-sm mt-2 max-w-md">
                 @if ($cursos->isEmpty())
-                    Todavía no estás inscrito en ningún curso. Explora el catálogo para empezar.
+                    Todavía no estás matriculado en ningún curso. Cuando el Supervisor te matricule, aparecerá aquí.
                 @else
                     Sigues avanzando en {{ $cursos->count() }} {{ $cursos->count() === 1 ? 'curso' : 'cursos' }}. ¡Vamos por más!
                 @endif
             </p>
             <a href="{{ route('cursos.index') }}" wire:navigate class="inline-flex items-center gap-1.5 mt-4 text-sm font-semibold bg-white text-azul-oscuro rounded-lg px-4 py-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition">
-                Ver catálogo de cursos <x-icono nombre="flecha-derecha" class="h-4 w-4" />
+                Ver mis cursos <x-icono nombre="flecha-derecha" class="h-4 w-4" />
             </a>
         </div>
 
@@ -81,7 +81,7 @@
                 <x-icono nombre="tarea" class="h-5 w-5" />
             </span>
             <div>
-                <p class="text-xl font-bold text-texto dark:text-slate-100 leading-none">{{ $proximas_entregas->count() }}</p>
+                <p class="text-xl font-bold text-texto dark:text-slate-100 leading-none">{{ $total_pendientes ?? $proximas_entregas->count() }}</p>
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Tareas pendientes</p>
             </div>
         </div>
@@ -90,7 +90,7 @@
                 <x-icono nombre="calendario" class="h-5 w-5" />
             </span>
             <div>
-                <p class="text-xl font-bold text-texto dark:text-slate-100 leading-none">{{ $proximaEntregaFecha?->format('d/m') ?? '—' }}</p>
+                <p class="text-xl font-bold text-texto dark:text-slate-100 leading-none">{{ $proximaEntregaFecha?->formatoDiaMes() ?? '—' }}</p>
                 <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Próxima entrega</p>
             </div>
         </div>
@@ -148,7 +148,7 @@
                                     @if ($fila['proxima_fecha'])
                                         <p class="text-xs text-slate-400 mt-3 flex items-center gap-1">
                                             <x-icono nombre="reloj" class="h-3.5 w-3.5" />
-                                            Próxima entrega: {{ $fila['proxima_fecha']->format('d/m') }}
+                                            Próxima entrega: {{ $fila['proxima_fecha']->formatoDiaMes() }}
                                         </p>
                                     @else
                                         <p class="text-xs text-emerald-600 dark:text-emerald-400 mt-3 flex items-center gap-1">
@@ -261,7 +261,7 @@
                             </div>
                             <div class="min-w-0">
                                 <p class="text-sm text-texto dark:text-slate-100 truncate">{{ $evento['titulo'] }}</p>
-                                <p class="text-xs text-slate-400">{{ $evento['fecha']->format('d/m/Y H:i') }}</p>
+                                <p class="text-xs text-slate-400">{{ $evento['fecha']->formatoFechaHora() }}</p>
                             </div>
                         </div>
                     @empty

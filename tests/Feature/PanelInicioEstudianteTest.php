@@ -44,7 +44,7 @@ class PanelInicioEstudianteTest extends TestCase
     public function test_profesor_y_administrador_siguen_viendo_el_panel_anterior_sin_cambios(): void
     {
         $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
-        $admin = User::factory()->create()->assignRole(Rol::Administrador->value);
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
 
         $this->actingAs($profesor)
             ->get(route('dashboard'))

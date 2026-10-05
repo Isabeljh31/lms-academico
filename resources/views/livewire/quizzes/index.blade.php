@@ -1,6 +1,18 @@
 <div class="py-8">
     {{-- Ancho de contenedor estandarizado (max-w-6xl) para todas las vistas del estudiante. --}}
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        @if ($this->esVistaDocente)
+        <x-gestion.encabezado titulo="Quizzes" icono="quiz" :descripcion="$curso->nombre.' · Las notas de quizzes son de práctica y no entran en la nota final ponderada.'"
+            :volver="route('cursos.show', $curso)" volver-texto="Volver al curso">
+            @if ($this->puedeGestionar)
+                <x-gestion.boton variante="secundario" icono="base-datos" :href="route('cursos.banco-preguntas', $curso)">Banco de preguntas</x-gestion.boton>
+            @endif
+            @if ($this->puedeGestionar && ! $curso->estaFinalizado())
+                <x-gestion.boton icono="mas" :href="route('cursos.quizzes.crear', $curso)">Nuevo quiz</x-gestion.boton>
+            @endif
+        </x-gestion.encabezado>
+        <x-gestion.alertas />
+        @else
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
                 <a href="{{ route('cursos.show', $curso) }}" wire:navigate class="text-sm {{ $this->puedeGestionar ? 'text-menta-oscuro dark:text-menta-base' : 'text-azul-oscuro dark:text-azul-fondo' }} hover:underline">&larr; {{ $curso->nombre }}</a>
@@ -15,54 +27,53 @@
             @endif
         </div>
 
-        @if ($quizzes->isEmpty())
-            <p class="text-stone-500 dark:text-stone-400">Todavía no hay quizzes en este curso.</p>
-        @elseif ($this->puedeGestionar)
-            {{-- Vista de profesor/administrador. --}}
-            <div class="space-y-3">
-                @foreach ($quizzes as $quiz)
-                    <div wire:key="quiz-{{ $quiz->id }}"
-                        class="flex items-center justify-between gap-3 bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 p-4 hover:shadow-md transition {{ ! $quiz->visible ? 'opacity-60' : '' }}">
-                        <a href="{{ route('cursos.quizzes.show', [$curso, $quiz]) }}" wire:navigate class="min-w-0 flex-1">
-                            <div class="flex items-center gap-2">
-                                <h3 class="font-medium text-stone-800 dark:text-stone-100 truncate">{{ $quiz->tema }}</h3>
-                                @unless ($quiz->visible)
-                                    <span class="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-stone-200 text-stone-600 dark:bg-stone-700 dark:text-stone-300">Oculto</span>
-                                @endunless
-                            </div>
-                            <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">
-                                {{ $quiz->modulo?->titulo }} · {{ count($quiz->preguntas) }} preguntas
-                            </p>
-                        </a>
+        @endif
 
-                        <div class="flex items-center gap-3 shrink-0">
-                            <span class="text-xs text-stone-500 dark:text-stone-400">{{ $quiz->resultados->count() }} resueltos</span>
-                            @if ($quiz->resultados->isNotEmpty())
-                                <a href="{{ route('cursos.quizzes.estadisticas', [$curso, $quiz]) }}" wire:navigate
-                                    class="text-xs font-semibold text-menta-oscuro dark:text-menta-base hover:underline">
-                                    Estadísticas
-                                </a>
-                            @endif
-                            <button type="button" wire:click="alternarVisibilidad({{ $quiz->id }})"
-                                class="text-xs font-semibold {{ $quiz->visible ? 'text-stone-500 hover:text-stone-700' : 'text-menta-oscuro hover:underline' }}">
-                                {{ $quiz->visible ? 'Ocultar' : 'Publicar' }}
-                            </button>
-                            @if ($quiz->resultados->isEmpty())
-                                <button type="button" wire:click="eliminar({{ $quiz->id }})"
-                                    wire:confirm="¿Eliminar este quiz? Esta acción no se puede deshacer."
-                                    class="text-xs font-semibold text-terracota-oscuro hover:underline">
-                                    Eliminar
-                                </button>
-                            @endif
-                        </div>
-                    </div>
-                @endforeach
-            </div>
+        @if ($quizzes->isEmpty() && ! $this->esVistaDocente)
+            <p class="text-stone-500 dark:text-stone-400">Todavía no hay quizzes en este curso.</p>
+        @elseif ($quizzes->isEmpty())
+            <x-gestion.vacio icono="quiz" titulo="Todavía no hay quizzes en este curso" descripcion="Crea un quiz con preguntas propias o tomadas del banco de preguntas." />
+        @elseif ($this->esVistaDocente)
+            {{-- Vista de Profesor / Supervisor (este último en solo lectura). --}}
+            <x-gestion.tarjeta :relleno="false">
+                <ul class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                    @foreach ($quizzes as $quiz)
+                        @php $visibleEstudiante = $quiz->esVisibleParaEstudiante(); @endphp
+                        <li wire:key="quiz-{{ $quiz->id }}" class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+                            <a href="{{ route('cursos.quizzes.show', [$curso, $quiz]) }}" wire:navigate class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <h3 class="truncate font-medium text-stone-800 dark:text-stone-100">{{ $quiz->tema }}</h3>
+                                    <span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $visibleEstudiante ? 'bg-exito-base/15 text-exito-oscuro' : 'bg-arena-medio text-stone-700 dark:bg-stone-700 dark:text-stone-200' }}">{{ $quiz->etiquetaEstadoPublicacion() }}</span>
+                                </div>
+                                <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
+                                    {{ $quiz->modulo?->nombreCompleto() }} · {{ count($quiz->preguntas ?? []) }} preguntas · {{ $quiz->resultados->unique('estudiante_id')->count() }} estudiantes lo rindieron
+                                    @if ($quiz->fecha_limite) · cierra {{ $quiz->fecha_limite->formatoFechaHora() }} @endif
+                                </p>
+                            </a>
+                            <div class="flex shrink-0 flex-wrap gap-1">
+                                @if ($quiz->resultados->isNotEmpty())
+                                    <x-gestion.boton variante="fantasma" tamano="sm" icono="grafico" :href="route('cursos.quizzes.estadisticas', [$curso, $quiz])">Estadísticas</x-gestion.boton>
+                                @endif
+                                @if ($this->puedeGestionar && ! $curso->estaFinalizado())
+                                    <x-gestion.boton variante="fantasma" tamano="sm" icono="lapiz" :href="route('cursos.quizzes.editar', [$curso, $quiz])">Editar</x-gestion.boton>
+                                    <x-gestion.boton variante="fantasma" tamano="sm" :icono="$quiz->visible ? 'ojo-tachado' : 'ojo'" wire:click="alternarVisibilidad({{ $quiz->id }})">
+                                        {{ $quiz->visible ? 'Ocultar' : 'Publicar' }}
+                                    </x-gestion.boton>
+                                    @if ($quiz->resultados->isEmpty())
+                                        <x-gestion.boton variante="fantasma-peligro" tamano="sm" icono="papelera" wire:click="eliminar({{ $quiz->id }})"
+                                            wire:confirm="¿Eliminar el quiz {{ $quiz->tema }}? Esta acción no se puede deshacer.">Eliminar</x-gestion.boton>
+                                    @endif
+                                @endif
+                            </div>
+                        </li>
+                    @endforeach
+                </ul>
+            </x-gestion.tarjeta>
         @else
             {{-- Rediseño visual del rol estudiante: tarjetas con jerarquía por urgencia (ver ARQUITECTURA.md). --}}
             @php
                 $tarjetas = $quizzes->map(function ($quiz) {
-                    $resultado = $quiz->resultados->first();
+                    $resultado = $quiz->resultadoDe(auth()->user());
 
                     return ['quiz' => $quiz, 'resultado' => $resultado];
                 })->sortBy(fn ($t) => $t['resultado'] ? 1 : 0);
@@ -84,7 +95,7 @@
                                 <div class="min-w-0">
                                     <h3 class="font-medium text-texto dark:text-slate-100 truncate">{{ $t['quiz']->tema }}</h3>
                                     <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                        {{ $t['quiz']->modulo?->titulo }} · {{ count($t['quiz']->preguntas) }} preguntas
+                                        {{ $t['quiz']->modulo?->nombreCompleto() }} · {{ count($t['quiz']->preguntas) }} preguntas
                                     </p>
                                 </div>
                             </div>

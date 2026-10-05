@@ -1,75 +1,105 @@
 <div class="py-8">
-    <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 class="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-6">
-            {{ $tarea ? 'Editar tarea' : 'Nueva tarea' }} — {{ $curso->nombre }}
-        </h1>
+    <div class="mx-auto max-w-3xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <form wire:submit="guardar" class="bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 p-6 space-y-6">
-            <div>
-                <x-input-label for="titulo" value="Título" />
-                <x-text-input wire:model="titulo" id="titulo" class="mt-1 block w-full" required autofocus />
-                <x-input-error :messages="$errors->get('titulo')" class="mt-2" />
-            </div>
+        <x-gestion.encabezado :titulo="$tarea ? 'Editar tarea' : 'Nueva tarea'" icono="tarea" :descripcion="$curso->nombre"
+            :volver="route('cursos.tareas.index', $curso)" volver-texto="Volver a tareas" />
 
-            <div>
-                <x-input-label for="modulo_id" value="Unidad" />
-                <select wire:model="modulo_id" id="modulo_id"
-                    class="mt-1 block w-full rounded-md border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base">
-                    <option value="">Selecciona una unidad…</option>
-                    @foreach ($modulos as $modulo)
-                        <option value="{{ $modulo->id }}">{{ $modulo->titulo }}</option>
-                    @endforeach
-                </select>
-                <x-input-error :messages="$errors->get('modulo_id')" class="mt-2" />
-            </div>
-
-            <div>
-                <x-input-label for="descripcion" value="Descripción / instrucciones" />
-                <textarea wire:model="descripcion" id="descripcion" rows="4"
-                    class="mt-1 block w-full rounded-md border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base"></textarea>
-                <x-input-error :messages="$errors->get('descripcion')" class="mt-2" />
-            </div>
-
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <x-input-label for="fecha_entrega" value="Fecha límite" />
-                    <input wire:model="fecha_entrega" id="fecha_entrega" type="datetime-local"
-                        class="mt-1 block w-full rounded-md border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base">
-                    <x-input-error :messages="$errors->get('fecha_entrega')" class="mt-2" />
+        <form wire:submit="guardar" class="space-y-6">
+            <x-gestion.tarjeta titulo="Contenido">
+                <div class="space-y-4">
+                    <x-gestion.campo etiqueta="Título" nombre="titulo" requerido>
+                        <x-gestion.control id="titulo" wire:model="titulo" autofocus />
+                    </x-gestion.campo>
+                    <x-gestion.campo etiqueta="Semana" nombre="modulo_id" requerido>
+                        <x-gestion.control tipo="select" id="modulo_id" wire:model="modulo_id">
+                            <option value="">Selecciona la semana (o prácticas de campo)</option>
+                            @foreach ($modulos as $modulo)
+                                <option value="{{ $modulo->id }}">{{ $modulo->nombreCompleto() }}</option>
+                            @endforeach
+                        </x-gestion.control>
+                    </x-gestion.campo>
+                    <x-gestion.campo etiqueta="Descripción" nombre="descripcion">
+                        <x-gestion.control tipo="textarea" id="descripcion" rows="3" wire:model="descripcion" />
+                    </x-gestion.campo>
+                    <x-gestion.campo etiqueta="Instrucciones" nombre="instrucciones" ayuda="Pasos, criterios de evaluación o requisitos de la entrega.">
+                        <x-gestion.control tipo="textarea" id="instrucciones" rows="4" wire:model="instrucciones" />
+                    </x-gestion.campo>
                 </div>
+            </x-gestion.tarjeta>
 
-                <div>
-                    <x-input-label for="peso_nota" value="Peso en la nota final" />
-                    <x-text-input wire:model="peso_nota" id="peso_nota" type="number" step="0.01" min="0" max="100" class="mt-1 block w-full" />
-                    <x-input-error :messages="$errors->get('peso_nota')" class="mt-2" />
+            <x-gestion.tarjeta titulo="Plazos y calificación" descripcion="La nota de la tarea es de práctica: no se suma sola a la nota final ponderada del curso.">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <x-gestion.campo etiqueta="Fecha de inicio" nombre="fecha_inicio" ayuda="Opcional. Antes de esta fecha no se puede entregar.">
+                        <x-gestion.control id="fecha_inicio" type="datetime-local" wire:model="fecha_inicio" />
+                    </x-gestion.campo>
+                    <x-gestion.campo etiqueta="Fecha límite" nombre="fecha_entrega" requerido>
+                        <x-gestion.control id="fecha_entrega" type="datetime-local" wire:model="fecha_entrega" />
+                    </x-gestion.campo>
+                    <x-gestion.campo etiqueta="Puntaje / peso de práctica" nombre="peso_nota" requerido>
+                        <x-gestion.control id="peso_nota" type="number" step="0.01" min="0" max="100" wire:model="peso_nota" />
+                    </x-gestion.campo>
+                    <x-gestion.campo etiqueta="Intentos de entrega" nombre="intentos_permitidos" requerido>
+                        <x-gestion.control id="intentos_permitidos" type="number" min="1" max="10" wire:model="intentos_permitidos" />
+                    </x-gestion.campo>
                 </div>
-            </div>
+            </x-gestion.tarjeta>
 
-            <div>
-                <x-input-label for="tipo_entrega" value="Tipo de entrega" />
-                <select wire:model="tipo_entrega" id="tipo_entrega"
-                    class="mt-1 block w-full rounded-md border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base">
-                    <option value="individual">Individual</option>
-                    <option value="grupal">Grupal (usa los grupos del curso)</option>
-                </select>
-                <x-input-error :messages="$errors->get('tipo_entrega')" class="mt-2" />
-                <p class="mt-1 text-xs text-stone-400">
-                    En una tarea grupal, cualquier integrante entrega por todo su grupo y la calificación se aplica a todos por igual. Configura los grupos desde el botón "Grupos" del curso.
-                </p>
-            </div>
+            <x-gestion.tarjeta titulo="Entrega">
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <x-gestion.campo etiqueta="Tipo de entrega" nombre="tipo_entrega" requerido>
+                            <x-gestion.control tipo="select" id="tipo_entrega" wire:model.live="tipo_entrega">
+                                <option value="individual">Individual</option>
+                                <option value="grupal">Grupal (una entrega por grupo)</option>
+                            </x-gestion.control>
+                        </x-gestion.campo>
+                        @if ($tipo_entrega === 'grupal')
+                            <x-gestion.campo etiqueta="Grupo" nombre="grupo_asignado_id" ayuda="Deja 'Todos los grupos' para que la entregue cada grupo.">
+                                <x-gestion.control tipo="select" id="grupo_asignado_id" wire:model="grupo_asignado_id">
+                                    <option value="">Todos los grupos</option>
+                                    @foreach ($grupos as $grupo)
+                                        <option value="{{ $grupo->id }}">{{ $grupo->nombre }}</option>
+                                    @endforeach
+                                </x-gestion.control>
+                            </x-gestion.campo>
+                        @endif
+                    </div>
+                    <fieldset>
+                        <legend class="text-sm font-medium text-stone-700 dark:text-stone-300">Formatos de archivo permitidos</legend>
+                        <p class="text-xs text-stone-500">Si no marcas ninguno, se aceptan todos los formatos seguros. Tamaño máximo: 10 MB.</p>
+                        <div class="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-6">
+                            @foreach ($extensiones as $extension)
+                                <label class="flex items-center gap-1.5 text-sm text-stone-700 dark:text-stone-300">
+                                    <input type="checkbox" wire:model="formatos_permitidos" value="{{ $extension }}" class="rounded border-arena-medio text-menta-oscuro focus:ring-menta-base">
+                                    .{{ $extension }}
+                                </label>
+                            @endforeach
+                        </div>
+                        @error('formatos_permitidos.*') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                    </fieldset>
+                </div>
+            </x-gestion.tarjeta>
 
-            <div class="flex items-center gap-2">
-                <input wire:model="visible" id="visible" type="checkbox"
-                    class="rounded border-stone-300 dark:border-stone-600 text-menta-oscuro focus:ring-menta-base">
-                <x-input-label for="visible" value="Visible para los estudiantes" class="!mb-0" />
-            </div>
-            <p class="-mt-4 text-xs text-stone-400">
-                Desmárcalo si todavía la estás preparando: quedará guardada pero oculta hasta que la publiques desde el listado de tareas.
-            </p>
+            <x-gestion.tarjeta titulo="Publicación">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <x-gestion.campo etiqueta="Estado" nombre="estado_contenido" requerido ayuda="Borrador y Programado no son visibles para los estudiantes.">
+                        <x-gestion.control tipo="select" id="estado_contenido" wire:model.live="estado_contenido">
+                            <option value="borrador">Borrador</option>
+                            <option value="publicado">Publicado</option>
+                            <option value="programado">Programado</option>
+                        </x-gestion.control>
+                    </x-gestion.campo>
+                    @if ($estado_contenido === 'programado')
+                        <x-gestion.campo etiqueta="Publicar automáticamente el" nombre="publicar_en" requerido>
+                            <x-gestion.control id="publicar_en" type="datetime-local" wire:model="publicar_en" />
+                        </x-gestion.campo>
+                    @endif
+                </div>
+            </x-gestion.tarjeta>
 
-            <div class="flex items-center gap-4">
-                <x-primary-button>Guardar</x-primary-button>
-                <a href="{{ route('cursos.tareas.index', $curso) }}" wire:navigate class="text-sm text-stone-500 hover:underline">Cancelar</a>
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <x-gestion.boton variante="secundario" :href="route('cursos.tareas.index', $curso)">Cancelar</x-gestion.boton>
+                <x-gestion.boton type="submit" icono="check">Guardar tarea</x-gestion.boton>
             </div>
         </form>
     </div>

@@ -45,9 +45,15 @@ new #[Layout('layouts.guest')] class extends Component
         $status = Password::reset(
             $this->only('email', 'password', 'password_confirmation', 'token'),
             function ($user) {
+                // ERS RF-06/RF-08: la recuperación es la vía para salir del bloqueo por
+                // intentos fallidos. RF-05: la contraseña temporal deja de existir porque el
+                // usuario acaba de elegir una propia.
                 $user->forceFill([
                     'password' => Hash::make($this->password),
                     'remember_token' => Str::random(60),
+                    'intentos_fallidos' => 0,
+                    'bloqueado_hasta' => null,
+                    'primer_login' => false,
                 ])->save();
 
                 event(new PasswordReset($user));
