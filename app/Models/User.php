@@ -187,6 +187,22 @@ class User extends Authenticatable
     }
 
     /**
+     * Cada cuenta tiene un único rol. Solo se permite corregirlo si la cuenta
+     * todavía no se usó en ningún curso: sin matrículas, entregas, quizzes,
+     * notas, asistencias ni cursos a su cargo.
+     */
+    public function tieneHistorialAcademico(): bool
+    {
+        return $this->inscripciones()->exists()
+            || $this->entregas()->exists()
+            || $this->notasRubro()->exists()
+            || ResultadoQuiz::where('estudiante_id', $this->id)->exists()
+            || Asistencia::where('estudiante_id', $this->id)->exists()
+            || $this->cursosComoProfesor()->exists()
+            || $this->cursosComoProfesorAdicional()->exists();
+    }
+
+    /**
      * El grupo del estudiante dentro de un curso (o null si no está en ninguno).
      * Un estudiante pertenece a lo más un grupo por curso.
      */

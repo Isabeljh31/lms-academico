@@ -6,6 +6,7 @@ use App\Enums\Rol;
 use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
 use App\Models\User;
+use App\Rules\TieneRol;
 use App\Services\Multimedia\SubidorArchivos;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
@@ -106,9 +107,12 @@ class Formulario extends Component
             'nombre' => ['required', 'string', 'max:255'],
             'codigo' => ['nullable', 'string', 'max:30', 'regex:'.Curso::FORMATO_CODIGO, Rule::unique('cursos', 'codigo')->ignore($this->curso?->id)],
             'descripcion' => ['nullable', 'string', 'max:5000'],
-            'profesor_id' => ['required', Rule::exists('users', 'id')],
-            'profesoresAdicionales' => ['array', 'max:10'],
-            'profesoresAdicionales.*' => ['integer', Rule::exists('users', 'id')],
+            // Si el titular no cambia se conserva aunque hoy sea el Supervisor
+            // (curso sin profesor tras desasignarlo, ver Admin\Profesores\Index).
+            'profesor_id' => ['required', (int) $this->profesor_id === $this->curso?->profesor_id
+                ? Rule::exists('users', 'id')
+                : new TieneRol(Rol::Profesor)],
+            'profesoresAdicionales' => ['array', 'max:10', new TieneRol(Rol::Profesor)],
             'portada' => SubidorArchivos::reglas(config('archivos.extensiones.imagenes'), requerido: false),
             'estado' => ['required', Rule::in(Curso::ESTADOS)],
             'fecha_inicio' => ['nullable', 'date'],
@@ -128,21 +132,8 @@ class Formulario extends Component
             ...SubidorArchivos::mensajes('portada'),
         ]);
 
-        if (! User::role(Rol::Profesor->value)->whereKey($this->profesor_id)->exists()
-            && $this->profesor_id !== $this->curso?->profesor_id) {
-            $this->addError('profesor_id', 'El usuario seleccionado no tiene rol de profesor.');
-
-            return;
-        }
-
         $adicionales = collect($this->profesoresAdicionales)->map(fn ($id) => (int) $id)
             ->reject(fn (int $id) => $id === (int) $this->profesor_id)->unique()->values();
-
-        if (User::role(Rol::Profesor->value)->whereKey($adicionales)->count() !== $adicionales->count()) {
-            $this->addError('profesoresAdicionales', 'Todos los profesores adicionales deben tener rol de profesor.');
-
-            return;
-        }
 
         // ERS RF-25: solo se publica un curso con contenido en al menos una semana (o en prácticas de campo).
         if ($this->estado === 'publicado' && (! $editando || $this->curso->modulos()->doesntExist())) {

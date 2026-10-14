@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Cursos;
 
+use App\Enums\Rol;
 use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
 use App\Models\Grupo;
@@ -10,6 +11,7 @@ use App\Models\LeccionCompletada;
 use App\Models\Modulo;
 use App\Models\User;
 use App\Notifications\NuevoComunicado;
+use App\Rules\TieneRol;
 use App\Services\Multimedia\SubidorArchivos;
 use App\Services\Reportes\ProgresoAcademicoService;
 use Illuminate\Http\UploadedFile;
@@ -435,7 +437,7 @@ class Show extends Component
         $this->validate([
             'clonNombre' => ['required', 'string', 'max:255'],
             'clonCodigo' => ['nullable', 'string', 'max:30', 'regex:'.Curso::FORMATO_CODIGO, Rule::unique('cursos', 'codigo')],
-            'clonProfesorId' => ['nullable', Rule::exists('users', 'id')],
+            'clonProfesorId' => ['nullable', new TieneRol(Rol::Profesor)],
         ], [
             'clonNombre.required' => 'Indica el nombre del nuevo curso.',
             'clonCodigo.unique' => 'Ya existe un curso con este código.',

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\Rol;
 use App\Livewire\Usuarios\Index;
 use App\Mail\BienvenidaMail;
+use App\Models\Curso;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
@@ -59,24 +60,79 @@ class UsuariosTest extends TestCase
             ->assertRedirect(route('login'));
     }
 
-    public function test_administrador_puede_cambiar_el_rol_de_otro_usuario(): void
+    public function test_corrige_el_rol_de_una_cuenta_sin_historial_y_lo_audita(): void
     {
         $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
         $usuario = User::factory()->create()->assignRole(Rol::Estudiante->value);
 
         Livewire::actingAs($admin)
             ->test(Index::class)
-            ->call('actualizarRol', $usuario->id, Rol::Profesor->value);
+            ->call('abrirEditar', $usuario->id)
+            ->set('editarRol', Rol::Profesor->value)
+            ->call('guardarEdicion')
+            ->assertHasNoErrors();
 
-        $this->assertTrue($usuario->fresh()->hasRole(Rol::Profesor->value));
-        $this->assertFalse($usuario->fresh()->hasRole(Rol::Estudiante->value));
+        $this->assertSame([Rol::Profesor->value], $usuario->fresh()->getRoleNames()->all());
+        $this->assertDatabaseHas('bitacoras_auditoria', [
+            'tipo_evento' => 'cambio_rol',
+            'usuario_afectado_id' => $usuario->id,
+            'ejecutado_por' => $admin->id,
+        ]);
     }
 
-    public function test_administrador_no_puede_cambiarse_el_rol_a_si_mismo_via_policy(): void
+    public function test_no_permite_corregir_el_rol_de_una_cuenta_con_historial_academico(): void
     {
         $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+        Curso::factory()->create(['profesor_id' => $profesor->id])->inscripciones()->create([
+            'estudiante_id' => $estudiante->id, 'fecha_inscripcion' => now(), 'origen' => 'manual', 'estado' => 'activo', 'activo_local' => true,
+        ]);
 
-        $this->assertFalse(Gate::forUser($admin)->allows('actualizarRol', $admin));
+        $componente = Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirEditar', $estudiante->id)
+            ->set('editarRol', Rol::Profesor->value)
+            ->call('guardarEdicion');
+
+        $this->assertSame(
+            'El rol ya no se puede cambiar: la cuenta tiene historial académico (cursos, matrículas, entregas o notas).',
+            $componente->errors()->first('editarRol'),
+        );
+        $this->assertSame([Rol::Estudiante->value], $estudiante->fresh()->getRoleNames()->all());
+        $this->assertDatabaseMissing('bitacoras_auditoria', ['tipo_evento' => 'cambio_rol']);
+    }
+
+    public function test_no_permite_convertir_una_cuenta_en_supervisor(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $usuario = User::factory()->create()->assignRole(Rol::Estudiante->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirEditar', $usuario->id)
+            ->set('editarRol', Rol::Supervisor->value)
+            ->call('guardarEdicion')
+            ->assertHasErrors('editarRol');
+
+        $this->assertSame([Rol::Estudiante->value], $usuario->fresh()->getRoleNames()->all());
+    }
+
+    public function test_el_supervisor_no_puede_corregir_su_propio_rol_ni_el_de_otro_supervisor(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $otroSupervisor = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        $this->assertFalse(Gate::forUser($admin)->allows('corregirRol', $admin));
+        $this->assertFalse(Gate::forUser($admin)->allows('corregirRol', $otroSupervisor));
+    }
+
+    public function test_un_profesor_no_puede_corregir_roles(): void
+    {
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+
+        $this->assertFalse(Gate::forUser($profesor)->allows('corregirRol', $estudiante));
     }
 
     /**

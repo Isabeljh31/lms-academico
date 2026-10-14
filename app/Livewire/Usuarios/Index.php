@@ -55,6 +55,9 @@ class Index extends Component
 
     public string $editarEmail = '';
 
+    /** Solo se puede corregir si la cuenta aún no tiene historial (ver UsuarioPolicy::corregirRol). */
+    public string $editarRol = '';
+
     // Confirmar desactivación (RNF-09)
     public bool $mostrarModalDesactivar = false;
 
@@ -120,36 +123,6 @@ class Index extends Component
     }
 
     // ==========================================
-    // CAMBIAR ROL
-    // ==========================================
-
-    public function actualizarRol(int $usuarioId, string $rol): void
-    {
-        $usuario = User::findOrFail($usuarioId);
-        Gate::authorize('actualizarRol', $usuario);
-
-        if (! in_array($rol, array_column(Rol::cases(), 'value'), true)) {
-            $this->addError('rol', 'Rol inválido.');
-
-            return;
-        }
-
-        $rolAnterior = $usuario->rolPrincipal();
-        $usuario->syncRoles([$rol]);
-
-        BitacoraAuditoria::registrarAccionAdmin(
-            ejecutor: auth()->user(),
-            tipoEvento: 'cambio_rol',
-            descripcion: "Rol cambiado: {$usuario->name} ({$usuario->email}).",
-            usuarioAfectado: $usuario,
-            valorAnterior: $rolAnterior,
-            valorNuevo: $rol,
-        );
-
-        session()->flash('estado', "Rol de {$usuario->name} actualizado a ".Rol::from($rol)->etiqueta().'.');
-    }
-
-    // ==========================================
     // EDITAR USUARIO (ERS RF-14)
     // ==========================================
 
@@ -162,6 +135,7 @@ class Index extends Component
         $this->usuarioEditarId = $usuario->id;
         $this->editarNombre = $usuario->name;
         $this->editarEmail = $usuario->email;
+        $this->editarRol = (string) $usuario->rolPrincipal();
         $this->mostrarModalEditar = true;
     }
 
@@ -179,6 +153,19 @@ class Index extends Component
         ]);
 
         $usuario = User::findOrFail($this->usuarioEditarId);
+        $rolAnterior = $usuario->rolPrincipal();
+        $corrigeRol = $this->editarRol !== '' && $this->editarRol !== $rolAnterior;
+
+        if ($corrigeRol) {
+            $this->validate(['editarRol' => [Rule::in(GestorCuentas::ROLES_CREABLES)]]);
+
+            if (Gate::denies('corregirRol', $usuario)) {
+                $this->addError('editarRol', 'El rol ya no se puede cambiar: la cuenta tiene historial académico (cursos, matrículas, entregas o notas).');
+
+                return;
+            }
+        }
+
         $anterior = ['nombre' => $usuario->name, 'email' => $usuario->email];
 
         $usuario->update([
@@ -195,8 +182,21 @@ class Index extends Component
             valorNuevo: ['nombre' => $usuario->name, 'email' => $usuario->email],
         );
 
+        if ($corrigeRol) {
+            $usuario->syncRoles([$this->editarRol]);
+
+            BitacoraAuditoria::registrarAccionAdmin(
+                ejecutor: auth()->user(),
+                tipoEvento: 'cambio_rol',
+                descripcion: "Rol corregido (cuenta sin historial académico): {$usuario->name} ({$usuario->email}).",
+                usuarioAfectado: $usuario,
+                valorAnterior: $rolAnterior,
+                valorNuevo: $this->editarRol,
+            );
+        }
+
         $this->mostrarModalEditar = false;
-        $this->reset(['usuarioEditarId', 'editarNombre', 'editarEmail']);
+        $this->reset(['usuarioEditarId', 'editarNombre', 'editarEmail', 'editarRol']);
         session()->flash('estado', "Datos de {$usuario->name} actualizados correctamente.");
     }
 
@@ -274,6 +274,7 @@ class Index extends Component
             'rolesCreables' => collect(Rol::cases())->filter(fn (Rol $rol) => in_array($rol->value, GestorCuentas::ROLES_CREABLES, true)),
             'cursos' => Curso::orderBy('nombre')->get(['id', 'nombre']),
             'usuarioADesactivar' => $this->usuarioADesactivarId ? User::find($this->usuarioADesactivarId) : null,
+            'usuarioEditar' => $this->usuarioEditarId ? User::find($this->usuarioEditarId) : null,
         ])->title('Usuarios — LearnUp');
     }
 }

@@ -134,6 +134,40 @@ class CursosTest extends TestCase
         $this->assertSame(1, Curso::count());
     }
 
+    public function test_clonar_no_permite_asignar_a_un_estudiante_como_profesor(): void
+    {
+        $supervisor = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+        $curso = Curso::factory()->create(['profesor_id' => $profesor->id]);
+
+        Livewire::actingAs($supervisor)
+            ->test(Show::class, ['curso' => $curso])
+            ->call('abrirClonar')
+            ->set('clonProfesorId', $estudiante->id)
+            ->call('clonarCurso')
+            ->assertHasErrors(['clonProfesorId' => 'El usuario seleccionado no tiene rol de profesor.']);
+
+        $this->assertSame(1, Curso::count());
+    }
+
+    public function test_no_permite_un_estudiante_como_profesor_adicional(): void
+    {
+        $supervisor = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+
+        Livewire::actingAs($supervisor)
+            ->test(Formulario::class)
+            ->set('nombre', 'Curso con co-docente')
+            ->set('profesor_id', $profesor->id)
+            ->set('profesoresAdicionales', [(string) $estudiante->id])
+            ->call('guardar')
+            ->assertHasErrors(['profesoresAdicionales' => 'Todos los usuarios seleccionados deben tener rol de profesor.']);
+
+        $this->assertDatabaseMissing('cursos', ['nombre' => 'Curso con co-docente']);
+    }
+
     public function test_profesor_no_puede_crear_cursos(): void
     {
         $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);

@@ -2,7 +2,7 @@
     <div class="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
 
         <x-gestion.encabezado titulo="Gestión de usuarios" icono="usuarios"
-            descripcion="Crea cuentas de Estudiante y Profesor, edita sus datos, asigna roles y controla el acceso.">
+            descripcion="Crea cuentas de Estudiante y Profesor, edita sus datos y controla el acceso.">
             <x-gestion.boton variante="secundario" icono="subir" :href="route('usuarios.importar')">Importar usuarios</x-gestion.boton>
             <x-gestion.boton icono="usuario-mas" wire:click="abrirCrear" id="btn-crear-usuario">Nuevo usuario</x-gestion.boton>
         </x-gestion.encabezado>
@@ -101,16 +101,12 @@
                                         </div>
                                     </td>
                                     <td class="px-4 py-3">
-                                        @if ($usuario->isNot(auth()->user()))
-                                            <label class="sr-only" for="rol-{{ $usuario->id }}">Rol de {{ $usuario->name }}</label>
-                                            <x-gestion.control tipo="select" id="rol-{{ $usuario->id }}" class="!w-auto py-1 text-xs"
-                                                wire:change="actualizarRol({{ $usuario->id }}, $event.target.value)">
-                                                @foreach ($roles as $r)
-                                                    <option value="{{ $r->value }}" @selected($usuario->rolPrincipal() === $r->value)>{{ $r->etiqueta() }}</option>
-                                                @endforeach
-                                            </x-gestion.control>
-                                        @else
-                                            <span class="text-xs text-stone-500">{{ ucfirst($usuario->rolPrincipal() ?? '—') }} (tú)</span>
+                                        {{-- Cada cuenta tiene un único rol; solo se corrige desde "Editar" si aún no tiene historial. --}}
+                                        <span class="inline-flex rounded-full bg-arena-claro px-2.5 py-0.5 text-xs font-medium text-stone-700 dark:bg-stone-700 dark:text-stone-200">
+                                            {{ \App\Enums\Rol::tryFrom((string) $usuario->rolPrincipal())?->etiqueta() ?? '—' }}
+                                        </span>
+                                        @if ($usuario->is(auth()->user()))
+                                            <span class="text-xs text-stone-500">(tú)</span>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3">
@@ -184,6 +180,22 @@
             <x-gestion.campo etiqueta="Correo electrónico" nombre="editarEmail" requerido>
                 <x-gestion.control id="editarEmail" type="email" wire:model="editarEmail" />
             </x-gestion.campo>
+            @if ($usuarioEditar && auth()->user()->can('corregirRol', $usuarioEditar))
+                <x-gestion.campo etiqueta="Rol" nombre="editarRol"
+                    ayuda="Puedes corregir el rol solo porque esta cuenta aún no tiene historial académico. Una vez que se use en un curso, el rol queda fijo.">
+                    <x-gestion.control tipo="select" id="editarRol" wire:model="editarRol">
+                        @foreach ($rolesCreables as $r)
+                            <option value="{{ $r->value }}">{{ $r->etiqueta() }}</option>
+                        @endforeach
+                    </x-gestion.control>
+                </x-gestion.campo>
+            @elseif ($usuarioEditar)
+                <div class="space-y-1">
+                    <p class="text-sm font-medium text-stone-700 dark:text-stone-300">Rol</p>
+                    <p class="text-sm text-stone-800 dark:text-stone-100">{{ \App\Enums\Rol::tryFrom((string) $usuarioEditar->rolPrincipal())?->etiqueta() ?? '—' }}</p>
+                    <p class="text-xs text-stone-500 dark:text-stone-400">Cada cuenta tiene un único rol. No se puede cambiar porque la cuenta ya tiene historial académico o es tu propia cuenta.</p>
+                </div>
+            @endif
             <x-slot name="pie">
                 <x-gestion.boton variante="secundario" wire:click="$set('mostrarModalEditar', false)">Cancelar</x-gestion.boton>
                 <x-gestion.boton wire:click="guardarEdicion">Guardar cambios</x-gestion.boton>
