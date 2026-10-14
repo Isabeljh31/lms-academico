@@ -20,8 +20,8 @@
                         <x-gestion.campo etiqueta="Nombre del curso" nombre="nombre" requerido class="sm:col-span-2">
                             <x-gestion.control id="nombre" wire:model="nombre" autofocus />
                         </x-gestion.campo>
-                        <x-gestion.campo etiqueta="Código" nombre="codigo" ayuda="Opcional. Lo usa la API de integración.">
-                            <x-gestion.control id="codigo" wire:model="codigo" placeholder="MAT-101" />
+                        <x-gestion.campo etiqueta="Código" nombre="codigo" ayuda="Opcional. Letras, números y guiones (se guarda en mayúsculas). Lo usa la API de integración.">
+                            <x-gestion.control id="codigo" wire:model.blur="codigo" placeholder="MAT-101" maxlength="30" class="uppercase" />
                         </x-gestion.campo>
                     </div>
 

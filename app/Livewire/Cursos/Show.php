@@ -430,19 +430,23 @@ class Show extends Component
     {
         Gate::authorize('administrar', $this->curso);
 
+        $this->clonCodigo = (string) Curso::normalizarCodigo($this->clonCodigo);
+
         $this->validate([
             'clonNombre' => ['required', 'string', 'max:255'],
-            'clonCodigo' => ['nullable', 'string', 'max:50', 'alpha_dash', Rule::unique('cursos', 'codigo')],
+            'clonCodigo' => ['nullable', 'string', 'max:30', 'regex:'.Curso::FORMATO_CODIGO, Rule::unique('cursos', 'codigo')],
             'clonProfesorId' => ['nullable', Rule::exists('users', 'id')],
         ], [
             'clonNombre.required' => 'Indica el nombre del nuevo curso.',
             'clonCodigo.unique' => 'Ya existe un curso con este código.',
+            'clonCodigo.regex' => 'El código solo puede tener letras (A-Z), números y guiones, sin espacios ni tildes. Ejemplo: MAT-201.',
+            'clonCodigo.max' => 'El código no puede tener más de 30 caracteres.',
         ]);
 
         $nuevoCurso = $this->curso->clonar($this->clonNombre, $this->clonProfesorId ?: null);
 
         if ($this->clonCodigo !== '') {
-            $nuevoCurso->update(['codigo' => strtoupper($this->clonCodigo)]);
+            $nuevoCurso->update(['codigo' => $this->clonCodigo]);
         }
 
         BitacoraAuditoria::registrarAccionAdmin(

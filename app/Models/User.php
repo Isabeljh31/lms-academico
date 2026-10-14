@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -52,6 +53,23 @@ class User extends Authenticatable
             'primer_login' => 'boolean',
             'bloqueado_hasta' => 'datetime',
         ];
+    }
+
+    /**
+     * El correo se guarda siempre en minúsculas y sin espacios en los extremos:
+     * "Ana@LMS.edu.pe" y "ana@lms.edu.pe" son la misma cuenta en todas las
+     * vías de alta (formulario, importación, API) y en el inicio de sesión.
+     */
+    protected function email(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $valor) => $valor === null ? null : self::normalizarEmail($valor),
+        );
+    }
+
+    public static function normalizarEmail(string $email): string
+    {
+        return mb_strtolower(trim($email));
     }
 
     // ==========================================

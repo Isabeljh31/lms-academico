@@ -294,8 +294,8 @@
                         <x-gestion.control id="clonNombre" wire:model="clonNombre" />
                     </x-gestion.campo>
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                        <x-gestion.campo etiqueta="Código" nombre="clonCodigo" ayuda="Opcional.">
-                            <x-gestion.control id="clonCodigo" wire:model="clonCodigo" placeholder="MAT-101-2027" />
+                        <x-gestion.campo etiqueta="Código" nombre="clonCodigo" ayuda="Opcional. Letras, números y guiones.">
+                            <x-gestion.control id="clonCodigo" wire:model="clonCodigo" placeholder="MAT-101-2027" maxlength="30" class="uppercase" />
                         </x-gestion.campo>
                         <x-gestion.campo etiqueta="Profesor titular" nombre="clonProfesorId">
                             <x-gestion.control tipo="select" id="clonProfesorId" wire:model="clonProfesorId">

@@ -10,6 +10,7 @@ use App\Models\Curso;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -48,6 +49,89 @@ class CursosTest extends TestCase
             'profesor_id' => $profesor->id,
             'estado' => 'borrador',
         ]);
+    }
+
+    public function test_el_codigo_escrito_en_minusculas_se_guarda_en_mayusculas(): void
+    {
+        $supervisor = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+
+        Livewire::actingAs($supervisor)
+            ->test(Formulario::class)
+            ->set('nombre', 'Cálculo Diferencial')
+            ->set('codigo', ' mat-201 ')
+            ->set('profesor_id', $profesor->id)
+            ->call('guardar')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('cursos', ['nombre' => 'Cálculo Diferencial', 'codigo' => 'MAT-201']);
+    }
+
+    public function test_rechaza_un_codigo_que_ya_existe_aunque_se_escriba_en_minusculas(): void
+    {
+        $supervisor = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        Curso::factory()->create(['profesor_id' => $profesor->id, 'codigo' => 'MAT-201']);
+
+        Livewire::actingAs($supervisor)
+            ->test(Formulario::class)
+            ->set('nombre', 'Otro curso')
+            ->set('codigo', 'mat-201')
+            ->set('profesor_id', $profesor->id)
+            ->call('guardar')
+            ->assertHasErrors(['codigo' => 'Ya existe un curso con este código.']);
+
+        $this->assertDatabaseMissing('cursos', ['nombre' => 'Otro curso']);
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function codigosConFormatoInvalido(): array
+    {
+        return [
+            'con espacio' => ['MAT 201'],
+            'con tilde' => ['FÍS-150'],
+            'con guion bajo' => ['MAT_201'],
+            'guion al final' => ['MAT-'],
+            'guiones seguidos' => ['MAT--201'],
+        ];
+    }
+
+    #[DataProvider('codigosConFormatoInvalido')]
+    public function test_rechaza_un_codigo_con_caracteres_no_permitidos(string $codigo): void
+    {
+        $supervisor = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+
+        $componente = Livewire::actingAs($supervisor)
+            ->test(Formulario::class)
+            ->set('nombre', 'Curso con código inválido')
+            ->set('codigo', $codigo)
+            ->set('profesor_id', $profesor->id)
+            ->call('guardar');
+
+        $this->assertSame(
+            'El código solo puede tener letras (A-Z), números y guiones, sin espacios ni tildes. Ejemplo: MAT-201.',
+            $componente->errors()->first('codigo'),
+        );
+        $this->assertDatabaseMissing('cursos', ['nombre' => 'Curso con código inválido']);
+    }
+
+    public function test_clonar_rechaza_un_codigo_que_ya_existe_aunque_se_escriba_en_minusculas(): void
+    {
+        $supervisor = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $curso = Curso::factory()->create(['profesor_id' => $profesor->id, 'codigo' => 'MAT-201']);
+
+        Livewire::actingAs($supervisor)
+            ->test(Show::class, ['curso' => $curso])
+            ->call('abrirClonar')
+            ->set('clonCodigo', 'mat-201')
+            ->call('clonarCurso')
+            ->assertHasErrors(['clonCodigo' => 'Ya existe un curso con este código.']);
+
+        $this->assertSame(1, Curso::count());
     }
 
     public function test_profesor_no_puede_crear_cursos(): void

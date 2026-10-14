@@ -77,6 +77,12 @@ class Formulario extends Component
         }
     }
 
+    /** El código se muestra en mayúsculas apenas el usuario sale del campo. */
+    public function updatedCodigo(): void
+    {
+        $this->codigo = (string) Curso::normalizarCodigo($this->codigo);
+    }
+
     public function getEsArchivadoProperty(): bool
     {
         return (bool) $this->curso?->estaFinalizado();
@@ -94,9 +100,11 @@ class Formulario extends Component
             return;
         }
 
+        $this->codigo = (string) Curso::normalizarCodigo($this->codigo);
+
         $this->validate([
             'nombre' => ['required', 'string', 'max:255'],
-            'codigo' => ['nullable', 'string', 'max:50', 'alpha_dash', Rule::unique('cursos', 'codigo')->ignore($this->curso?->id)],
+            'codigo' => ['nullable', 'string', 'max:30', 'regex:'.Curso::FORMATO_CODIGO, Rule::unique('cursos', 'codigo')->ignore($this->curso?->id)],
             'descripcion' => ['nullable', 'string', 'max:5000'],
             'profesor_id' => ['required', Rule::exists('users', 'id')],
             'profesoresAdicionales' => ['array', 'max:10'],
@@ -113,6 +121,8 @@ class Formulario extends Component
             'profesor_id.required' => 'Selecciona el profesor titular del curso.',
             'fecha_fin.after_or_equal' => 'La fecha de fin no puede ser anterior a la de inicio.',
             'codigo.unique' => 'Ya existe un curso con este código.',
+            'codigo.regex' => 'El código solo puede tener letras (A-Z), números y guiones, sin espacios ni tildes. Ejemplo: MAT-201.',
+            'codigo.max' => 'El código no puede tener más de 30 caracteres.',
             'semanas_duracion.required' => 'Indica cuántas semanas dura el curso.',
             'semanas_duracion.min' => 'La semana :min ya tiene contenido: la duración no puede ser menor. Vacía o mueve esas semanas primero.',
             ...SubidorArchivos::mensajes('portada'),
@@ -149,7 +159,7 @@ class Formulario extends Component
 
         $datos = [
             'nombre' => $this->nombre,
-            'codigo' => $this->codigo !== '' ? strtoupper($this->codigo) : null,
+            'codigo' => $this->codigo,
             'descripcion' => $this->descripcion ?: null,
             'profesor_id' => $this->profesor_id,
             'imagen_portada_url' => $portadaUrl,

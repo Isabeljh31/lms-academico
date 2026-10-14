@@ -58,6 +58,8 @@ class Index extends Component
     {
         abort_unless(auth()->user()->hasRole('supervisor'), 403);
 
+        $this->nuevoEmail = User::normalizarEmail($this->nuevoEmail);
+
         $this->validate([
             'nuevoNombre' => ['required', 'string', 'max:255'],
             'nuevoEmail' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],

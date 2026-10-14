@@ -44,6 +44,15 @@ class AutenticacionTest extends TestCase
         $this->assertStringStartsWith('$2y$', $usuario->getRawOriginal('password'));
     }
 
+    public function test_el_correo_escrito_con_mayusculas_permite_ingresar(): void
+    {
+        $usuario = User::factory()->create(['email' => 'maria.lopez@lms.edu.pe']);
+
+        $this->intentarLogin('  Maria.Lopez@LMS.edu.pe ', 'password')->assertHasNoErrors();
+
+        $this->assertAuthenticatedAs($usuario);
+    }
+
     public function test_bloquea_la_cuenta_tras_tres_intentos_fallidos(): void
     {
         $usuario = User::factory()->create();

@@ -30,6 +30,9 @@ class LoginForm extends Form
      */
     public function authenticate(): void
     {
+        // El correo se guarda en minúsculas: se acepta escrito con mayúsculas.
+        $this->email = User::normalizarEmail($this->email);
+
         $this->validate();
 
         $user = User::where('email', $this->email)->first();

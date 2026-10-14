@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +27,9 @@ class Curso extends Model
 
     /** Estados en los que el estudiante matriculado puede entrar al curso. */
     const ESTADOS_VISIBLES_ESTUDIANTE = ['publicado', 'archivado'];
+
+    /** Formato del código: letras A-Z y números, en bloques separados por un guion (p. ej. MAT-201). */
+    const FORMATO_CODIGO = '/^[A-Z0-9]+(?:-[A-Z0-9]+)*$/';
 
     /** Duración típica de un ciclo académico, usada si el Supervisor aún no definió la del curso. */
     const SEMANAS_PREDETERMINADAS = 16;
@@ -59,6 +63,25 @@ class Curso extends Model
             'fecha_fin' => 'date',
             'usa_asistencia' => 'boolean',
         ];
+    }
+
+    /**
+     * El código se guarda siempre en mayúsculas y sin espacios en los extremos,
+     * venga de donde venga (formulario, clonación, API o seeders), para que
+     * "mat-201" y "MAT-201" sean el mismo curso. Vacío se guarda como null.
+     */
+    protected function codigo(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $valor) => self::normalizarCodigo($valor),
+        );
+    }
+
+    public static function normalizarCodigo(?string $codigo): ?string
+    {
+        $codigo = mb_strtoupper(trim((string) $codigo));
+
+        return $codigo === '' ? null : $codigo;
     }
 
     // ==========================================

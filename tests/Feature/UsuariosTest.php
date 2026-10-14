@@ -105,4 +105,43 @@ class UsuariosTest extends TestCase
         $this->assertTrue($usuario->primer_login);
         Mail::assertSent(BienvenidaMail::class, fn ($mail) => $mail->hasTo('nuevo@example.com'));
     }
+
+    public function test_rechaza_un_correo_que_ya_existe_aunque_se_escriba_con_mayusculas(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        User::factory()->create(['email' => 'ana.torres@lms.edu.pe']);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', 'Ana')
+            ->set('nuevoApellidos', 'Torres')
+            ->set('nuevoEmail', 'Ana.Torres@LMS.edu.pe')
+            ->call('crearUsuario')
+            ->assertHasErrors(['nuevoEmail' => 'Ya existe una cuenta con este correo.']);
+
+        $this->assertSame(1, User::where('email', 'ana.torres@lms.edu.pe')->count());
+        Mail::assertNothingSent();
+    }
+
+    public function test_el_correo_de_una_cuenta_nueva_se_guarda_en_minusculas(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', 'Luis')
+            ->set('nuevoApellidos', 'Mendoza')
+            ->set('nuevoEmail', 'Luis.Mendoza@LMS.edu.pe')
+            ->call('crearUsuario')
+            ->assertHasNoErrors();
+
+        $usuario = User::where('email', 'luis.mendoza@lms.edu.pe')->firstOrFail();
+
+        $this->assertSame('Luis Mendoza', $usuario->name);
+        Mail::assertSent(BienvenidaMail::class, fn ($mail) => $mail->hasTo('luis.mendoza@lms.edu.pe'));
+    }
 }

@@ -89,6 +89,10 @@ class Index extends Component
     {
         Gate::authorize('verListado', User::class);
 
+        // Se valida el mismo valor que se guardará (minúsculas), para que la regla
+        // "unique" detecte "Ana@x.com" cuando ya existe "ana@x.com".
+        $this->nuevoEmail = User::normalizarEmail($this->nuevoEmail);
+
         $this->validate([
             'nuevoNombres' => ['required', 'string', 'max:120'],
             'nuevoApellidos' => ['required', 'string', 'max:120'],
@@ -165,6 +169,8 @@ class Index extends Component
     {
         Gate::authorize('verListado', User::class);
 
+        $this->editarEmail = User::normalizarEmail($this->editarEmail);
+
         $this->validate([
             'editarNombre' => ['required', 'string', 'max:255'],
             'editarEmail' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->usuarioEditarId)],
@@ -177,7 +183,7 @@ class Index extends Component
 
         $usuario->update([
             'name' => $this->editarNombre,
-            'email' => strtolower($this->editarEmail),
+            'email' => $this->editarEmail,
         ]);
 
         BitacoraAuditoria::registrarAccionAdmin(
