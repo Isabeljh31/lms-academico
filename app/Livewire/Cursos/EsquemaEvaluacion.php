@@ -58,6 +58,72 @@ class EsquemaEvaluacion extends Component
         return app(CalculadoraNotas::class)->sumarPesos(array_column($this->rubros, 'peso'));
     }
 
+    /**
+     * Valida en vivo el campo que el Supervisor acaba de cambiar, para que un
+     * peso inválido (p. ej. 120 o 33.333) se marque en rojo antes de guardar.
+     */
+    public function updatedRubros(mixed $valor, ?string $clave = null): void
+    {
+        if ($clave !== null && preg_match('/^\d+\.(nombre|semana|peso)$/', $clave)) {
+            $this->validateOnly("rubros.{$clave}", $this->reglas(), $this->mensajes());
+        }
+    }
+
+    /**
+     * ERS RF-55: cada rubro tiene nombre, semana y peso. El peso admite como
+     * máximo 2 decimales, así lo que se valida es exactamente lo que se guarda.
+     *
+     * @return array<string, array<int, string>>
+     */
+    protected function reglas(): array
+    {
+        return [
+            'rubros' => ['required', 'array', 'min:1', 'max:20'],
+            'rubros.*.nombre' => ['required', 'string', 'max:100', 'distinct:ignore_case'],
+            'rubros.*.semana' => ['required', 'integer', 'min:1', 'max:'.$this->curso->totalSemanas()],
+            'rubros.*.peso' => ['required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:100'],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function mensajes(): array
+    {
+        return [
+            'rubros.min' => 'Agrega al menos un rubro.',
+            'rubros.max' => 'El esquema admite como máximo 20 rubros.',
+            'rubros.*.nombre.required' => 'Escribe el nombre del rubro.',
+            'rubros.*.nombre.max' => 'El nombre del rubro no puede tener más de 100 caracteres.',
+            'rubros.*.nombre.distinct' => 'Hay dos rubros con el mismo nombre.',
+            'rubros.*.semana.required' => 'Indica la semana en que se realiza.',
+            'rubros.*.semana.integer' => 'La semana debe ser un número entero.',
+            'rubros.*.semana.min' => 'La semana debe ser 1 o mayor.',
+            'rubros.*.semana.max' => 'La semana no puede superar la duración del curso (:max semanas).',
+            'rubros.*.peso.required' => 'Indica el peso del rubro.',
+            'rubros.*.peso.numeric' => 'El peso debe ser un número.',
+            'rubros.*.peso.decimal' => 'El peso admite como máximo 2 decimales (ej. 33.33).',
+            'rubros.*.peso.min' => 'El peso debe ser mayor que 0.',
+            'rubros.*.peso.max' => 'Inválido: un rubro no puede pesar más de 100 %.',
+        ];
+    }
+
+    /**
+     * Mensaje con la cuenta concreta de lo que falta o sobra para llegar a 100 %.
+     */
+    public function mensajeSuma(): string
+    {
+        $suma = $this->sumaPesos;
+        $diferencia = round(abs(100 - $suma), 2);
+        $formato = fn (float $valor) => rtrim(rtrim(number_format($valor, 2, '.', ''), '0'), '.');
+
+        return match (true) {
+            $suma < 100 => "Los pesos suman {$formato($suma)} %. Faltan {$formato($diferencia)} % para llegar a 100 %.",
+            $suma > 100 => "Los pesos suman {$formato($suma)} %. Sobran {$formato($diferencia)} %: deben sumar exactamente 100 %.",
+            default => 'Los pesos suman 100 %.',
+        };
+    }
+
     public function agregarRubro(): void
     {
         $this->rubros[] = ['id' => null, 'nombre' => 'Evaluación '.(count($this->rubros) + 1), 'semana' => null, 'peso' => 0];
@@ -85,22 +151,11 @@ class EsquemaEvaluacion extends Component
         Gate::authorize('administrar', $this->curso);
         abort_unless($this->editable, 403, 'El esquema de un curso finalizado no se puede modificar.');
 
-        $this->validate([
-            'rubros' => ['required', 'array', 'min:1', 'max:20'],
-            'rubros.*.nombre' => ['required', 'string', 'max:100', 'distinct:ignore_case'],
-            'rubros.*.semana' => ['nullable', 'integer', 'min:1', 'max:'.($this->curso->semanas_duracion ?: 52)],
-            'rubros.*.peso' => ['required', 'numeric', 'min:0.01', 'max:100'],
-        ], [
-            'rubros.*.nombre.required' => 'Escribe el nombre del rubro.',
-            'rubros.*.nombre.distinct' => 'Hay dos rubros con el mismo nombre.',
-            'rubros.*.peso.required' => 'Indica el peso del rubro.',
-            'rubros.*.peso.min' => 'El peso debe ser mayor que 0.',
-            'rubros.*.semana.max' => 'La semana no puede superar la duración del curso.',
-        ]);
+        $this->validate($this->reglas(), $this->mensajes());
 
         // ERS RF-56: validación de backend obligatoria.
         if (! $calculadora->pesosSumanCien(array_column($this->rubros, 'peso'))) {
-            $this->addError('rubros', "Los pesos suman {$this->sumaPesos} %. Deben sumar exactamente 100 % para guardar el esquema.");
+            $this->addError('rubros', $this->mensajeSuma().' Ajusta los pesos para guardar el esquema.');
 
             return;
         }

@@ -10,7 +10,7 @@
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <x-gestion.indicador etiqueta="Suma de pesos" :valor="number_format($this->sumaPesos, 2).' %'" icono="grafico" :tono="$pesosOk ? 'exito' : 'alerta'"
-                :detalle="$pesosOk ? 'Correcto: suma 100 %' : 'Debe sumar exactamente 100 %'" />
+                :detalle="$pesosOk ? 'Correcto: suma 100 %' : $this->mensajeSuma()" />
             <x-gestion.indicador etiqueta="Nota mínima aprobatoria" :valor="$notaMinima.' / 20'" icono="escudo" tono="cafe" detalle="Configuración general de la plataforma" />
             <x-gestion.indicador etiqueta="Notas registradas" :valor="$notasRegistradas" icono="lista" :detalle="$totalEstudiantes.' estudiantes matriculados'" />
         </div>
@@ -39,18 +39,18 @@
                                 <tr wire:key="rubro-{{ $rubro['id'] ?? 'nuevo-'.$i }}">
                                     <td class="px-4 py-2 align-top">
                                         <label class="sr-only" for="rubro-nombre-{{ $i }}">Nombre del rubro</label>
-                                        <x-gestion.control id="rubro-nombre-{{ $i }}" wire:model="rubros.{{ $i }}.nombre" :disabled="! $this->editable" />
-                                        @error('rubros.'.$i.'.nombre') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                        <x-gestion.control id="rubro-nombre-{{ $i }}" wire:model.blur="rubros.{{ $i }}.nombre" :disabled="! $this->editable" />
+                                        @error('rubros.'.$i.'.nombre') <p class="mt-1 text-xs font-medium text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                                     </td>
                                     <td class="px-4 py-2 align-top">
                                         <label class="sr-only" for="rubro-semana-{{ $i }}">Semana</label>
-                                        <x-gestion.control id="rubro-semana-{{ $i }}" type="number" min="1" wire:model="rubros.{{ $i }}.semana" :disabled="! $this->editable" />
-                                        @error('rubros.'.$i.'.semana') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                        <x-gestion.control id="rubro-semana-{{ $i }}" type="number" min="1" max="{{ $curso->totalSemanas() }}" step="1" wire:model.blur="rubros.{{ $i }}.semana" :disabled="! $this->editable" />
+                                        @error('rubros.'.$i.'.semana') <p class="mt-1 text-xs font-medium text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                                     </td>
                                     <td class="px-4 py-2 align-top">
                                         <label class="sr-only" for="rubro-peso-{{ $i }}">Peso</label>
-                                        <x-gestion.control id="rubro-peso-{{ $i }}" type="number" step="0.01" min="0" max="100" wire:model.live.debounce.300ms="rubros.{{ $i }}.peso" :disabled="! $this->editable" />
-                                        @error('rubros.'.$i.'.peso') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                        <x-gestion.control id="rubro-peso-{{ $i }}" type="number" step="0.01" min="0.01" max="100" wire:model.live.debounce.300ms="rubros.{{ $i }}.peso" :disabled="! $this->editable" />
+                                        @error('rubros.'.$i.'.peso') <p class="mt-1 text-xs font-medium text-red-600 dark:text-red-400">{{ $message }}</p> @enderror
                                     </td>
                                     @if ($this->editable)
                                         <td class="px-4 py-2 text-right align-top">

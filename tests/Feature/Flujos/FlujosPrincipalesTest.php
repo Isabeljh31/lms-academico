@@ -134,7 +134,7 @@ class FlujosPrincipalesTest extends TestCase
             ])
             ->call('guardar')
             ->assertHasErrors('rubros')
-            ->assertSee('Deben sumar exactamente 100 %');
+            ->assertSee('Los pesos suman 90 %. Faltan 10 % para llegar a 100 %.');
 
         $this->assertSame(0, $escenario['curso']->esquemaEvaluacion()->first()->rubros()->count());
     }
