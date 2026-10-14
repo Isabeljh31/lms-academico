@@ -8,9 +8,9 @@ use App\Models\BitacoraAuditoria;
 use App\Models\User;
 use App\Rules\Dni;
 use App\Rules\NombrePersona;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Throwable;
 
@@ -98,9 +98,29 @@ class GestorCuentas
         ];
     }
 
+    /**
+     * 12 caracteres que cumplen la política de contraseñas: al menos una
+     * mayúscula, una minúscula, un número y un símbolo. Se omiten caracteres
+     * que se confunden al copiarlos a mano (0/O, 1/l/I) y símbolos que suelen
+     * romper correos o enlaces.
+     */
     public function generarPasswordTemporal(): string
     {
-        return Str::password(12, symbols: false);
+        $grupos = [
+            'ABCDEFGHJKLMNPQRSTUVWXYZ',
+            'abcdefghijkmnopqrstuvwxyz',
+            '23456789',
+            '-.@#!$%*?',
+        ];
+
+        $caracteres = array_map(fn (string $grupo) => $grupo[random_int(0, strlen($grupo) - 1)], $grupos);
+        $todos = implode('', $grupos);
+
+        while (count($caracteres) < 12) {
+            $caracteres[] = $todos[random_int(0, strlen($todos) - 1)];
+        }
+
+        return implode('', Arr::shuffle($caracteres));
     }
 
     /**

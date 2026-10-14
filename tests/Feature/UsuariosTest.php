@@ -9,7 +9,10 @@ use App\Models\Curso;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules\Password;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -202,6 +205,28 @@ class UsuariosTest extends TestCase
 
         $this->assertSame('Luis Mendoza', $usuario->name);
         Mail::assertSent(BienvenidaMail::class, fn ($mail) => $mail->hasTo('luis.mendoza@lms.edu.pe'));
+    }
+
+    public function test_la_contrasena_temporal_cumple_la_politica_de_contrasenas(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', 'Ana')
+            ->set('nuevoApellidos', 'Torres')
+            ->set('nuevoDni', '45678123')
+            ->set('nuevoEmail', 'ana@lms.edu.pe')
+            ->call('crearUsuario')
+            ->assertHasNoErrors();
+
+        $temporal = Mail::sent(BienvenidaMail::class)->first()->passwordTemporal;
+
+        $this->assertSame(12, strlen($temporal));
+        $this->assertTrue(Validator::make(['password' => $temporal], ['password' => Password::defaults()])->passes());
+        $this->assertTrue(Hash::check($temporal, User::where('email', 'ana@lms.edu.pe')->value('password')));
     }
 
     public function test_guarda_nombres_apellidos_y_dni_por_separado(): void

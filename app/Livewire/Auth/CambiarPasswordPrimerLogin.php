@@ -33,7 +33,7 @@ class CambiarPasswordPrimerLogin extends Component
         abort_unless($usuario?->primer_login, 403);
 
         $this->validate([
-            'password' => ['required', 'string', 'confirmed', Password::min(8)->letters()->numbers()],
+            'password' => ['required', 'string', 'confirmed', Password::defaults()],
             'password_confirmation' => ['required', 'string'],
         ], [
             'password.confirmed' => 'Las contraseñas no coinciden.',

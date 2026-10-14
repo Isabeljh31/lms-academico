@@ -62,7 +62,7 @@ class FlujosPrincipalesTest extends TestCase
         // Primer ingreso: todo redirige al cambio de contraseña hasta completarlo.
         $this->actingAs($lucia)->get(route('cursos.index'))->assertRedirect(route('primer-login'));
         Livewire::actingAs($lucia)->test(CambiarPasswordPrimerLogin::class)
-            ->set('password', 'MiClave2026')->set('password_confirmation', 'MiClave2026')
+            ->set('password', 'MiClave-2026')->set('password_confirmation', 'MiClave-2026')
             ->call('guardar')->assertHasNoErrors();
 
         Livewire::actingAs($escenario['supervisor'])->test(GestionMatricula::class, ['curso' => $escenario['curso']])

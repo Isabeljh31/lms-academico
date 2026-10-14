@@ -38,8 +38,8 @@ class RolesYFuncionalidadTest extends TestCase
         // Probar el componente
         Livewire::actingAs($user)
             ->test(CambiarPasswordPrimerLogin::class)
-            ->set('password', 'NuevaPass123')
-            ->set('password_confirmation', 'NuevaPass123')
+            ->set('password', 'NuevaPass-123')
+            ->set('password_confirmation', 'NuevaPass-123')
             ->call('guardar')
             ->assertRedirect(route('dashboard'));
 

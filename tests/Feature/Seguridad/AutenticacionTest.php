@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Livewire\Livewire;
 use Livewire\Volt\Volt;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Concerns\PreparaEscenarioAcademico;
 use Tests\TestCase;
 
@@ -145,17 +146,59 @@ class AutenticacionTest extends TestCase
 
     public function test_el_cambio_inicial_exige_una_contrasena_nueva_y_segura(): void
     {
-        $usuario = $this->usuarioConRol(Rol::Estudiante->value, ['primer_login' => true, 'password' => 'Temporal123']);
+        $usuario = $this->usuarioConRol(Rol::Estudiante->value, ['primer_login' => true, 'password' => 'Temporal-123']);
 
         Livewire::actingAs($usuario)->test(CambiarPasswordPrimerLogin::class)
             ->set('password', 'corta')->set('password_confirmation', 'corta')
             ->call('guardar')->assertHasErrors('password');
 
         Livewire::actingAs($usuario)->test(CambiarPasswordPrimerLogin::class)
-            ->set('password', 'Temporal123')->set('password_confirmation', 'Temporal123')
+            ->set('password', 'Temporal-123')->set('password_confirmation', 'Temporal-123')
             ->call('guardar')->assertHasErrors('password');
 
         $this->assertTrue($usuario->fresh()->primer_login);
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function contrasenasQueNoCumplenLaPolitica(): array
+    {
+        return [
+            'menos de 8 caracteres' => ['Ab1-cde'],
+            'sin mayúscula' => ['clave-2026'],
+            'sin minúscula' => ['CLAVE-2026'],
+            'sin número' => ['Clave-segura'],
+            'sin carácter especial' => ['Clave2026'],
+            'solo números' => ['12345678'],
+        ];
+    }
+
+    #[DataProvider('contrasenasQueNoCumplenLaPolitica')]
+    public function test_el_cambio_inicial_rechaza_una_contrasena_que_no_cumple_la_politica(string $contrasena): void
+    {
+        $usuario = $this->usuarioConRol(Rol::Estudiante->value, ['primer_login' => true]);
+
+        Livewire::actingAs($usuario)->test(CambiarPasswordPrimerLogin::class)
+            ->set('password', $contrasena)->set('password_confirmation', $contrasena)
+            ->call('guardar')
+            ->assertHasErrors('password');
+
+        $this->assertTrue($usuario->fresh()->primer_login);
+    }
+
+    public function test_el_perfil_aplica_la_misma_politica_que_el_primer_ingreso(): void
+    {
+        $usuario = User::factory()->create(['password' => 'Actual-123']);
+
+        Volt::actingAs($usuario)->test('profile.update-password-form')
+            ->set('current_password', 'Actual-123')
+            ->set('password', '12345678')
+            ->set('password_confirmation', '12345678')
+            ->call('updatePassword')
+            ->assertHasErrors('password');
+
+        $this->assertTrue(Hash::check('Actual-123', $usuario->fresh()->password));
     }
 
     public function test_el_cambio_inicial_no_escribe_la_contrasena_en_el_log(): void
@@ -164,13 +207,13 @@ class AutenticacionTest extends TestCase
         $usuario = $this->usuarioConRol(Rol::Estudiante->value, ['primer_login' => true]);
 
         Livewire::actingAs($usuario)->test(CambiarPasswordPrimerLogin::class)
-            ->set('password', 'NuevaClave2026')->set('password_confirmation', 'NuevaClave2026')
+            ->set('password', 'NuevaClave-2026')->set('password_confirmation', 'NuevaClave-2026')
             ->call('guardar')
             ->assertRedirect(route('dashboard'));
 
         Log::shouldNotHaveReceived('info');
         $this->assertFalse($usuario->fresh()->primer_login);
-        $this->assertTrue(Hash::check('NuevaClave2026', $usuario->fresh()->password));
+        $this->assertTrue(Hash::check('NuevaClave-2026', $usuario->fresh()->password));
     }
 
     public function test_los_campos_de_bloqueo_no_se_asignan_en_masa(): void
@@ -199,15 +242,15 @@ class AutenticacionTest extends TestCase
 
         Volt::test('pages.auth.reset-password', ['token' => Password::createToken($usuario)])
             ->set('email', $usuario->email)
-            ->set('password', 'NuevaClave2026')
-            ->set('password_confirmation', 'NuevaClave2026')
+            ->set('password', 'NuevaClave-2026')
+            ->set('password_confirmation', 'NuevaClave-2026')
             ->call('resetPassword')
             ->assertHasNoErrors();
 
         $usuario->refresh();
         $this->assertFalse($usuario->estaBloqueada());
         $this->assertFalse($usuario->primer_login);
-        $this->intentarLogin($usuario->email, 'NuevaClave2026')->assertHasNoErrors();
+        $this->intentarLogin($usuario->email, 'NuevaClave-2026')->assertHasNoErrors();
         $this->assertAuthenticatedAs($usuario);
     }
 }

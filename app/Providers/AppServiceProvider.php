@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -62,6 +63,11 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Grupo::class, GrupoPolicy::class);
 
         $this->aplicarConfiguracionRegional();
+
+        // Política de contraseñas seguras, la misma en primer ingreso, perfil y
+        // recuperación: mínimo 8 caracteres, mayúscula y minúscula, número y
+        // carácter especial (- . @ # ! …). Las contraseñas temporales también la cumplen.
+        Password::defaults(fn () => Password::min(8)->mixedCase()->numbers()->symbols());
 
         // ERS RNF-02: en producción toda URL generada usa HTTPS.
         if ($this->app->isProduction()) {

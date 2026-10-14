@@ -88,9 +88,10 @@ new #[Layout('layouts.guest')] class extends Component
         </div>
 
         <!-- Contraseña -->
-        <div class="mt-4">
-            <x-input-label for="password" value="Contraseña" />
-            <x-text-input wire:model="password" id="password" class="block mt-1 w-full" type="password" name="password" required autocomplete="new-password" />
+        <div class="mt-4" x-data="{ clave: '' }">
+            <x-input-label for="password" value="Nueva contraseña" />
+            <x-text-input wire:model="password" id="password" class="block mt-1 w-full" type="password" name="password" x-on:input="clave = $event.target.value" required autocomplete="new-password" />
+            <x-requisitos-password />
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
