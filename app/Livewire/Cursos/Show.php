@@ -424,7 +424,8 @@ class Show extends Component
         $this->resetErrorBag();
         $this->clonNombre = $this->curso->nombre.' (nuevo ciclo)';
         $this->clonCodigo = '';
-        $this->clonProfesorId = $this->curso->profesor_id;
+        // Si el curso quedó a cargo del Supervisor (sin profesor), el clon tampoco preselecciona a nadie.
+        $this->clonProfesorId = $this->curso->profesor?->hasRole(Rol::Profesor->value) ? $this->curso->profesor_id : null;
         $this->mostrarModalClonar = true;
     }
 

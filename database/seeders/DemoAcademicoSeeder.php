@@ -126,6 +126,16 @@ class DemoAcademicoSeeder extends Seeder
         }
     }
 
+    /** DNI de prueba (8 dígitos) que todavía no usa ninguna cuenta. */
+    protected function siguienteDni(): string
+    {
+        do {
+            $dni = (string) mt_rand(40000000, 79999999);
+        } while (User::where('dni', $dni)->exists());
+
+        return $dni;
+    }
+
     /**
      * @param  array<string, mixed>  $extra
      */
@@ -134,7 +144,7 @@ class DemoAcademicoSeeder extends Seeder
         $usuario = User::firstOrNew(['email' => $correo]);
 
         if (! $usuario->exists) {
-            $usuario->fill(['name' => $nombre, 'password' => Hash::make(self::PASSWORD)]);
+            $usuario->fill(['name' => $nombre, 'dni' => $this->siguienteDni(), 'password' => Hash::make(self::PASSWORD)]);
             $usuario->email_verified_at = now();
         }
 

@@ -99,8 +99,17 @@
         <x-gestion.modal titulo="Registrar profesor" cerrar="$set('mostrarModalCrear', false)"
             descripcion="Se generará una contraseña temporal y se enviará un correo de bienvenida.">
             <form wire:submit="crearProfesor" id="form-crear-profesor" class="space-y-4">
-                <x-gestion.campo etiqueta="Nombre completo" nombre="nuevoNombre" requerido>
-                    <x-gestion.control id="nuevoNombre" wire:model="nuevoNombre" placeholder="Carlos Mendoza Ríos" />
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <x-gestion.campo etiqueta="Nombres" nombre="nuevoNombres" requerido>
+                        <x-gestion.control id="nuevoNombres" wire:model="nuevoNombres" placeholder="Carlos" maxlength="60" autocomplete="off" />
+                    </x-gestion.campo>
+                    <x-gestion.campo etiqueta="Apellidos" nombre="nuevoApellidos" requerido>
+                        <x-gestion.control id="nuevoApellidos" wire:model="nuevoApellidos" placeholder="Mendoza Ríos" maxlength="60" autocomplete="off" />
+                    </x-gestion.campo>
+                </div>
+                <x-gestion.campo etiqueta="DNI" nombre="nuevoDni" requerido ayuda="8 dígitos, solo números.">
+                    <x-gestion.control id="nuevoDni" wire:model="nuevoDni" placeholder="12345678" inputmode="numeric" maxlength="8"
+                        autocomplete="off" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 8)" />
                 </x-gestion.campo>
                 <x-gestion.campo etiqueta="Correo institucional" nombre="nuevoEmail" requerido>
                     <x-gestion.control id="nuevoEmail" type="email" wire:model="nuevoEmail" placeholder="docente@institucion.edu.pe" />

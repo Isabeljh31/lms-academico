@@ -61,14 +61,17 @@ class AdminProfesoresTest extends TestCase
     {
         Livewire::actingAs($this->admin)
             ->test(ProfesoresIndex::class)
-            ->set('nuevoNombre', 'Dra. María Elena')
+            ->set('nuevoNombres', 'María Elena')
+            ->set('nuevoApellidos', 'Quispe Rojas')
+            ->set('nuevoDni', '41239876')
             ->set('nuevoEmail', 'maria.elena@lms.edu.pe')
             ->call('crearProfesor')
             ->assertHasNoErrors();
 
         $nuevo = User::where('email', 'maria.elena@lms.edu.pe')->first();
         $this->assertNotNull($nuevo);
-        $this->assertEquals('Dra. María Elena', $nuevo->name);
+        $this->assertSame('María Elena Quispe Rojas', $nuevo->name);
+        $this->assertSame('41239876', $nuevo->dni);
         $this->assertTrue($nuevo->hasRole(Rol::Profesor->value));
         // ERS RF-03/RF-05: contraseña temporal generada y cambio obligatorio.
         $this->assertTrue($nuevo->primer_login);

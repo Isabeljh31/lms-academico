@@ -25,7 +25,11 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
+            'name' => fake()->firstName().' '.fake()->lastName(),
+            // Se derivan de "name" para que un test pueda indicar solo el nombre completo.
+            'nombres' => fn (array $atributos) => preg_split('/\s+/u', trim($atributos['name']), 2)[0],
+            'apellidos' => fn (array $atributos) => preg_split('/\s+/u', trim($atributos['name']), 2)[1] ?? null,
+            'dni' => fake()->unique()->numerify('########'),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),

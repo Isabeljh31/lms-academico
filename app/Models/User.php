@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Rules\NombrePersona;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,7 +35,12 @@ class User extends Authenticatable
      * solo se cambian con forceFill desde los métodos de este modelo.
      */
     protected $fillable = [
+        // "name" es el nombre completo; se calcula solo a partir de nombres y apellidos.
         'name',
+        // ERS RF-10: nombres y apellidos por separado, y DNI único.
+        'nombres',
+        'apellidos',
+        'dni',
         'email',
         'password',
         'avatar_url',
@@ -70,6 +76,55 @@ class User extends Authenticatable
     public static function normalizarEmail(string $email): string
     {
         return mb_strtolower(trim($email));
+    }
+
+    protected function nombres(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $valor) => $valor === null ? null : (NombrePersona::normalizar($valor) ?: null),
+        );
+    }
+
+    protected function apellidos(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $valor) => $valor === null ? null : (NombrePersona::normalizar($valor) ?: null),
+        );
+    }
+
+    protected function dni(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $valor) => $valor === null ? null : (trim($valor) ?: null),
+        );
+    }
+
+    /**
+     * "name" (nombre completo) se mantiene sincronizado con nombres y
+     * apellidos. Si solo se indica "name" (seeders, factories antiguas), se
+     * separa: la primera palabra va a nombres y el resto a apellidos.
+     */
+    protected static function booted(): void
+    {
+        static::saving(function (User $usuario) {
+            if ($usuario->isDirty(['nombres', 'apellidos']) && filled($usuario->nombres)) {
+                $usuario->name = trim($usuario->nombres.' '.$usuario->apellidos);
+
+                return;
+            }
+
+            if ($usuario->isDirty('name')) {
+                $partes = preg_split('/\s+/u', NombrePersona::normalizar((string) $usuario->name), 2);
+                $usuario->nombres = $partes[0] ?? null;
+                $usuario->apellidos = $partes[1] ?? null;
+            }
+        });
+    }
+
+    /** Para listados ordenados por apellido: "Pérez Salinas, Juan". */
+    public function nombreFormal(): string
+    {
+        return filled($this->apellidos) ? "{$this->apellidos}, {$this->nombres}" : (string) $this->name;
     }
 
     // ==========================================

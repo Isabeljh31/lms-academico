@@ -26,6 +26,24 @@ class Index extends Component
 {
     use WithPagination;
 
+    /**
+     * Nombres de los campos tal como los ve el usuario en los mensajes de error.
+     *
+     * @var array<string, string>
+     */
+    protected const ATRIBUTOS = [
+        'nuevoNombres' => 'nombres',
+        'nuevoApellidos' => 'apellidos',
+        'nuevoDni' => 'DNI',
+        'nuevoEmail' => 'correo electrónico',
+        'nuevoRol' => 'rol',
+        'editarNombres' => 'nombres',
+        'editarApellidos' => 'apellidos',
+        'editarDni' => 'DNI',
+        'editarEmail' => 'correo electrónico',
+        'editarRol' => 'rol',
+    ];
+
     public string $busqueda = '';
 
     public string $filtroRol = '';
@@ -41,6 +59,8 @@ class Index extends Component
 
     public string $nuevoApellidos = '';
 
+    public string $nuevoDni = '';
+
     public string $nuevoEmail = '';
 
     public string $nuevoRol = 'estudiante';
@@ -51,7 +71,11 @@ class Index extends Component
     #[Locked]
     public ?int $usuarioEditarId = null;
 
-    public string $editarNombre = '';
+    public string $editarNombres = '';
+
+    public string $editarApellidos = '';
+
+    public string $editarDni = '';
 
     public string $editarEmail = '';
 
@@ -83,7 +107,7 @@ class Index extends Component
     public function abrirCrear(): void
     {
         $this->resetErrorBag();
-        $this->reset(['nuevoNombres', 'nuevoApellidos', 'nuevoEmail']);
+        $this->reset(['nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail']);
         $this->nuevoRol = 'estudiante';
         $this->mostrarModalCrear = true;
     }
@@ -92,30 +116,33 @@ class Index extends Component
     {
         Gate::authorize('verListado', User::class);
 
-        // Se valida el mismo valor que se guardará (minúsculas), para que la regla
-        // "unique" detecte "Ana@x.com" cuando ya existe "ana@x.com".
+        // Se valida el mismo valor que se guardará (correo en minúsculas, sin
+        // espacios sobrantes), para que "unique" detecte "Ana@x.com" si ya existe "ana@x.com".
         $this->nuevoEmail = User::normalizarEmail($this->nuevoEmail);
+        $this->nuevoDni = trim($this->nuevoDni);
 
-        $this->validate([
-            'nuevoNombres' => ['required', 'string', 'max:120'],
-            'nuevoApellidos' => ['required', 'string', 'max:120'],
-            'nuevoEmail' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'nuevoRol' => ['required', Rule::in(GestorCuentas::ROLES_CREABLES)],
-        ], [
-            'nuevoEmail.unique' => 'Ya existe una cuenta con este correo.',
-        ]);
+        $this->validate(
+            [
+                ...GestorCuentas::reglasIdentidad('nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail'),
+                'nuevoRol' => ['required', Rule::in(GestorCuentas::ROLES_CREABLES)],
+            ],
+            GestorCuentas::mensajesIdentidad('nuevoDni', 'nuevoEmail'),
+            self::ATRIBUTOS,
+        );
 
         $resultado = $gestor->crear(
-            nombre: trim($this->nuevoNombres).' '.trim($this->nuevoApellidos),
+            nombres: $this->nuevoNombres,
+            apellidos: $this->nuevoApellidos,
             email: $this->nuevoEmail,
             rol: $this->nuevoRol,
             ejecutor: auth()->user(),
+            dni: $this->nuevoDni,
         );
 
         $usuario = $resultado['usuario'];
 
         $this->mostrarModalCrear = false;
-        $this->reset(['nuevoNombres', 'nuevoApellidos', 'nuevoEmail']);
+        $this->reset(['nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail']);
 
         session()->flash('password_temporal', $resultado['password_temporal']);
         session()->flash('usuario_temporal_nombre', $usuario->name);
@@ -133,7 +160,9 @@ class Index extends Component
         $usuario = User::findOrFail($id);
         $this->resetErrorBag();
         $this->usuarioEditarId = $usuario->id;
-        $this->editarNombre = $usuario->name;
+        $this->editarNombres = (string) $usuario->nombres;
+        $this->editarApellidos = (string) $usuario->apellidos;
+        $this->editarDni = (string) $usuario->dni;
         $this->editarEmail = $usuario->email;
         $this->editarRol = (string) $usuario->rolPrincipal();
         $this->mostrarModalEditar = true;
@@ -144,13 +173,17 @@ class Index extends Component
         Gate::authorize('verListado', User::class);
 
         $this->editarEmail = User::normalizarEmail($this->editarEmail);
+        $this->editarDni = trim($this->editarDni);
 
-        $this->validate([
-            'editarNombre' => ['required', 'string', 'max:255'],
-            'editarEmail' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->usuarioEditarId)],
-        ], [
-            'editarEmail.unique' => 'Ya existe otra cuenta con este correo.',
-        ]);
+        $this->validate(
+            GestorCuentas::reglasIdentidad('editarNombres', 'editarApellidos', 'editarDni', 'editarEmail', $this->usuarioEditarId),
+            [
+                ...GestorCuentas::mensajesIdentidad('editarDni', 'editarEmail'),
+                'editarDni.unique' => 'Ya existe otra cuenta con este DNI.',
+                'editarEmail.unique' => 'Ya existe otra cuenta con este correo.',
+            ],
+            self::ATRIBUTOS,
+        );
 
         $usuario = User::findOrFail($this->usuarioEditarId);
         $rolAnterior = $usuario->rolPrincipal();
@@ -166,10 +199,13 @@ class Index extends Component
             }
         }
 
-        $anterior = ['nombre' => $usuario->name, 'email' => $usuario->email];
+        $campos = ['nombres', 'apellidos', 'dni', 'email'];
+        $anterior = $usuario->only($campos);
 
         $usuario->update([
-            'name' => $this->editarNombre,
+            'nombres' => $this->editarNombres,
+            'apellidos' => $this->editarApellidos,
+            'dni' => $this->editarDni,
             'email' => $this->editarEmail,
         ]);
 
@@ -179,7 +215,7 @@ class Index extends Component
             descripcion: "Datos editados de {$usuario->name}.",
             usuarioAfectado: $usuario,
             valorAnterior: $anterior,
-            valorNuevo: ['nombre' => $usuario->name, 'email' => $usuario->email],
+            valorNuevo: $usuario->only($campos),
         );
 
         if ($corrigeRol) {
@@ -196,7 +232,7 @@ class Index extends Component
         }
 
         $this->mostrarModalEditar = false;
-        $this->reset(['usuarioEditarId', 'editarNombre', 'editarEmail', 'editarRol']);
+        $this->reset(['usuarioEditarId', 'editarNombres', 'editarApellidos', 'editarDni', 'editarEmail', 'editarRol']);
         session()->flash('estado', "Datos de {$usuario->name} actualizados correctamente.");
     }
 
@@ -254,7 +290,8 @@ class Index extends Component
         $usuarios = User::with('roles')
             ->when($this->busqueda, fn ($q) => $q->where(
                 fn ($q) => $q->where('name', 'like', "%{$this->busqueda}%")
-                    ->orWhere('email', 'like', "%{$this->busqueda}%")
+                    ->orWhere('email', 'like', '%'.mb_strtolower($this->busqueda).'%')
+                    ->orWhere('dni', 'like', "%{$this->busqueda}%")
             ))
             ->when($this->filtroRol, fn ($q) => $q->role($this->filtroRol))
             ->when($this->filtroEstado === 'activo', fn ($q) => $q->where('activo', true))
@@ -265,7 +302,8 @@ class Index extends Component
                 ->orWhereHas('cursosComoProfesor', fn ($c) => $c->whereKey($this->filtroCursoId))
                 ->orWhereHas('cursosComoProfesorAdicional', fn ($c) => $c->whereKey($this->filtroCursoId))
             ))
-            ->orderBy('name')
+            ->orderBy('apellidos')
+            ->orderBy('nombres')
             ->paginate(15);
 
         return view('livewire.usuarios.index', [

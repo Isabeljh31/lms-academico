@@ -6,9 +6,12 @@ use App\Enums\Rol;
 use App\Mail\BienvenidaMail;
 use App\Models\BitacoraAuditoria;
 use App\Models\User;
+use App\Rules\Dni;
+use App\Rules\NombrePersona;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Throwable;
 
 /**
@@ -31,16 +34,46 @@ class GestorCuentas
     public const ROLES_CREABLES = ['estudiante', 'profesor'];
 
     /**
+     * Reglas comunes de los datos de identidad de una cuenta nueva. Las usan
+     * el alta individual, el directorio de profesores y la importación masiva.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    public static function reglasIdentidad(string $nombres = 'nombres', string $apellidos = 'apellidos', string $dni = 'dni', string $email = 'email', ?int $ignorarId = null): array
+    {
+        return [
+            $nombres => ['required', 'string', new NombrePersona],
+            $apellidos => ['required', 'string', new NombrePersona],
+            $dni => ['required', new Dni, Rule::unique('users', 'dni')->ignore($ignorarId)],
+            $email => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($ignorarId)],
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    public static function mensajesIdentidad(string $dni = 'dni', string $email = 'email'): array
+    {
+        return [
+            "{$dni}.unique" => 'Ya existe una cuenta con este DNI.',
+            "{$email}.unique" => 'Ya existe una cuenta con este correo.',
+            "{$email}.email" => 'Escribe un correo válido, por ejemplo nombre@institucion.edu.pe.',
+        ];
+    }
+
+    /**
      * @return array{usuario: User, password_temporal: string, correo_enviado: bool}
      */
-    public function crear(string $nombre, string $email, string $rol, ?User $ejecutor, string $origen = 'manual'): array
+    public function crear(string $nombres, string $apellidos, string $email, string $rol, ?User $ejecutor, string $origen = 'manual', ?string $dni = null): array
     {
         $rol = Rol::from($rol)->value;
         $passwordTemporal = $this->generarPasswordTemporal();
 
         $usuario = new User([
-            'name' => trim($nombre),
-            'email' => strtolower(trim($email)),
+            'nombres' => $nombres,
+            'apellidos' => $apellidos,
+            'dni' => $dni,
+            'email' => $email,
             'password' => $passwordTemporal,
             'activo' => true,
             'primer_login' => true,

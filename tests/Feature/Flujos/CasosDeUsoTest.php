@@ -597,7 +597,7 @@ class CasosDeUsoTest extends TestCase
         $supervisor = $this->usuarioConRol(Rol::Supervisor->value);
         User::factory()->create(['email' => 'existe@x.pe']);
 
-        $csv = "nombres;apellidos;correo;rol\nAna;García;ana@x.pe;estudiante\nLuis;Pérez;correo-malo;estudiante\n;;vacio@x.pe;estudiante\nEva;Ruiz;existe@x.pe;profesor\nJuan;Ríos;juan@x.pe;supervisor\nAna;Copia;ana@x.pe;estudiante\n";
+        $csv = "nombres;apellidos;dni;correo;rol\nAna;García;45678123;ana@x.pe;estudiante\nLuis;Pérez;45678124;correo-malo;estudiante\n;;45678125;vacio@x.pe;estudiante\nEva;Ruiz;45678126;existe@x.pe;profesor\nJuan;Ríos;45678127;juan@x.pe;supervisor\nAna;Copia;45678128;ana@x.pe;estudiante\n";
 
         $componente = Livewire::actingAs($supervisor)->test(ImportarCSV::class)
             ->set('archivo', UploadedFile::fake()->createWithContent('usuarios.csv', $csv))
@@ -619,11 +619,11 @@ class CasosDeUsoTest extends TestCase
 
         $libro = new LibroXlsx;
         $libro->hoja('Usuarios')
-            ->encabezados(['Nombres', 'Apellidos', 'Correo', 'Rol'])
-            ->fila(['Ana', 'García', 'ana@x.pe', 'estudiante'])
+            ->encabezados(['Nombres', 'Apellidos', 'DNI', 'Correo', 'Rol'])
+            ->fila(['Ana', 'García', '45678123', 'ana@x.pe', 'estudiante'])
             ->espacio()
-            ->fila(['Luis', 'Pérez', 'luis@x.pe', 'profesor'])
-            ->fila(['Sin', 'Correo', '', 'estudiante']);
+            ->fila(['Luis', 'Pérez', '45678124', 'luis@x.pe', 'profesor'])
+            ->fila(['Sin', 'Correo', '45678125', '', 'estudiante']);
 
         $componente = Livewire::actingAs($supervisor)->test(ImportarCSV::class)
             ->set('archivo', UploadedFile::fake()->createWithContent('usuarios.xlsx', $libro->contenido()))
@@ -633,6 +633,51 @@ class CasosDeUsoTest extends TestCase
         $this->assertCount(2, $componente->get('creados'));
         $this->assertCount(1, $componente->get('errores'));
         $this->assertTrue(User::where('email', 'luis@x.pe')->firstOrFail()->hasRole(Rol::Profesor->value));
+    }
+
+    // RF-12: cada fila se valida con las mismas reglas del alta individual (nombres, DNI).
+    public function test_la_importacion_informa_el_motivo_de_cada_fila_con_dni_o_nombre_invalido(): void
+    {
+        Mail::fake();
+        $this->crearRoles();
+        $supervisor = $this->usuarioConRol(Rol::Supervisor->value);
+        User::factory()->create(['dni' => '45678999']);
+
+        $csv = "nombres,apellidos,dni,correo\n"
+            ."Ana,García,45678123,ana@x.pe\n"
+            ."Luis2,Pérez,45678124,luis@x.pe\n"
+            ."Eva,Ruiz,7123456,eva@x.pe\n"
+            ."Rosa,Díaz,45678123,rosa@x.pe\n"
+            ."Juan,Ríos,45678999,juan@x.pe\n";
+
+        $componente = Livewire::actingAs($supervisor)->test(ImportarCSV::class)
+            ->set('archivo', UploadedFile::fake()->createWithContent('usuarios.csv', $csv))
+            ->call('importar');
+
+        $this->assertSame(['ana@x.pe'], array_column($componente->get('creados'), 'correo'));
+        $this->assertSame([
+            3 => "Los nombres solo pueden tener letras y espacios (también se permite guion y apóstrofe, como en Pérez-Salinas u O'Brien).",
+            4 => 'El DNI debe tener exactamente 8 dígitos (solo números). Si el DNI empieza con 0, guarda la columna DNI como texto en Excel.',
+            5 => 'DNI duplicado dentro del archivo (ya aparece en la línea 2).',
+            6 => 'Ya existe otra cuenta con este DNI.',
+        ], array_column($componente->get('errores'), 'error', 'linea'));
+        $this->assertFalse(User::whereIn('email', ['luis@x.pe', 'eva@x.pe', 'rosa@x.pe', 'juan@x.pe'])->exists());
+    }
+
+    public function test_la_importacion_exige_las_columnas_de_nombres_apellidos_dni_y_correo(): void
+    {
+        $this->crearRoles();
+        $supervisor = $this->usuarioConRol(Rol::Supervisor->value);
+
+        $componente = Livewire::actingAs($supervisor)->test(ImportarCSV::class)
+            ->set('archivo', UploadedFile::fake()->createWithContent('usuarios.csv', "nombre,correo\nAna García,ana@x.pe\n"))
+            ->call('importar');
+
+        $this->assertSame(
+            'Al archivo le faltan las columnas: nombres, apellidos, dni. Revisa el formato de ejemplo.',
+            $componente->errors()->first('archivo'),
+        );
+        $this->assertDatabaseMissing('users', ['email' => 'ana@x.pe']);
     }
 
     public function test_un_excel_danado_muestra_un_error_y_no_crea_cuentas(): void

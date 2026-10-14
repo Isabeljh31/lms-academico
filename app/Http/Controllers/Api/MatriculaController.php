@@ -6,11 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\Curso;
 use App\Models\IntegracionExterna;
 use App\Models\User;
+use App\Rules\Dni;
+use App\Rules\NombrePersona;
 use App\Services\Matricula\GestorMatriculas;
 use App\Services\Usuarios\GestorCuentas;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -32,10 +35,14 @@ class MatriculaController extends Controller
             return response()->json(['error' => 'El cuerpo de la solicitud debe ser JSON (Content-Type: application/json).'], 415);
         }
 
+        $correoRecibido = User::normalizarEmail((string) $request->input('usuario.correo', ''));
+
         $validated = $request->validate([
             'usuario' => ['required', 'array'],
-            'usuario.nombres' => ['required', 'string', 'max:100'],
-            'usuario.apellidos' => ['required', 'string', 'max:100'],
+            'usuario.nombres' => ['required', 'string', new NombrePersona],
+            'usuario.apellidos' => ['required', 'string', new NombrePersona],
+            // El contrato del ERS (3.17) no exige el DNI; si llega, debe ser válido y no pertenecer a otra cuenta.
+            'usuario.dni' => ['sometimes', 'nullable', new Dni, Rule::unique('users', 'dni')->where(fn ($q) => $q->where('email', '!=', $correoRecibido))],
             'usuario.correo' => ['required', 'email', 'max:255'],
             'usuario.rol' => ['sometimes', 'string', 'in:estudiante'],
             'curso' => ['required', 'array'],
@@ -45,6 +52,10 @@ class MatriculaController extends Controller
             'matricula.estado' => ['required', 'string', 'in:activo,inactivo'],
         ], [
             'usuario.rol.in' => 'La API solo sincroniza matrículas de estudiantes.',
+            'usuario.dni.unique' => 'El DNI ya pertenece a otra cuenta de LearnUp.',
+        ], [
+            'usuario.nombres' => 'nombres',
+            'usuario.apellidos' => 'apellidos',
         ]);
 
         /** @var IntegracionExterna $integracion */
@@ -60,7 +71,7 @@ class MatriculaController extends Controller
         }
 
         $datos = $validated['usuario'];
-        $correo = strtolower(trim($datos['correo']));
+        $correo = $correoRecibido;
 
         $resultado = DB::transaction(function () use ($cuentas, $matriculas, $datos, $correo, $curso, $validated, $integracion) {
             $usuario = User::where('email', $correo)->first();
@@ -69,11 +80,13 @@ class MatriculaController extends Controller
             // ERS RF-104: crear la cuenta si no existe (contraseña temporal + correo de bienvenida).
             if (! $usuario) {
                 $usuario = $cuentas->crear(
-                    nombre: trim($datos['nombres'].' '.$datos['apellidos']),
+                    nombres: $datos['nombres'],
+                    apellidos: $datos['apellidos'],
                     email: $correo,
                     rol: 'estudiante',
                     ejecutor: null,
                     origen: 'API '.$integracion->nombre,
+                    dni: $datos['dni'] ?? null,
                 )['usuario'];
                 $usuarioCreado = true;
             }

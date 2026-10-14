@@ -28,7 +28,11 @@ class Index extends Component
     // Modal de creación de nuevo docente
     public bool $mostrarModalCrear = false;
 
-    public string $nuevoNombre = '';
+    public string $nuevoNombres = '';
+
+    public string $nuevoApellidos = '';
+
+    public string $nuevoDni = '';
 
     public string $nuevoEmail = '';
 
@@ -59,17 +63,24 @@ class Index extends Component
         abort_unless(auth()->user()->hasRole('supervisor'), 403);
 
         $this->nuevoEmail = User::normalizarEmail($this->nuevoEmail);
+        $this->nuevoDni = trim($this->nuevoDni);
 
-        $this->validate([
-            'nuevoNombre' => ['required', 'string', 'max:255'],
-            'nuevoEmail' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
-        ], [
-            'nuevoEmail.unique' => 'Ya existe una cuenta con este correo.',
-        ]);
+        $this->validate(
+            GestorCuentas::reglasIdentidad('nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail'),
+            GestorCuentas::mensajesIdentidad('nuevoDni', 'nuevoEmail'),
+            ['nuevoNombres' => 'nombres', 'nuevoApellidos' => 'apellidos', 'nuevoDni' => 'DNI', 'nuevoEmail' => 'correo institucional'],
+        );
 
-        $resultado = $gestor->crear($this->nuevoNombre, $this->nuevoEmail, Rol::Profesor->value, auth()->user());
+        $resultado = $gestor->crear(
+            nombres: $this->nuevoNombres,
+            apellidos: $this->nuevoApellidos,
+            email: $this->nuevoEmail,
+            rol: Rol::Profesor->value,
+            ejecutor: auth()->user(),
+            dni: $this->nuevoDni,
+        );
 
-        $this->reset(['nuevoNombre', 'nuevoEmail', 'mostrarModalCrear']);
+        $this->reset(['nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail', 'mostrarModalCrear']);
         session()->flash('estado', "Profesor \"{$resultado['usuario']->name}\" registrado. Contraseña temporal: {$resultado['password_temporal']}");
     }
 

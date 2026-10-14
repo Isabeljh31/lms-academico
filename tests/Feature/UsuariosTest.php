@@ -150,6 +150,7 @@ class UsuariosTest extends TestCase
             ->call('abrirCrear')
             ->set('nuevoNombres', 'Nuevo')
             ->set('nuevoApellidos', 'Estudiante')
+            ->set('nuevoDni', '45678123')
             ->set('nuevoEmail', 'nuevo@example.com')
             ->call('crearUsuario')
             ->assertHasNoErrors();
@@ -173,6 +174,7 @@ class UsuariosTest extends TestCase
             ->call('abrirCrear')
             ->set('nuevoNombres', 'Ana')
             ->set('nuevoApellidos', 'Torres')
+            ->set('nuevoDni', '45678124')
             ->set('nuevoEmail', 'Ana.Torres@LMS.edu.pe')
             ->call('crearUsuario')
             ->assertHasErrors(['nuevoEmail' => 'Ya existe una cuenta con este correo.']);
@@ -191,6 +193,7 @@ class UsuariosTest extends TestCase
             ->call('abrirCrear')
             ->set('nuevoNombres', 'Luis')
             ->set('nuevoApellidos', 'Mendoza')
+            ->set('nuevoDni', '45678125')
             ->set('nuevoEmail', 'Luis.Mendoza@LMS.edu.pe')
             ->call('crearUsuario')
             ->assertHasNoErrors();
@@ -199,5 +202,108 @@ class UsuariosTest extends TestCase
 
         $this->assertSame('Luis Mendoza', $usuario->name);
         Mail::assertSent(BienvenidaMail::class, fn ($mail) => $mail->hasTo('luis.mendoza@lms.edu.pe'));
+    }
+
+    public function test_guarda_nombres_apellidos_y_dni_por_separado(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', '  María   José ')
+            ->set('nuevoApellidos', 'Pérez Salinas')
+            ->set('nuevoDni', '07123456')
+            ->set('nuevoEmail', 'maria.perez@lms.edu.pe')
+            ->call('crearUsuario')
+            ->assertHasNoErrors();
+
+        $usuario = User::where('email', 'maria.perez@lms.edu.pe')->firstOrFail();
+
+        $this->assertSame('María José', $usuario->nombres);
+        $this->assertSame('Pérez Salinas', $usuario->apellidos);
+        $this->assertSame('07123456', $usuario->dni);
+        $this->assertSame('María José Pérez Salinas', $usuario->name);
+    }
+
+    public function test_rechaza_nombres_con_numeros_o_simbolos_y_no_crea_la_cuenta(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        $componente = Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', '12345 <b>')
+            ->set('nuevoApellidos', 'Torres')
+            ->set('nuevoDni', '45678123')
+            ->set('nuevoEmail', 'raro@lms.edu.pe')
+            ->call('crearUsuario');
+
+        $this->assertSame(
+            "Los nombres solo pueden tener letras y espacios (también se permite guion y apóstrofe, como en Pérez-Salinas u O'Brien).",
+            $componente->errors()->first('nuevoNombres'),
+        );
+        $this->assertDatabaseMissing('users', ['email' => 'raro@lms.edu.pe']);
+        Mail::assertNothingSent();
+    }
+
+    public function test_rechaza_un_dni_que_no_tiene_8_digitos(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', 'Ana')
+            ->set('nuevoApellidos', 'Torres')
+            ->set('nuevoDni', '1234567')
+            ->set('nuevoEmail', 'ana@lms.edu.pe')
+            ->call('crearUsuario')
+            ->assertHasErrors(['nuevoDni' => 'El DNI debe tener exactamente 8 dígitos (solo números).']);
+
+        $this->assertDatabaseMissing('users', ['email' => 'ana@lms.edu.pe']);
+    }
+
+    public function test_rechaza_un_dni_que_ya_pertenece_a_otra_cuenta(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        User::factory()->create(['dni' => '45678123']);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', 'Ana')
+            ->set('nuevoApellidos', 'Torres')
+            ->set('nuevoDni', '45678123')
+            ->set('nuevoEmail', 'ana@lms.edu.pe')
+            ->call('crearUsuario')
+            ->assertHasErrors(['nuevoDni' => 'Ya existe una cuenta con este DNI.']);
+
+        $this->assertDatabaseMissing('users', ['email' => 'ana@lms.edu.pe']);
+    }
+
+    public function test_editar_solo_los_apellidos_actualiza_el_nombre_completo_y_lo_audita(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $usuario = User::factory()->create(['nombres' => 'Ana', 'apellidos' => 'Torez Vega', 'dni' => '45678123'])
+            ->assignRole(Rol::Estudiante->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirEditar', $usuario->id)
+            ->assertSet('editarNombres', 'Ana')
+            ->assertSet('editarApellidos', 'Torez Vega')
+            ->set('editarApellidos', 'Torres Vega')
+            ->call('guardarEdicion')
+            ->assertHasNoErrors();
+
+        $usuario->refresh();
+
+        $this->assertSame('Ana', $usuario->nombres);
+        $this->assertSame('Torres Vega', $usuario->apellidos);
+        $this->assertSame('Ana Torres Vega', $usuario->name);
+        $this->assertDatabaseHas('bitacoras_auditoria', ['tipo_evento' => 'edicion_datos_usuario', 'usuario_afectado_id' => $usuario->id]);
     }
 }

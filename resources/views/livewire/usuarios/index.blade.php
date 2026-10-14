@@ -35,7 +35,7 @@
         <x-gestion.tarjeta>
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <x-gestion.campo etiqueta="Buscar" nombre="busqueda">
-                    <x-gestion.control id="busqueda" type="search" wire:model.live.debounce.300ms="busqueda" placeholder="Nombre o correo" />
+                    <x-gestion.control id="busqueda" type="search" wire:model.live.debounce.300ms="busqueda" placeholder="Nombre, correo o DNI" />
                 </x-gestion.campo>
                 <x-gestion.campo etiqueta="Rol" nombre="filtroRol">
                     <x-gestion.control tipo="select" id="filtroRol" wire:model.live="filtroRol">
@@ -89,8 +89,11 @@
                                             <img src="{{ $usuario->avatar_url ?? 'https://ui-avatars.com/api/?name='.urlencode($usuario->name).'&background=7FB3AE&color=fff&size=36' }}"
                                                 class="h-8 w-8 shrink-0 rounded-full object-cover" alt="">
                                             <div class="min-w-0">
-                                                <p class="truncate font-medium text-stone-800 dark:text-stone-100">{{ $usuario->name }}</p>
-                                                <p class="truncate text-xs text-stone-500 dark:text-stone-400">{{ $usuario->email }}</p>
+                                                <p class="truncate font-medium text-stone-800 dark:text-stone-100">{{ $usuario->nombreFormal() }}</p>
+                                                <p class="truncate text-xs text-stone-500 dark:text-stone-400">
+                                                    {{ $usuario->email }}
+                                                    · DNI {{ $usuario->dni ?? 'sin registrar' }}
+                                                </p>
                                             </div>
                                             @if ($usuario->primer_login)
                                                 <span title="Aún no cambió su contraseña temporal"
@@ -149,15 +152,21 @@
             descripcion="Se generará una contraseña temporal y se enviará un correo de bienvenida. El usuario deberá cambiarla en su primer inicio de sesión.">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <x-gestion.campo etiqueta="Nombres" nombre="nuevoNombres" requerido>
-                    <x-gestion.control id="nuevoNombres" wire:model="nuevoNombres" placeholder="María" />
+                    <x-gestion.control id="nuevoNombres" wire:model="nuevoNombres" placeholder="María José" maxlength="60" autocomplete="off" />
                 </x-gestion.campo>
                 <x-gestion.campo etiqueta="Apellidos" nombre="nuevoApellidos" requerido>
-                    <x-gestion.control id="nuevoApellidos" wire:model="nuevoApellidos" placeholder="García López" />
+                    <x-gestion.control id="nuevoApellidos" wire:model="nuevoApellidos" placeholder="García López" maxlength="60" autocomplete="off" />
                 </x-gestion.campo>
             </div>
-            <x-gestion.campo etiqueta="Correo electrónico" nombre="nuevoEmail" requerido>
-                <x-gestion.control id="nuevoEmail" type="email" wire:model="nuevoEmail" placeholder="correo@institucion.edu.pe" />
-            </x-gestion.campo>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <x-gestion.campo etiqueta="DNI" nombre="nuevoDni" requerido ayuda="8 dígitos, solo números.">
+                    <x-gestion.control id="nuevoDni" wire:model="nuevoDni" placeholder="12345678" inputmode="numeric" maxlength="8"
+                        autocomplete="off" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 8)" />
+                </x-gestion.campo>
+                <x-gestion.campo etiqueta="Correo electrónico" nombre="nuevoEmail" requerido>
+                    <x-gestion.control id="nuevoEmail" type="email" wire:model="nuevoEmail" placeholder="correo@institucion.edu.pe" />
+                </x-gestion.campo>
+            </div>
             <x-gestion.campo etiqueta="Rol" nombre="nuevoRol" requerido>
                 <x-gestion.control tipo="select" id="nuevoRol" wire:model="nuevoRol">
                     @foreach ($rolesCreables as $r)
@@ -174,12 +183,23 @@
 
     @if ($mostrarModalEditar)
         <x-gestion.modal titulo="Editar usuario" cerrar="$set('mostrarModalEditar', false)">
-            <x-gestion.campo etiqueta="Nombre completo" nombre="editarNombre" requerido>
-                <x-gestion.control id="editarNombre" wire:model="editarNombre" />
-            </x-gestion.campo>
-            <x-gestion.campo etiqueta="Correo electrónico" nombre="editarEmail" requerido>
-                <x-gestion.control id="editarEmail" type="email" wire:model="editarEmail" />
-            </x-gestion.campo>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <x-gestion.campo etiqueta="Nombres" nombre="editarNombres" requerido>
+                    <x-gestion.control id="editarNombres" wire:model="editarNombres" maxlength="60" autocomplete="off" />
+                </x-gestion.campo>
+                <x-gestion.campo etiqueta="Apellidos" nombre="editarApellidos" requerido>
+                    <x-gestion.control id="editarApellidos" wire:model="editarApellidos" maxlength="60" autocomplete="off" />
+                </x-gestion.campo>
+            </div>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <x-gestion.campo etiqueta="DNI" nombre="editarDni" requerido ayuda="8 dígitos, solo números.">
+                    <x-gestion.control id="editarDni" wire:model="editarDni" inputmode="numeric" maxlength="8"
+                        autocomplete="off" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 8)" />
+                </x-gestion.campo>
+                <x-gestion.campo etiqueta="Correo electrónico" nombre="editarEmail" requerido>
+                    <x-gestion.control id="editarEmail" type="email" wire:model="editarEmail" />
+                </x-gestion.campo>
+            </div>
             @if ($usuarioEditar && auth()->user()->can('corregirRol', $usuarioEditar))
                 <x-gestion.campo etiqueta="Rol" nombre="editarRol"
                     ayuda="Puedes corregir el rol solo porque esta cuenta aún no tiene historial académico. Una vez que se use en un curso, el rol queda fijo.">

@@ -87,6 +87,25 @@ class ApiIntegracionTest extends TestCase
         $this->assertDatabaseHas('logs_integracion_api', ['status_code' => 201]);
     }
 
+    public function test_guarda_el_dni_si_el_sistema_externo_lo_envia(): void
+    {
+        $this->withToken($this->apiKey)
+            ->postJson('/api/v1/matriculas', $this->payload(['usuario' => ['dni' => '07123456']]))
+            ->assertCreated();
+
+        $this->assertSame('07123456', User::where('email', 'ana@instituto.edu.pe')->value('dni'));
+    }
+
+    public function test_devuelve_422_si_el_dni_o_los_nombres_no_tienen_un_formato_valido(): void
+    {
+        $this->withToken($this->apiKey)
+            ->postJson('/api/v1/matriculas', $this->payload(['usuario' => ['nombres' => 'Ana123', 'dni' => '123']]))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['usuario.nombres', 'usuario.dni']);
+
+        $this->assertFalse(User::where('email', 'ana@instituto.edu.pe')->exists());
+    }
+
     public function test_acepta_el_curso_por_codigo(): void
     {
         $this->withToken($this->apiKey)

@@ -7,12 +7,14 @@
 
         @if (! $procesado)
             <x-gestion.tarjeta titulo="Formato del archivo" descripcion="Primera fila con encabezados; se lee la primera hoja del libro. En CSV, separador coma (,) o punto y coma (;).">
-                <pre class="overflow-x-auto rounded-lg border border-arena-medio bg-arena-claro/40 p-4 font-mono text-xs text-stone-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300">nombres,apellidos,correo,rol
-Ana,García López,ana.garcia@escuela.edu.pe,estudiante
-Carlos,Mendoza Ríos,c.mendoza@escuela.edu.pe,estudiante
-Rosa,Díaz Vela,r.diaz@escuela.edu.pe,profesor</pre>
+                <pre class="overflow-x-auto rounded-lg border border-arena-medio bg-arena-claro/40 p-4 font-mono text-xs text-stone-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300">nombres,apellidos,dni,correo,rol
+Ana,García López,45678123,ana.garcia@escuela.edu.pe,estudiante
+Carlos,Mendoza Ríos,07123456,c.mendoza@escuela.edu.pe,estudiante
+Rosa,Díaz Vela,41239876,r.diaz@escuela.edu.pe,profesor</pre>
                 <p class="mt-3 text-xs text-stone-500 dark:text-stone-400">
-                    Roles válidos: <code class="font-mono">estudiante</code> y <code class="font-mono">profesor</code>. Si la columna rol está vacía se usa estudiante.
+                    Columnas obligatorias: <code class="font-mono">nombres</code>, <code class="font-mono">apellidos</code>, <code class="font-mono">dni</code> (8 dígitos) y <code class="font-mono">correo</code>.
+                    Roles válidos: <code class="font-mono">estudiante</code> y <code class="font-mono">profesor</code>; si la columna rol está vacía se usa estudiante.
+                    En Excel, guarda la columna DNI como <strong>texto</strong> para no perder los ceros iniciales.
                     Las filas con errores se informan y no impiden crear las filas válidas.
                 </p>
             </x-gestion.tarjeta>
@@ -37,6 +39,7 @@ Rosa,Díaz Vela,r.diaz@escuela.edu.pe,profesor</pre>
                                 <thead class="bg-arena-claro/50 text-left text-xs font-semibold uppercase tracking-wide text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
                                     <tr>
                                         <th class="px-4 py-2">Nombre</th>
+                                        <th class="px-4 py-2">DNI</th>
                                         <th class="px-4 py-2">Correo</th>
                                         <th class="px-4 py-2">Rol</th>
                                     </tr>
@@ -45,6 +48,7 @@ Rosa,Díaz Vela,r.diaz@escuela.edu.pe,profesor</pre>
                                     @foreach ($preview as $fila)
                                         <tr wire:key="preview-{{ $loop->index }}">
                                             <td class="px-4 py-2 text-stone-700 dark:text-stone-200">{{ $nombreVista($fila) ?: '—' }}</td>
+                                            <td class="px-4 py-2 font-mono text-stone-500 dark:text-stone-400">{{ ($fila['dni'] ?? '') ?: '—' }}</td>
                                             <td class="px-4 py-2 text-stone-500 dark:text-stone-400">{{ $fila['correo'] ?? $fila['email'] ?? '—' }}</td>
                                             <td class="px-4 py-2 text-stone-500 dark:text-stone-400">{{ ($fila['rol'] ?? '') ?: 'estudiante' }}</td>
                                         </tr>
@@ -75,6 +79,7 @@ Rosa,Díaz Vela,r.diaz@escuela.edu.pe,profesor</pre>
                             <thead class="bg-arena-claro/50 text-left text-xs font-semibold uppercase tracking-wide text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
                                 <tr>
                                     <th class="px-4 py-2">Nombre</th>
+                                    <th class="px-4 py-2">DNI</th>
                                     <th class="px-4 py-2">Correo</th>
                                     <th class="px-4 py-2">Rol</th>
                                     <th class="px-4 py-2">Contraseña temporal</th>
@@ -84,6 +89,7 @@ Rosa,Díaz Vela,r.diaz@escuela.edu.pe,profesor</pre>
                                 @foreach ($creados as $c)
                                     <tr wire:key="creado-{{ $loop->index }}">
                                         <td class="px-4 py-2 font-medium text-stone-800 dark:text-stone-100">{{ $c['nombre'] }}</td>
+                                        <td class="px-4 py-2 font-mono text-stone-500 dark:text-stone-400">{{ $c['dni'] }}</td>
                                         <td class="px-4 py-2 text-stone-500 dark:text-stone-400">{{ $c['correo'] }}</td>
                                         <td class="px-4 py-2 text-stone-500 dark:text-stone-400">{{ $c['rol'] }}</td>
                                         <td class="px-4 py-2"><code class="rounded bg-arena-claro px-2 py-0.5 font-mono font-bold text-stone-900 dark:bg-stone-900 dark:text-stone-100">{{ $c['password'] }}</code></td>

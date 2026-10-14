@@ -50,6 +50,7 @@ class FlujosPrincipalesTest extends TestCase
             ->call('abrirCrear')
             ->set('nuevoNombres', 'Lucía')
             ->set('nuevoApellidos', 'Ramos')
+            ->set('nuevoDni', '45678123')
             ->set('nuevoEmail', 'lucia@instituto.edu.pe')
             ->call('crearUsuario')
             ->assertHasNoErrors();
