@@ -30,7 +30,8 @@ class AccesoPorRolTest extends TestCase
             'perfil' => ['profile', [], [200, 200, 200]],
             'calendario' => ['evento-calendario.index', [], [200, 200, 200]],
             'reportes' => ['reportes.dashboard', [], [200, 200, 200]],
-            'mensajería' => ['mensajeria.bandeja', [], [403, 200, 200]],
+            'mensajería (selector)' => ['mensajeria.selector', [], [403, 200, 200]],
+            'mensajería' => ['cursos.mensajeria', ['curso'], [403, 200, 200]],
             // Matriz ERS § 5: registrar notas y crear contenido es solo del Profesor del curso.
             'por calificar' => ['docente.por-calificar', [], [403, 200, 403]],
             'propuestas del bot' => ['bot.propuestas', [], [403, 403, 200]],

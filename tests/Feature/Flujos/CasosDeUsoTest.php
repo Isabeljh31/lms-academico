@@ -492,8 +492,7 @@ class CasosDeUsoTest extends TestCase
         Notification::fake();
         $escenario = $this->escenario();
 
-        Livewire::actingAs($escenario['estudiante'])->test(Bandeja::class)
-            ->set('cursoContextoId', $escenario['curso']->id)
+        Livewire::actingAs($escenario['estudiante'])->test(Bandeja::class, ['curso' => $escenario['curso']])
             ->set('destinatarioId', $escenario['profesor']->id)
             ->set('asunto', 'Consulta')
             ->set('cuerpo', '¿Cuándo es el parcial?')
@@ -508,8 +507,7 @@ class CasosDeUsoTest extends TestCase
     {
         $escenario = $this->escenario();
 
-        Livewire::actingAs($escenario['estudiante'])->test(Bandeja::class)
-            ->set('cursoContextoId', $escenario['curso']->id)
+        Livewire::actingAs($escenario['estudiante'])->test(Bandeja::class, ['curso' => $escenario['curso']])
             ->set('enviarATodos', true)
             ->set('asunto', 'Aviso')
             ->set('cuerpo', 'Mensaje a todos')

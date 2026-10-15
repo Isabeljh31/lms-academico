@@ -192,7 +192,7 @@ class IdorTest extends TestCase
 
         $this->expectException(ModelNotFoundException::class);
 
-        Livewire::actingAs($escenario['estudiante'])->test(Bandeja::class)->call('abrirMensaje', $mensaje->id);
+        Livewire::actingAs($escenario['estudiante'])->test(Bandeja::class, ['curso' => $escenario['curso']])->call('abrirMensaje', $mensaje->id);
     }
 
     public function test_un_estudiante_no_puede_escribir_a_profesores_de_otros_cursos(): void
@@ -200,8 +200,7 @@ class IdorTest extends TestCase
         $escenario = $this->escenario();
         $ajeno = $this->cursoAjeno();
 
-        Livewire::actingAs($escenario['estudiante'])->test(Bandeja::class)
-            ->set('cursoContextoId', $escenario['curso']->id)
+        Livewire::actingAs($escenario['estudiante'])->test(Bandeja::class, ['curso' => $escenario['curso']])
             ->set('destinatarioId', $ajeno['profesor']->id)
             ->set('asunto', 'Hola')
             ->set('cuerpo', 'Mensaje')

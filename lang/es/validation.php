@@ -299,7 +299,6 @@ return [
         'tamanoGrupoAuto' => 'cantidad de estudiantes por grupo',
 
         // Mensajería, calendario y comunicados
-        'cursoContextoId' => 'curso',
         'destinatarioId' => 'destinatario',
         'asunto' => 'asunto',
         'cuerpo' => 'mensaje',

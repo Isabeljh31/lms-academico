@@ -99,9 +99,8 @@ class RolesYFuncionalidadTest extends TestCase
 
         // Probar Mensajería (Profesor envia mensaje a Estudiante)
         Livewire::actingAs($profesor)
-            ->test(Bandeja::class)
+            ->test(Bandeja::class, ['curso' => $curso])
             ->set('vista', 'nuevo')
-            ->set('cursoContextoId', $curso->id)
             ->set('destinatarioId', $estudiante->id)
             ->set('asunto', 'Bienvenido al curso')
             ->set('cuerpo', 'Hola')

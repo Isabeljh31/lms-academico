@@ -22,7 +22,7 @@ class NuevoMensaje extends Notification
         return [
             'titulo' => 'Mensaje nuevo de '.$this->mensaje->remitente?->name,
             'mensaje' => "Asunto: \"{$this->mensaje->asunto}\"",
-            'url' => route('mensajeria.bandeja'),
+            'url' => route('cursos.mensajeria', $this->mensaje->curso_id),
         ];
     }
 }

@@ -59,6 +59,10 @@
                             <x-secondary-button>Quizzes</x-secondary-button>
                         </a>
 
+                        <a href="{{ route('cursos.mensajeria', $curso) }}" wire:navigate>
+                            <x-secondary-button>Mensajería</x-secondary-button>
+                        </a>
+
                         @if (auth()->user()->hasRole('estudiante'))
                             @if ($this->estaInscrito)
                                 <span class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold bg-celeste/50 text-azul-oscuro">
@@ -87,6 +91,9 @@
                     <div class="flex flex-wrap items-center gap-2">
                         <x-gestion.boton variante="secundario" tamano="sm" icono="tarea" :href="route('cursos.tareas.index', $curso)">Tareas</x-gestion.boton>
                         <x-gestion.boton variante="secundario" tamano="sm" icono="quiz" :href="route('cursos.quizzes.index', $curso)">Quizzes</x-gestion.boton>
+                        @if (auth()->user()->hasRole('profesor'))
+                            <x-gestion.boton variante="secundario" tamano="sm" icono="usuarios" :href="route('cursos.mensajeria', $curso)">Mensajería</x-gestion.boton>
+                        @endif
                         @if ($this->puedeGestionar)
                             <x-gestion.boton variante="secundario" tamano="sm" icono="base-datos" :href="route('cursos.banco-preguntas', $curso)">Banco de preguntas</x-gestion.boton>
                         @endif

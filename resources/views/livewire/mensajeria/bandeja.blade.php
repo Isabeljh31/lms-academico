@@ -2,15 +2,16 @@
 
     <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2">
-                Mensajería
+            <a href="{{ route('cursos.show', $curso) }}" wire:navigate class="text-xs text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 transition font-medium">← Volver al curso</a>
+            <h1 class="text-2xl font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2 mt-1">
+                Mensajería · {{ $curso->nombre }}
                 @if($noLeidos > 0)
                 <span class="inline-flex items-center justify-center rounded-full bg-terracota-base text-white text-xs font-bold w-5 h-5">
                     {{ $noLeidos }}
                 </span>
                 @endif
             </h1>
-            <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">Comunicación privada entre estudiantes y profesores</p>
+            <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">Comunicación privada entre estudiantes y profesores de este curso</p>
         </div>
 
         <div class="flex gap-2">
@@ -40,43 +41,29 @@
     {{-- ============================== NUEVO MENSAJE ============================== --}}
     @if($vista === 'nuevo')
     <div class="bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 p-6 space-y-4">
-        <h2 class="text-sm font-semibold text-stone-700 dark:text-stone-300">Nuevo mensaje</h2>
+        <h2 class="text-sm font-semibold text-stone-700 dark:text-stone-300">Nuevo mensaje · {{ $curso->nombre }}</h2>
 
+        @if(auth()->user()->hasRole('profesor'))
+        <div class="flex items-center gap-3">
+            <input wire:model.live="enviarATodos" type="checkbox" id="enviar-todos" class="rounded text-terracota-base focus:ring-terracota-base">
+            <label for="enviar-todos" class="text-sm text-stone-700 dark:text-stone-300">
+                Enviar a todos los estudiantes de este curso (aviso general)
+            </label>
+        </div>
+        @endif
+
+        @if(!$enviarATodos)
         <div>
-            <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Curso destino *</label>
-            <select wire:model.live="cursoContextoId"
+            <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Destinatario *</label>
+            <select wire:model="destinatarioId"
                 class="w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 px-3 py-2 text-sm">
-                <option value="">-- Primero selecciona el curso --</option>
-                @foreach($misCursos as $c)
-                <option value="{{ $c->id }}">{{ $c->nombre }}</option>
+                <option value="">-- Seleccionar persona --</option>
+                @foreach($contactos as $c)
+                <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->email }})</option>
                 @endforeach
             </select>
-            @error('cursoContextoId') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+            @error('destinatarioId') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
         </div>
-
-        @if($cursoContextoId)
-            @if(auth()->user()->hasRole('profesor'))
-            <div class="flex items-center gap-3">
-                <input wire:model.live="enviarATodos" type="checkbox" id="enviar-todos" class="rounded text-terracota-base focus:ring-terracota-base">
-                <label for="enviar-todos" class="text-sm text-stone-700 dark:text-stone-300">
-                    Enviar a todos los estudiantes de este curso (aviso general)
-                </label>
-            </div>
-            @endif
-
-            @if(!$enviarATodos)
-            <div>
-                <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Destinatario *</label>
-                <select wire:model="destinatarioId"
-                    class="w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 px-3 py-2 text-sm">
-                    <option value="">-- Seleccionar persona --</option>
-                    @foreach($contactos as $c)
-                    <option value="{{ $c->id }}">{{ $c->name }} ({{ $c->email }})</option>
-                    @endforeach
-                </select>
-                @error('destinatarioId') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-            </div>
-            @endif
         @endif
 
         <div>
@@ -131,7 +118,6 @@
             <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">
                 De: <strong>{{ $mensajeAbierto->remitente?->name }}</strong>
                 → Para: <strong>{{ $mensajeAbierto->destinatario?->name }}</strong>
-                @if($mensajeAbierto->curso) · Curso: {{ $mensajeAbierto->curso->nombre }} @endif
             </p>
         </div>
         <div class="text-sm text-stone-700 dark:text-stone-300 whitespace-pre-wrap leading-relaxed">{{ $mensajeAbierto->cuerpo }}</div>
@@ -164,7 +150,6 @@
                             <p class="text-sm text-stone-800 dark:text-stone-200 truncate">
                                 {{ $vista === 'recibidos' ? $m->remitente?->name : $m->destinatario?->name }}
                             </p>
-                            @if($m->curso) <span class="text-xs text-stone-400 shrink-0">· {{ $m->curso->nombre }}</span> @endif
                         </div>
                         <p class="text-sm truncate mt-0.5 {{ ($vista === 'recibidos' && !$m->estaLeido()) ? 'text-stone-800 dark:text-stone-200' : 'text-stone-500 dark:text-stone-400' }}">
                             {{ $m->asunto }}

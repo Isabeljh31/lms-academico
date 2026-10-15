@@ -7,7 +7,7 @@ use App\Livewire\Cursos\EsquemaEvaluacion;
 use App\Livewire\Cursos\GestionMatricula;
 use App\Livewire\Docente\PorCalificar\Index as PorCalificarIndex;
 use App\Livewire\EventoCalendario\Index;
-use App\Livewire\Mensajeria\Bandeja;
+use App\Livewire\Mensajeria\Selector as MensajeriaSelector;
 use App\Livewire\Usuarios\ImportarCSV;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -79,8 +79,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('role:profesor|supervisor')
         ->name('asistencia.index');
 
-    // ERS RF-80 a RF-83: mensajería (la matriz de permisos excluye al Supervisor)
-    Route::get('mensajeria', Bandeja::class)
+    // ERS RF-80 a RF-83: selector de curso para entrar a su mensajería
+    Route::get('mensajeria', MensajeriaSelector::class)
         ->middleware('role:estudiante|profesor')
-        ->name('mensajeria.bandeja');
+        ->name('mensajeria.selector');
 });

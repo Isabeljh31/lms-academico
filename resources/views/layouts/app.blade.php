@@ -37,7 +37,7 @@
     $menu = [
         ['ruta' => 'dashboard', 'etiqueta' => 'Panel', 'icono' => 'inicio', 'visible' => true],
         ['ruta' => 'cursos.index', 'etiqueta' => 'Cursos', 'icono' => 'libro', 'visible' => true],
-        ['ruta' => 'mensajeria.bandeja', 'etiqueta' => 'Mensajería', 'icono' => 'usuarios', 'visible' => $rol !== 'supervisor'],
+        ['ruta' => 'mensajeria.selector', 'etiqueta' => 'Mensajería', 'icono' => 'usuarios', 'visible' => $rol !== 'supervisor'],
         ['ruta' => 'docente.por-calificar', 'etiqueta' => 'Por Calificar', 'icono' => 'tarea', 'visible' => $rol === 'profesor'],
         ['ruta' => 'admin.usuarios.index', 'etiqueta' => 'Usuarios', 'icono' => 'usuarios', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'admin.profesores.index', 'etiqueta' => 'Profesores', 'icono' => 'birrete', 'visible' => $rol === 'supervisor'],

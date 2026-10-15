@@ -7,6 +7,7 @@ use App\Livewire\Cursos\Index;
 use App\Livewire\Cursos\LibroCalificaciones;
 use App\Livewire\Cursos\Show;
 use App\Livewire\Grupos\Index as GruposIndex;
+use App\Livewire\Mensajeria\Bandeja;
 use App\Livewire\Quizzes\BancoPreguntas;
 use App\Livewire\Quizzes\Estadisticas;
 use App\Livewire\Quizzes\Resolver;
@@ -56,6 +57,10 @@ Route::middleware(['auth', 'verified'])
         Route::get('/{curso}/libro-calificaciones', LibroCalificaciones::class)
             ->middleware('role:profesor|supervisor')
             ->name('libro-calificaciones');
+        // ERS RF-80 a RF-83: mensajería del curso (la matriz de permisos excluye al Supervisor)
+        Route::get('/{curso}/mensajeria', Bandeja::class)
+            ->middleware('role:estudiante|profesor')
+            ->name('mensajeria');
         // ERS RF-36/RF-67: abre el video o material de una lección (y la completa si así se configuró).
         Route::get('/{curso}/lecciones/{leccion}/{recurso}', RecursoLeccionController::class)
             ->whereIn('recurso', ['video', 'material'])
