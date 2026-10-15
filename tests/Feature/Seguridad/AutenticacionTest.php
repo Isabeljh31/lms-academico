@@ -45,6 +45,30 @@ class AutenticacionTest extends TestCase
         $this->assertStringStartsWith('$2y$', $usuario->getRawOriginal('password'));
     }
 
+    public function test_credenciales_incorrectas_muestran_un_mensaje_en_espanol(): void
+    {
+        $usuario = User::factory()->create();
+
+        $this->intentarLogin($usuario->email, 'incorrecta')
+            ->assertHasErrors(['form.password' => 'El correo o la contraseña no son correctos.']);
+
+        $this->assertGuest();
+    }
+
+    public function test_la_politica_de_contrasenas_explica_en_espanol_que_falta(): void
+    {
+        $usuario = $this->usuarioConRol(Rol::Estudiante->value, ['primer_login' => true]);
+
+        $componente = Livewire::actingAs($usuario)->test(CambiarPasswordPrimerLogin::class)
+            ->set('password', 'clave2026')->set('password_confirmation', 'clave2026')
+            ->call('guardar');
+
+        $this->assertSame([
+            'El campo contraseña debe tener al menos una letra mayúscula y una minúscula.',
+            'El campo contraseña debe tener al menos un carácter especial, como - . @ # ! $ %.',
+        ], $componente->errors()->get('password'));
+    }
+
     public function test_el_correo_escrito_con_mayusculas_permite_ingresar(): void
     {
         $usuario = User::factory()->create(['email' => 'maria.lopez@lms.edu.pe']);

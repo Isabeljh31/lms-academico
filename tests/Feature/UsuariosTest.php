@@ -274,6 +274,22 @@ class UsuariosTest extends TestCase
         Mail::assertNothingSent();
     }
 
+    public function test_el_formulario_vacio_indica_en_espanol_cada_campo_obligatorio(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->call('crearUsuario')
+            ->assertHasErrors([
+                'nuevoNombres' => 'El campo nombres es obligatorio.',
+                'nuevoApellidos' => 'El campo apellidos es obligatorio.',
+                'nuevoDni' => 'El campo DNI es obligatorio.',
+                'nuevoEmail' => 'El campo correo electrónico es obligatorio.',
+            ]);
+    }
+
     public function test_rechaza_un_dni_que_no_tiene_8_digitos(): void
     {
         $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);

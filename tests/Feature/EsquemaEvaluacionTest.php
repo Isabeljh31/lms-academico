@@ -59,6 +59,7 @@ class EsquemaEvaluacionTest extends TestCase
             ->set('rubros.0.peso', '120');
 
         $this->assertSame('Inválido: un rubro no puede pesar más de 100 %.', $componente->errors()->first('rubros.0.peso'));
+        $componente->assertSeeHtml('aria-invalid="true"');
     }
 
     public function test_indica_cuanto_sobra_cuando_los_pesos_superan_100(): void
