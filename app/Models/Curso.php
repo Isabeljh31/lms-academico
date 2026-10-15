@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Multimedia\SubidorArchivos;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -75,6 +76,12 @@ class Curso extends Model
         return Attribute::make(
             set: fn (?string $valor) => self::normalizarCodigo($valor),
         );
+    }
+
+    /** Imagen de portada con enlace temporal (ERS RNF-06), o null si no tiene. */
+    public function portadaUrl(): ?string
+    {
+        return SubidorArchivos::enlace($this->imagen_portada_url);
     }
 
     public static function normalizarCodigo(?string $codigo): ?string

@@ -86,7 +86,7 @@
                                 <tr wire:key="usuario-{{ $usuario->id }}" class="hover:bg-arena-claro/40 dark:hover:bg-stone-700/40 {{ $usuario->activo ? '' : 'opacity-70' }}">
                                     <td class="px-4 py-3">
                                         <div class="flex items-center gap-3">
-                                            <img src="{{ $usuario->avatar_url ?? 'https://ui-avatars.com/api/?name='.urlencode($usuario->name).'&background=7FB3AE&color=fff&size=36' }}"
+                                            <img src="{{ $usuario->fotoUrl() }}"
                                                 class="h-8 w-8 shrink-0 rounded-full object-cover" alt="">
                                             <div class="min-w-0">
                                                 <p class="truncate font-medium text-stone-800 dark:text-stone-100">{{ $usuario->nombreFormal() }}</p>

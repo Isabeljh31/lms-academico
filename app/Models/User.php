@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Rules\NombrePersona;
+use App\Services\Multimedia\SubidorArchivos;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
@@ -119,6 +120,16 @@ class User extends Authenticatable
                 $usuario->apellidos = $partes[1] ?? null;
             }
         });
+    }
+
+    /**
+     * Foto de perfil con enlace temporal (ERS RNF-06), o un avatar con las
+     * iniciales si el usuario no subió foto.
+     */
+    public function fotoUrl(string $colorFondo = '7FB3AE'): string
+    {
+        return SubidorArchivos::enlace($this->avatar_url)
+            ?? 'https://ui-avatars.com/api/?name='.urlencode((string) $this->name)."&background={$colorFondo}&color=fff";
     }
 
     /** Para listados ordenados por apellido: "Pérez Salinas, Juan". */

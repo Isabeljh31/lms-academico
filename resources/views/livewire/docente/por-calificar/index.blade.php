@@ -83,7 +83,7 @@
             descripcion="{{ $entregaSeleccionada->tarea->titulo }} · {{ $entregaSeleccionada->grupo ? $entregaSeleccionada->grupo->nombre.' (se aplica a todo el grupo)' : $entregaSeleccionada->estudiante?->name }}">
             <div class="space-y-2 rounded-lg bg-arena-claro/50 p-3 text-sm dark:bg-stone-900">
                 @if ($entregaSeleccionada->archivo_url)
-                    <a href="{{ $entregaSeleccionada->archivo_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-menta-oscuro hover:underline"><x-icono nombre="material" class="h-4 w-4" /> Ver archivo</a>
+                    <a href="{{ \App\Services\Multimedia\SubidorArchivos::enlace($entregaSeleccionada->archivo_url) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-menta-oscuro hover:underline"><x-icono nombre="material" class="h-4 w-4" /> Ver archivo</a>
                 @endif
                 @if ($entregaSeleccionada->enlace)
                     <a href="{{ $entregaSeleccionada->enlace }}" target="_blank" rel="noopener noreferrer" class="ml-3 inline-flex items-center gap-1 text-menta-oscuro hover:underline"><x-icono nombre="enlace" class="h-4 w-4" /> Ver enlace</a>

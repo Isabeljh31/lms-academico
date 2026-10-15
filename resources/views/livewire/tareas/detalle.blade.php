@@ -74,7 +74,7 @@
                         <p class="text-xs text-slate-400 mt-1">{{ $this->miGrupo->nombre }} — {{ $this->miGrupo->estudiantes->pluck('name')->implode(', ') }}</p>
                     @endif
                     @if ($this->miEntrega->archivo_url)
-                    <a href="{{ $this->miEntrega->archivo_url }}" target="_blank" rel="noopener noreferrer" class="text-sm text-azul-oscuro dark:text-azul-fondo hover:underline flex items-center gap-1 mt-2">
+                    <a href="{{ \App\Services\Multimedia\SubidorArchivos::enlace($this->miEntrega->archivo_url) }}" target="_blank" rel="noopener noreferrer" class="text-sm text-azul-oscuro dark:text-azul-fondo hover:underline flex items-center gap-1 mt-2">
                         <x-icono nombre="material" class="h-4 w-4" /> Ver archivo entregado
                     </a>
                     @endif
@@ -191,7 +191,7 @@
 
                                 <div class="space-y-1 text-sm">
                                     @if ($entrega->archivo_url)
-                                        <a href="{{ $entrega->archivo_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-menta-oscuro hover:underline dark:text-menta-base">
+                                        <a href="{{ \App\Services\Multimedia\SubidorArchivos::enlace($entrega->archivo_url) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-menta-oscuro hover:underline dark:text-menta-base">
                                             <x-icono nombre="material" class="h-4 w-4" /> Ver archivo
                                         </a>
                                     @endif

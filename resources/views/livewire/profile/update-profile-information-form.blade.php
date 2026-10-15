@@ -3,7 +3,6 @@
 use App\Services\Multimedia\SubidorArchivos;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
-use Livewire\Attributes\Locked;
 use Livewire\Volt\Component;
 use Livewire\WithFileUploads;
 
@@ -16,15 +15,7 @@ new class extends Component
 {
     use WithFileUploads;
 
-    #[Locked]
-    public ?string $avatar_url = null;
-
     public ?UploadedFile $foto = null;
-
-    public function mount(): void
-    {
-        $this->avatar_url = Auth::user()->avatar_url;
-    }
 
     /**
      * Actualiza la foto de perfil del usuario autenticado.
@@ -42,14 +33,14 @@ new class extends Component
 
         $user = Auth::user();
 
-        $subidor->eliminar($user->avatar_url);
+        $anterior = $user->avatar_url;
         $user->avatar_url = $subidor->subir($this->foto, 'avatars', 'foto');
         $user->save();
+        $subidor->eliminar($anterior);
 
-        $this->avatar_url = $user->avatar_url;
         $this->foto = null;
 
-        $this->dispatch('profile-updated', name: $user->name, avatar_url: $user->avatar_url);
+        $this->dispatch('profile-updated', name: $user->name, avatar_url: $user->fotoUrl());
     }
 }; ?>
 
@@ -67,7 +58,7 @@ new class extends Component
     <form wire:submit="updateProfileInformation" class="mt-6 space-y-6">
         <div class="flex items-center gap-4">
             <img
-                src="{{ $foto ? $foto->temporaryUrl() : ($avatar_url ?? 'https://ui-avatars.com/api/?name='.urlencode(auth()->user()->name).'&background=7FB3AE&color=fff') }}"
+                src="{{ $foto ? $foto->temporaryUrl() : auth()->user()->fotoUrl() }}"
                 alt="{{ __('Foto de perfil') }}"
                 class="h-16 w-16 rounded-full object-cover ring-2 ring-menta-base"
             >

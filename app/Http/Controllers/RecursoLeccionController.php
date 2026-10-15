@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Curso;
 use App\Models\Leccion;
 use App\Models\LeccionCompletada;
+use App\Services\Multimedia\SubidorArchivos;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -28,7 +29,8 @@ class RecursoLeccionController extends Controller
             abort_unless($leccion->esVisibleParaEstudiante() && $leccion->modulo->esVisibleParaEstudiante(), 404);
         }
 
-        $url = $recurso === 'video' ? $leccion->video_url : $leccion->material_url;
+        // ERS RNF-06: un material subido se abre con un enlace temporal; un enlace externo, tal cual.
+        $url = $recurso === 'video' ? $leccion->video_url : SubidorArchivos::enlace($leccion->material_url);
         abort_unless($url, 404);
 
         if ($esEstudiante && $leccion->seCompletaAlAbrir()) {

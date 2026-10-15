@@ -2,35 +2,32 @@
 
 namespace App\Services\Multimedia;
 
-use Cloudinary\Cloudinary;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use RuntimeException;
 use Throwable;
 
 /**
  * Sube fotos de perfil, portadas de curso, materiales, entregas y adjuntos.
  *
- * Si CLOUDINARY_URL está configurada, sube a Cloudinary y devuelve la URL
- * segura (https). Si no, cae automáticamente al disco local "public"
- * (storage/app/public) para que el sistema funcione igual sin la
- * credencial real. Ver ARQUITECTURA.md § Cloudinary.
+ * ERS RNF-06: los archivos van a un almacenamiento privado (Supabase Storage
+ * en el equipo, storage/app/private sin credenciales y en las pruebas; ver
+ * config/archivos.php). En la base de datos se guarda la RUTA del archivo,
+ * nunca una URL pública: para mostrarlo, enlace() genera un enlace firmado
+ * que vence a los pocos minutos.
  *
  * Seguridad: solo acepta extensiones de la lista blanca de
  * config/archivos.php (nunca scripts ejecutables), el nombre final lo genera
- * el servidor y el tamaño máximo es único para todo el sistema (10 MB por el
- * límite del plan gratuito de Cloudinary). Cualquier fallo de subida se
- * convierte en un error de validación legible en vez de un error 500.
+ * el servidor y el tamaño máximo es único para todo el sistema (10 MB).
+ * Cualquier fallo de subida se convierte en un error de validación legible
+ * en vez de un error 500.
  */
 class SubidorArchivos
 {
-    public function activo(): bool
-    {
-        return filled(config('services.cloudinary.url'));
-    }
-
     /**
      * Reglas de validación comunes para un campo de archivo.
      *
@@ -82,12 +79,13 @@ class SubidorArchivos
     }
 
     /**
-     * Sube un archivo dentro de una carpeta lógica (p.ej. "entregas") y
-     * devuelve la URL final.
+     * Guarda el archivo dentro de una carpeta lógica (p. ej. "entregas") con
+     * un nombre generado por el servidor y devuelve su ruta (p. ej.
+     * "entregas/9b2f….pdf"), que es lo que se guarda en la base de datos.
      *
      * @param  array<int, string>|null  $extensiones
      *
-     * @throws ValidationException si el archivo no es válido o el proveedor lo rechaza.
+     * @throws ValidationException si el archivo no es válido o el almacenamiento lo rechaza.
      */
     public function subir(UploadedFile $archivo, string $carpeta, string $campo = 'archivo', ?array $extensiones = null): string
     {
@@ -102,12 +100,11 @@ class SubidorArchivos
         }
 
         try {
-            return $this->activo()
-                ? $this->subirACloudinary($archivo, $carpeta)
-                : $this->subirLocal($archivo, $carpeta, $extension);
+            return $this->guardar($archivo, trim($carpeta, '/'), Str::uuid().'.'.$extension);
         } catch (Throwable $e) {
             Log::warning('SubidorArchivos: no se pudo subir el archivo', [
                 'carpeta' => $carpeta,
+                'disco' => config('archivos.disco'),
                 'error' => $e->getMessage(),
             ]);
 
@@ -118,58 +115,66 @@ class SubidorArchivos
         }
     }
 
-    protected function subirACloudinary(UploadedFile $archivo, string $carpeta): string
+    protected function guardar(UploadedFile $archivo, string $carpeta, string $nombre): string
     {
-        $cloudinary = new Cloudinary(config('services.cloudinary.url'));
+        $ruta = self::disco()->putFileAs($carpeta, $archivo, $nombre);
 
-        $resultado = $cloudinary->uploadApi()->upload($archivo->getRealPath(), [
-            'folder' => 'lms-academico/'.$carpeta,
-            'resource_type' => 'auto',
-        ]);
+        if ($ruta === false) {
+            throw new RuntimeException('El almacenamiento no aceptó el archivo.');
+        }
 
-        return $resultado['secure_url'];
-    }
-
-    protected function subirLocal(UploadedFile $archivo, string $carpeta, string $extension): string
-    {
-        $nombre = Str::uuid().'.'.$extension;
-
-        $archivo->storeAs($carpeta, $nombre, 'public');
-
-        return Storage::disk('public')->url($carpeta.'/'.$nombre);
+        return $ruta;
     }
 
     /**
-     * Borra un archivo previamente subido por este servicio (sea Cloudinary
-     * o disco local), a partir de su URL. Silencioso si no lo encuentra.
+     * Borra un archivo subido por este servicio. Los enlaces externos (p. ej.
+     * un material en Google Drive) y los valores vacíos se ignoran.
      */
-    public function eliminar(?string $url): void
+    public function eliminar(?string $valor): void
     {
-        if (blank($url)) {
+        if (blank($valor) || self::esEnlaceExterno($valor)) {
             return;
         }
 
-        if ($this->activo() && str_contains($url, 'cloudinary.com')) {
-            $this->eliminarDeCloudinary($url);
-
-            return;
-        }
-
-        $ruta = Str::after($url, Storage::disk('public')->url(''));
-
-        if ($ruta !== $url) {
-            Storage::disk('public')->delete($ruta);
+        try {
+            self::disco()->delete($valor);
+        } catch (Throwable $e) {
+            Log::warning('SubidorArchivos: no se pudo borrar el archivo', ['ruta' => $valor, 'error' => $e->getMessage()]);
         }
     }
 
-    protected function eliminarDeCloudinary(string $url): void
+    /**
+     * Enlace para abrir un archivo guardado: si es una ruta del almacenamiento,
+     * un enlace firmado que vence en config('archivos.minutos_enlace') minutos;
+     * si ya es un enlace externo (material en Drive, datos antiguos), el mismo.
+     * Debe llamarse solo en pantallas que ya verificaron el permiso de acceso.
+     */
+    public static function enlace(?string $valor): ?string
     {
-        // El public_id de Cloudinary es la ruta sin extensión, después de "/upload/v.../".
-        if (! preg_match('#/upload/(?:v\d+/)?(.+)\.\w+$#', $url, $coincidencias)) {
-            return;
+        if (blank($valor)) {
+            return null;
         }
 
-        $cloudinary = new Cloudinary(config('services.cloudinary.url'));
-        $cloudinary->uploadApi()->destroy($coincidencias[1]);
+        if (self::esEnlaceExterno($valor)) {
+            return $valor;
+        }
+
+        try {
+            return self::disco()->temporaryUrl($valor, now()->addMinutes(config('archivos.minutos_enlace')));
+        } catch (Throwable $e) {
+            Log::warning('SubidorArchivos: no se pudo generar el enlace temporal', ['ruta' => $valor, 'error' => $e->getMessage()]);
+
+            return null;
+        }
+    }
+
+    public static function esEnlaceExterno(string $valor): bool
+    {
+        return (bool) preg_match('#^https?://#i', $valor);
+    }
+
+    protected static function disco(): Filesystem
+    {
+        return Storage::disk(config('archivos.disco'));
     }
 }

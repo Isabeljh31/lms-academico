@@ -127,7 +127,7 @@
                         <x-slot name="trigger">
                             <button class="flex items-center gap-2 focus:outline-none">
                                 <img
-                                    src="{{ auth()->user()->avatar_url ?? 'https://ui-avatars.com/api/?name='.urlencode(auth()->user()->name).'&background='.$avatarFallbackColor.'&color=fff' }}"
+                                    src="{{ auth()->user()->fotoUrl($avatarFallbackColor) }}"
                                     class="h-8 w-8 rounded-full object-cover"
                                     alt="{{ auth()->user()->name }}"
                                     x-data="{{ json_encode(['name' => auth()->user()->name]) }}"

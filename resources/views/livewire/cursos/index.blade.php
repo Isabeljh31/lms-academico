@@ -104,7 +104,7 @@
             <a href="{{ route('cursos.show', $curso) }}" wire:navigate wire:key="curso-{{ $curso->id }}"
                 class="block bg-white dark:bg-azul-superficie-oscura rounded-xl border border-celeste dark:border-azul-borde-oscuro overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition">
                 <div class="relative h-32 overflow-hidden flex items-center justify-center {{ $acento['fondo'] }}"
-                    @if($curso->imagen_portada_url) style="background-image:url('{{ $curso->imagen_portada_url }}');background-size:cover;background-position:center;" @endif>
+                    @if($curso->imagen_portada_url) style="background-image:url('{{ $curso->portadaUrl() }}');background-size:cover;background-position:center;" @endif>
                     @if(!$curso->imagen_portada_url)
                     <span class="text-4xl font-black tracking-tight {{ $acento['texto'] }} opacity-70 select-none">{{ $codigoCurso($curso->nombre) }}</span>
                     @endif
@@ -148,7 +148,7 @@
             <a href="{{ route('cursos.show', $curso) }}" wire:navigate wire:key="curso-{{ $curso->id }}"
                 class="block overflow-hidden rounded-xl border border-arena-medio bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-stone-700 dark:bg-stone-800">
                 <div class="relative flex h-28 items-center justify-center bg-menta-fondo dark:bg-stone-700"
-                    @if($curso->imagen_portada_url) style="background-image:url('{{ $curso->imagen_portada_url }}');background-size:cover;background-position:center;" @endif>
+                    @if($curso->imagen_portada_url) style="background-image:url('{{ $curso->portadaUrl() }}');background-size:cover;background-position:center;" @endif>
                     @unless($curso->imagen_portada_url)
                         <span class="select-none text-3xl font-black tracking-tight text-menta-oscuro/60 dark:text-menta-base/60">{{ $codigoCurso($curso->nombre) }}</span>
                     @endunless

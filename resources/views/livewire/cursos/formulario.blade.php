@@ -59,7 +59,7 @@
                             @if ($portada)
                                 <img src="{{ $portada->temporaryUrl() }}" alt="" class="h-16 w-24 rounded-lg object-cover">
                             @elseif ($curso?->imagen_portada_url)
-                                <img src="{{ $curso->imagen_portada_url }}" alt="" class="h-16 w-24 rounded-lg object-cover">
+                                <img src="{{ $curso->portadaUrl() }}" alt="" class="h-16 w-24 rounded-lg object-cover">
                             @endif
                             <input wire:model="portada" id="portada" type="file" accept="image/png,image/jpeg,image/gif,image/webp"
                                 class="block w-full text-sm text-stone-600 file:mr-4 file:rounded-lg file:border-0 file:bg-menta-oscuro file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white dark:text-stone-300">

@@ -35,14 +35,6 @@ return [
         ],
     ],
 
-    // Fotos de perfil, portadas de curso, materiales y entregas.
-    // Sin CLOUDINARY_URL, App\Services\Multimedia\SubidorArchivos cae
-    // automáticamente al disco local "public" (ver ARQUITECTURA.md).
-    'cloudinary' => [
-        'url' => env('CLOUDINARY_URL'),
-        'upload_preset' => env('CLOUDINARY_UPLOAD_PRESET'),
-    ],
-
     // Bot de sugerencias (módulos 6 y 7). Qué proveedor usa
     // App\Services\Bot\Contracts\ProveedorIA (registrado en
     // AppServiceProvider): "groq" (gratuito, por defecto durante

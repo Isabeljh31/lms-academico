@@ -61,7 +61,7 @@
                                         <a href="{{ $leccion->video_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 hover:text-menta-oscuro"><x-icono nombre="video" class="h-3.5 w-3.5" /> Video</a>
                                     @endif
                                     @if ($leccion->material_url)
-                                        <a href="{{ $leccion->material_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 hover:text-menta-oscuro"><x-icono nombre="material" class="h-3.5 w-3.5" /> {{ $leccion->material_nombre ?? 'Material' }}</a>
+                                        <a href="{{ \App\Services\Multimedia\SubidorArchivos::enlace($leccion->material_url) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 hover:text-menta-oscuro"><x-icono nombre="material" class="h-3.5 w-3.5" /> {{ $leccion->material_nombre ?? 'Material' }}</a>
                                     @endif
                                     <span class="inline-flex items-center gap-1"><x-icono nombre="check-circulo" class="h-3.5 w-3.5" /> {{ $leccion->completadas_count }}/{{ $totalEstudiantes }} la completaron</span>
                                 </div>

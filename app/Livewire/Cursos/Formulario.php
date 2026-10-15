@@ -146,6 +146,7 @@ class Formulario extends Component
 
         if ($this->portada) {
             $portadaUrl = $subidor->subir($this->portada, 'cursos/portadas', 'portada', config('archivos.extensiones.imagenes'));
+            $subidor->eliminar($this->curso?->imagen_portada_url);
         }
 
         $datos = [

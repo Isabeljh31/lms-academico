@@ -32,7 +32,7 @@
                 <x-gestion.tarjeta wire:key="prof-{{ $prof->id }}">
                     <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
                         <div class="flex items-start gap-4 lg:col-span-4">
-                            <img src="{{ $prof->avatar_url ?? 'https://ui-avatars.com/api/?name='.urlencode($prof->name).'&background=3C7A75&color=fff' }}"
+                            <img src="{{ $prof->fotoUrl('3C7A75') }}"
                                 alt="" class="h-12 w-12 shrink-0 rounded-full border-2 border-arena-medio object-cover">
                             <div class="min-w-0">
                                 <h2 class="truncate text-base font-bold text-stone-900 dark:text-stone-100">{{ $prof->name }}</h2>

@@ -136,7 +136,7 @@
         </div>
         <div class="text-sm text-stone-700 dark:text-stone-300 whitespace-pre-wrap leading-relaxed">{{ $mensajeAbierto->cuerpo }}</div>
         @if($mensajeAbierto->archivo_url)
-        <a href="{{ $mensajeAbierto->archivo_url }}" target="_blank" rel="noopener noreferrer"
+        <a href="{{ \App\Services\Multimedia\SubidorArchivos::enlace($mensajeAbierto->archivo_url) }}" target="_blank" rel="noopener noreferrer"
             class="inline-flex items-center gap-2 text-sm text-menta-oscuro dark:text-menta-base hover:underline">
             Ver adjunto
         </a>

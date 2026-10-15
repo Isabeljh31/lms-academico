@@ -23,7 +23,7 @@
 
         <div class="bg-white rounded-xl border overflow-hidden {{ auth()->user()->hasRole('estudiante') ? 'dark:bg-azul-superficie-oscura border-celeste dark:border-azul-borde-oscuro' : 'dark:bg-stone-800 border-arena-medio dark:border-stone-700' }}">
             <div class="relative h-40 overflow-hidden flex items-center justify-center {{ auth()->user()->hasRole('estudiante') ? $acentoCurso['fondo'] : 'bg-menta-fondo dark:bg-stone-700' }}"
-                @if ($curso->imagen_portada_url) style="background-image:url('{{ $curso->imagen_portada_url }}');background-size:cover;background-position:center;" @endif>
+                @if ($curso->imagen_portada_url) style="background-image:url('{{ $curso->portadaUrl() }}');background-size:cover;background-position:center;" @endif>
                 @if (! $curso->imagen_portada_url && auth()->user()->hasRole('estudiante'))
                     {{-- Rediseño visual del rol estudiante: código del curso sobre fondo tenue del acento. --}}
                     <span class="text-5xl font-black tracking-tight {{ $acentoCurso['texto'] }} opacity-70 select-none">{{ $codigoCurso }}</span>
@@ -596,7 +596,7 @@
                     @forelse ($this->companerosDelCurso as $companero)
                         @php $esUnoMismo = $companero->is(auth()->user()); @endphp
                         <div class="flex items-center gap-3 rounded-xl border border-celeste dark:border-azul-borde-oscuro bg-white dark:bg-azul-superficie-oscura p-3" wire:key="companero-{{ $companero->id }}">
-                            <img src="{{ $companero->avatar_url ?? 'https://ui-avatars.com/api/?name='.urlencode($companero->name).'&background=2F5A78&color=fff' }}"
+                            <img src="{{ $companero->fotoUrl('2F5A78') }}"
                                 class="h-9 w-9 shrink-0 rounded-full object-cover" alt="{{ $companero->name }}">
                             <span class="flex-1 min-w-0">
                                 <span class="block text-sm font-medium text-texto dark:text-slate-100 truncate">
@@ -628,7 +628,7 @@
                                 @foreach ($this->miGrupoDelCurso->estudiantes as $integrante)
                                     @php $esUnoMismo = $integrante->is(auth()->user()); @endphp
                                     <div class="flex items-center gap-3" wire:key="integrante-{{ $integrante->id }}">
-                                        <img src="{{ $integrante->avatar_url ?? 'https://ui-avatars.com/api/?name='.urlencode($integrante->name).'&background=2F5A78&color=fff' }}"
+                                        <img src="{{ $integrante->fotoUrl('2F5A78') }}"
                                             class="h-8 w-8 shrink-0 rounded-full object-cover" alt="{{ $integrante->name }}">
                                         <span class="text-sm text-texto dark:text-slate-100">
                                             {{ $integrante->name }} @if ($esUnoMismo) <span class="text-slate-400">(tú)</span> @endif

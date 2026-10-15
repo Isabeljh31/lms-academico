@@ -4,13 +4,24 @@
 |--------------------------------------------------------------------------
 | Subida de archivos
 |--------------------------------------------------------------------------
-| Límite único para todas las subidas. Cloudinary (plan gratuito) rechaza
-| archivos de más de 10 MB, así que el límite se alinea a ese valor para que
-| el usuario reciba un error de validación claro en lugar de un error 500.
-| Ver docs/AUDITORIA.md.
+| Disco, duración de los enlaces temporales, límite de tamaño (10 MB) y
+| extensiones permitidas por contexto. El límite produce un error de
+| validación claro en lugar de un error 500.
 */
 
 return [
+
+    /*
+    | ERS RNF-06: disco donde se guardan fotos, portadas, materiales, entregas
+    | y adjuntos. "supabase" es el bucket privado compartido por el equipo;
+    | "local" (storage/app/private) sirve para trabajar sin credenciales y en
+    | las pruebas. En ambos casos los archivos son privados y se abren con
+    | enlaces temporales firmados.
+    */
+    'disco' => env('ARCHIVOS_DISCO', 'local'),
+
+    /* Minutos que dura un enlace temporal antes de vencer. */
+    'minutos_enlace' => (int) env('ARCHIVOS_MINUTOS_ENLACE', 30),
 
     'max_kb' => (int) env('ARCHIVOS_MAX_KB', 10240),
 
