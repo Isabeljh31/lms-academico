@@ -1,4 +1,5 @@
 @php
+    $esAdminVista = auth()->user()->hasRole('supervisor');
     $etiquetas = $filas->map(fn ($f) => $f['curso']->nombre)->values();
     $promedios = $filas->map(fn ($f) => $f['promedio_final'] ?? 0)->values();
     $avances = $filas->map(fn ($f) => $f['progreso_promedio'])->values();
@@ -48,7 +49,7 @@
             <x-gestion.tarjeta :relleno="false" titulo="Detalle por curso">
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[820px] text-sm">
-                        <thead class="bg-arena-claro/50 text-left text-xs font-semibold uppercase tracking-wide text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
+                        <thead class="text-left text-xs font-semibold uppercase tracking-wide {{ $esAdminVista ? 'bg-arena-claro/50 text-stone-500 dark:bg-stone-900/40 dark:text-stone-400' : 'bg-celeste/50 text-slate-500 dark:bg-azul-pagina-oscura dark:text-slate-400' }}">
                             <tr>
                                 <th class="px-4 py-3">Curso</th>
                                 <th class="px-3 py-3 text-center">Estudiantes</th>
@@ -60,7 +61,7 @@
                                 <th class="px-3 py-3"><span class="sr-only">Acciones</span></th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                        <tbody class="divide-y {{ $esAdminVista ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
                             @foreach ($filas as $fila)
                                 <tr wire:key="curso-{{ $fila['curso']->id }}">
                                     <td class="px-4 py-3 font-medium text-stone-800 dark:text-stone-100">{{ $fila['curso']->nombre }}</td>
@@ -85,14 +86,14 @@
                 @if ($bajo->isEmpty())
                     <div class="p-4"><x-gestion.vacio icono="check-circulo" titulo="Ningún estudiante con bajo rendimiento" /></div>
                 @else
-                    <ul class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                    <ul class="divide-y {{ $esAdminVista ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
                         @foreach ($bajo as $item)
                             <li class="flex flex-col gap-1 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between" wire:key="bajo-{{ $item['curso']->id }}-{{ $item['estudiante']->id }}">
-                                <span class="font-medium text-stone-800 dark:text-stone-100">{{ $item['estudiante']->name }} <span class="font-normal text-stone-500">· {{ $item['curso']->nombre }}</span></span>
+                                <span class="font-medium text-stone-800 dark:text-stone-100">{{ $item['estudiante']->name }} <span class="font-normal text-stone-500">- {{ $item['curso']->nombre }}</span></span>
                                 <span class="text-xs text-stone-600 dark:text-stone-300">
                                     Rendimiento a la fecha: <strong class="{{ $item['nota_final'] !== null && $item['nota_final'] < $notaMinima ? 'text-red-600' : '' }}">{{ $item['nota_final'] ?? '—' }}</strong>
-                                    · Avance: <strong>{{ $item['avance'] }} %</strong>
-                                    @if (($item['vencidas'] ?? 0) > 0) · Vencidas sin entregar: <strong class="text-red-600">{{ $item['vencidas'] }}</strong> @endif
+                                    - Avance: <strong>{{ $item['avance'] }} %</strong>
+                                    @if (($item['vencidas'] ?? 0) > 0) - Vencidas sin entregar: <strong class="text-red-600">{{ $item['vencidas'] }}</strong> @endif
                                 </span>
                             </li>
                         @endforeach

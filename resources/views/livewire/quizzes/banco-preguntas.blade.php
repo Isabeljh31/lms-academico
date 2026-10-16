@@ -2,8 +2,7 @@
     <div class="mx-auto max-w-5xl space-y-6 px-4 sm:px-6 lg:px-8">
 
         <x-gestion.encabezado titulo="Banco de preguntas" icono="base-datos"
-            descripcion="Preguntas reutilizables de {{ $curso->nombre }}, organizadas por tema. Puedes agregarlas a cualquier quiz del curso."
-            :volver="route('cursos.show', $curso)" volver-texto="Volver al curso">
+            descripcion="Preguntas reutilizables de {{ $curso->nombre }}, organizadas por tema. Puedes agregarlas a cualquier quiz del curso.">
             <x-gestion.boton variante="secundario" icono="quiz" :href="route('cursos.quizzes.index', $curso)">Quizzes</x-gestion.boton>
             <x-gestion.boton icono="mas" wire:click="nueva">Nueva pregunta</x-gestion.boton>
         </x-gestion.encabezado>
@@ -36,8 +35,8 @@
                         <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div class="min-w-0 space-y-2">
                                 <div class="flex flex-wrap items-center gap-2 text-xs">
-                                    <span class="rounded-full bg-menta-fondo px-2 py-0.5 font-semibold text-menta-oscuro dark:bg-stone-700 dark:text-menta-base">{{ $item->tema }}</span>
-                                    <span class="rounded-full bg-arena-claro px-2 py-0.5 text-stone-600 dark:bg-stone-700 dark:text-stone-300">{{ $tipos[$item->tipo] ?? $item->tipo }}</span>
+                                    <span class="rounded-full bg-azul-oscuro/10 px-2 py-0.5 font-semibold text-azul-oscuro dark:bg-azul-oscuro/20 dark:text-azul-fondo">{{ $item->tema }}</span>
+                                    <span class="rounded-full bg-celeste px-2 py-0.5 text-slate-600 dark:bg-azul-borde-oscuro dark:text-slate-300">{{ $tipos[$item->tipo] ?? $item->tipo }}</span>
                                     @if ($item->dificultad)
                                         <span class="text-stone-500">Dificultad {{ $item->dificultad }}</span>
                                     @endif
@@ -97,20 +96,20 @@
 
             <fieldset class="space-y-2">
                 <legend class="text-sm font-medium text-stone-700 dark:text-stone-300">
-                    Opciones <span class="font-normal text-stone-500">— marca {{ $tipo === 'opcion_multiple' ? 'todas las correctas' : 'la correcta' }}</span>
+                    Opciones <span class="font-normal text-stone-500">- marca {{ $tipo === 'opcion_multiple' ? 'todas las correctas' : 'la correcta' }}</span>
                 </legend>
                 @foreach ($opciones as $indice => $opcion)
                     <div class="flex items-center gap-2" wire:key="opcion-banco-{{ $indice }}">
                         @if ($tipo === 'opcion_multiple')
                             <input type="checkbox" wire:model="correctas" value="{{ $indice }}" aria-label="Opción {{ $indice + 1 }} correcta"
-                                class="rounded border-arena-medio text-menta-oscuro focus:ring-menta-base">
+                                class="rounded border-celeste text-azul-oscuro focus:ring-azul-oscuro">
                         @else
                             <input type="radio" wire:model="correctas.0" value="{{ $indice }}" aria-label="Opción {{ $indice + 1 }} correcta"
-                                class="border-arena-medio text-menta-oscuro focus:ring-menta-base">
+                                class="border-celeste text-azul-oscuro focus:ring-azul-oscuro">
                         @endif
                         <x-gestion.control wire:model="opciones.{{ $indice }}" :disabled="$tipo === 'verdadero_falso'" placeholder="Opción {{ $indice + 1 }}" />
                         @if ($tipo !== 'verdadero_falso' && count($opciones) > 2)
-                            <button type="button" wire:click="quitarOpcion({{ $indice }})" class="text-stone-400 hover:text-terracota-oscuro" aria-label="Quitar opción {{ $indice + 1 }}">
+                            <button type="button" wire:click="quitarOpcion({{ $indice }})" class="text-stone-400 hover:text-red-600" aria-label="Quitar opción {{ $indice + 1 }}">
                                 <x-icono nombre="cerrar" class="h-4 w-4" />
                             </button>
                         @endif

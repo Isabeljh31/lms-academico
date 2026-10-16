@@ -10,24 +10,17 @@
 
 <div class="py-8 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto space-y-6">
 
-    <div class="flex items-center justify-between">
-        <a href="{{ route('cursos.show', $curso) }}" wire:navigate
-            class="text-xs text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 flex items-center gap-1 transition">
-            <x-icono nombre="flecha-izquierda" class="h-3 w-3" /> Volver al curso
-        </a>
-    </div>
-
     <div class="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 shadow-sm overflow-hidden">
-        <div class="bg-gradient-to-r from-menta-oscuro to-menta-base p-6 text-white">
+        <div class="bg-imperial p-6 text-white">
             <div class="flex items-start justify-between">
                 <div>
                     <h1 class="text-xl font-bold flex items-center gap-2"><x-icono nombre="calendario" class="h-5 w-5" /> Mi asistencia</h1>
-                    <p class="text-menta-fondo/80 text-sm mt-1">{{ $curso->nombre }}</p>
+                    <p class="text-celeste/80 text-sm mt-1">{{ $curso->nombre }}</p>
                 </div>
                 <div class="text-right">
                     @if ($porcentaje !== null)
                         <span class="text-4xl font-black">{{ number_format($porcentaje, 1) }}%</span>
-                        <p class="text-xs text-menta-fondo/80 mt-0.5">asistencia acumulada</p>
+                        <p class="text-xs text-celeste/80 mt-0.5">asistencia acumulada</p>
                     @else
                         <span class="text-lg font-semibold">Sin sesiones</span>
                     @endif
@@ -68,7 +61,7 @@
                         @foreach ($historial as $fila)
                             <tr class="hover:bg-stone-50 dark:hover:bg-stone-700/20" wire:key="sesion-{{ $fila['sesion']->id }}">
                                 <td class="px-6 py-3">
-                                    <p class="font-medium text-stone-800 dark:text-stone-200">#{{ $fila['sesion']->numero_sesion }} · {{ $fila['sesion']->titulo }}</p>
+                                    <p class="font-medium text-stone-800 dark:text-stone-200">#{{ $fila['sesion']->numero_sesion }} - {{ $fila['sesion']->titulo }}</p>
                                     @if ($fila['observacion'])
                                         <p class="text-xs text-stone-400 mt-0.5">{{ $fila['observacion'] }}</p>
                                     @endif

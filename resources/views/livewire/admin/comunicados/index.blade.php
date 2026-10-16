@@ -71,7 +71,7 @@
                                 </div>
                                 <h3 class="font-semibold text-stone-800 dark:text-stone-100">{{ $com->titulo }}</h3>
                                 <p class="whitespace-pre-line text-sm text-stone-600 dark:text-stone-300">{{ $com->contenido }}</p>
-                                <p class="text-xs text-stone-500">{{ $com->autor?->name }} · {{ $com->created_at->formatoFechaHora() }}</p>
+                                <p class="text-xs text-stone-500">{{ $com->autor?->name }} - {{ $com->created_at->formatoFechaHora() }}</p>
                             </div>
                             <div class="flex shrink-0 gap-1">
                                 <x-gestion.boton variante="fantasma" tamano="sm" :icono="$com->activo ? 'ojo-tachado' : 'ojo'" wire:click="toggleActivo({{ $com->id }})">

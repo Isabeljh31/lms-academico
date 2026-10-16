@@ -1,10 +1,12 @@
-@php $soloLectura = ! $this->editable; @endphp
+@php
+    $soloLectura = ! $this->editable;
+    $esAdminVista = auth()->user()->hasRole('supervisor');
+@endphp
 
 <div class="py-8">
     <div class="mx-auto max-w-5xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado titulo="Grupos" icono="usuarios" :descripcion="$curso->nombre.' · Organiza a los estudiantes matriculados para los trabajos grupales.'"
-            :volver="route('cursos.show', $curso)" volver-texto="Volver al curso" />
+        <x-gestion.encabezado titulo="Grupos" icono="usuarios" :descripcion="$curso->nombre.', organiza a los estudiantes matriculados para los trabajos grupales.'" />
 
         <x-gestion.alertas />
 
@@ -35,7 +37,7 @@
         @endunless
 
         @if ($sinGrupo->isNotEmpty())
-            <div class="rounded-xl border border-arena-medio bg-arena-claro p-4 text-sm dark:border-stone-700 dark:bg-stone-800/60">
+            <div class="rounded-xl border p-4 text-sm {{ $esAdminVista ? 'border-arena-medio bg-arena-claro dark:border-stone-700 dark:bg-stone-800/60' : 'border-celeste bg-celeste/60 dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura' }}">
                 <p class="font-medium text-stone-700 dark:text-stone-200">Sin grupo todavía ({{ $sinGrupo->count() }})</p>
                 <p class="mt-1 text-stone-600 dark:text-stone-400">{{ $sinGrupo->pluck('name')->implode(', ') }}</p>
             </div>
@@ -52,7 +54,7 @@
                             <x-gestion.boton variante="fantasma" tamano="sm" wire:click="$set('grupoRenombrarId', null)">Cancelar</x-gestion.boton>
                         </form>
                     @else
-                        <h2 class="font-semibold text-stone-800 dark:text-stone-100">{{ $grupo->nombre }} <span class="text-sm font-normal text-stone-500">· {{ $grupo->estudiantes->count() }} integrantes</span></h2>
+                        <h2 class="font-semibold text-stone-800 dark:text-stone-100">{{ $grupo->nombre }} <span class="text-sm font-normal text-stone-500">- {{ $grupo->estudiantes->count() }} integrantes</span></h2>
                     @endif
                     @unless ($soloLectura || $grupoRenombrarId === $grupo->id)
                         <div class="flex gap-1">
@@ -69,11 +71,11 @@
                 @else
                     <div class="mb-3 flex flex-wrap gap-2">
                         @foreach ($grupo->estudiantes as $estudiante)
-                            <span class="inline-flex items-center gap-1.5 rounded-full bg-menta-fondo py-1 pl-3 pr-1.5 text-sm text-menta-oscuro dark:bg-menta-oscuro/20 dark:text-menta-fondo" wire:key="miembro-{{ $grupo->id }}-{{ $estudiante->id }}">
+                            <span class="inline-flex items-center gap-1.5 rounded-full py-1 pl-3 pr-1.5 text-sm {{ $esAdminVista ? 'bg-menta-fondo text-menta-oscuro dark:bg-menta-oscuro/20 dark:text-menta-fondo' : 'bg-celeste text-azul-oscuro dark:bg-azul-oscuro/20 dark:text-celeste' }}" wire:key="miembro-{{ $grupo->id }}-{{ $estudiante->id }}">
                                 {{ $estudiante->name }}
                                 @unless ($soloLectura)
                                     <button type="button" wire:click="quitar({{ $grupo->id }}, {{ $estudiante->id }})" wire:confirm="¿Quitar a {{ $estudiante->name }} de {{ $grupo->nombre }}?"
-                                        class="flex h-5 w-5 items-center justify-center rounded-full hover:bg-menta-oscuro/20" aria-label="Quitar a {{ $estudiante->name }}">
+                                        class="flex h-5 w-5 items-center justify-center rounded-full {{ $esAdminVista ? 'hover:bg-menta-oscuro/20' : 'hover:bg-azul-oscuro/20' }}" aria-label="Quitar a {{ $estudiante->name }}">
                                         <x-icono nombre="cerrar" class="h-3 w-3" />
                                     </button>
                                 @endunless

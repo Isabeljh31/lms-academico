@@ -56,17 +56,18 @@ new class extends Component
     </header>
 
     <form wire:submit="updateProfileInformation" class="mt-6 space-y-6">
+        @php $esAdminVista = auth()->user()->hasRole('supervisor'); @endphp
         <div class="flex items-center gap-4">
             <img
                 src="{{ $foto ? $foto->temporaryUrl() : auth()->user()->fotoUrl() }}"
                 alt="{{ __('Foto de perfil') }}"
-                class="h-16 w-16 rounded-full object-cover ring-2 ring-menta-base"
+                class="h-16 w-16 rounded-full object-cover ring-2 {{ $esAdminVista ? 'ring-menta-base' : 'ring-azul-oscuro' }}"
             >
 
             <div class="flex-1">
                 <x-input-label for="foto" :value="__('Foto de perfil')" />
                 <input wire:model="foto" id="foto" type="file" accept="image/*"
-                    class="mt-1 block w-full text-sm text-stone-600 dark:text-stone-400 file:me-4 file:rounded-md file:border-0 file:bg-menta-oscuro file:px-3 file:py-1.5 file:text-white file:text-sm hover:file:bg-menta-oscuro/90" />
+                    class="mt-1 block w-full text-sm text-stone-600 dark:text-stone-400 file:me-4 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-white file:text-sm {{ $esAdminVista ? 'file:bg-menta-oscuro hover:file:bg-menta-oscuro/90' : 'file:bg-azul-oscuro hover:file:bg-azul-oscuro/90' }}" />
                 <div wire:loading wire:target="foto" class="text-xs text-stone-500 mt-1">{{ __('Subiendo…') }}</div>
                 <x-input-error class="mt-2" :messages="$errors->get('foto')" />
             </div>

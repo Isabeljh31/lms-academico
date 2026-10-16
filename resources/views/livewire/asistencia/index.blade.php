@@ -1,17 +1,18 @@
 @php
+    // Colores de estado de asistencia: semánticos, no cambian según el rol de quien los ve.
     $estilos = [
         'presente' => ['label' => 'Presente', 'activo' => 'bg-exito-oscuro text-white', 'suave' => 'bg-exito-base/15 text-exito-oscuro'],
-        'tardanza' => ['label' => 'Tardanza', 'activo' => 'bg-terracota-base text-white', 'suave' => 'bg-arena-claro text-terracota-oscuro'],
-        'justificado' => ['label' => 'Justificado', 'activo' => 'bg-cafe-arcilla text-white', 'suave' => 'bg-arena-medio text-stone-700'],
+        'tardanza' => ['label' => 'Tardanza', 'activo' => 'bg-amber-500 text-white', 'suave' => 'bg-amber-50 text-amber-700'],
+        'justificado' => ['label' => 'Justificado', 'activo' => 'bg-slate-500 text-white', 'suave' => 'bg-slate-100 text-slate-700'],
         'ausente' => ['label' => 'Ausente', 'activo' => 'bg-red-600 text-white', 'suave' => 'bg-red-50 text-red-700'],
     ];
+    $esAdminVista = auth()->user()->hasRole('supervisor');
 @endphp
 
 <div class="py-8">
     <div class="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado titulo="Asistencia" icono="calendario" :descripcion="$curso->nombre.' · '.$totalSesiones.' sesiones registradas'"
-            :volver="route('cursos.show', $curso)" volver-texto="Volver al curso">
+        <x-gestion.encabezado titulo="Asistencia" icono="calendario" :descripcion="$curso->nombre.' - '.$totalSesiones.' sesiones registradas'">
             @if ($this->puedeConfigurar && $curso->usa_asistencia)
                 <x-gestion.boton variante="secundario" icono="ojo-tachado" wire:click="alternarUsoAsistencia"
                     wire:confirm="¿Omitir el control de asistencia en este curso? Los registros ya guardados se conservan y puedes volver a activarlo.">Omitir asistencia</x-gestion.boton>
@@ -31,10 +32,11 @@
                 @endif
             </x-gestion.vacio>
         @else
-            <div class="flex gap-1 border-b border-arena-medio dark:border-stone-700" role="tablist">
+            <div class="flex gap-1 border-b {{ $esAdminVista ? 'border-arena-medio dark:border-stone-700' : 'border-celeste dark:border-azul-borde-oscuro' }}" role="tablist">
                 @foreach (['sesiones' => 'Sesiones', 'resumen' => 'Resumen por estudiante'] as $clave => $etiqueta)
-                    <button type="button" role="tab" wire:click="$set('vista', '{{ $clave }}')" aria-selected="{{ $vista === $clave ? 'true' : 'false' }}"
-                        class="-mb-px border-b-2 px-4 py-2 text-sm font-medium {{ $vista === $clave || ($clave === 'sesiones' && $vista === 'pase_lista') ? 'border-menta-oscuro text-menta-oscuro dark:border-menta-base dark:text-menta-base' : 'border-transparent text-stone-500 hover:text-stone-700' }}">
+                    @php $tabActiva = $vista === $clave || ($clave === 'sesiones' && $vista === 'pase_lista'); @endphp
+                    <button type="button" role="tab" wire:click="$set('vista', '{{ $clave }}')" aria-selected="{{ $tabActiva ? 'true' : 'false' }}"
+                        class="-mb-px border-b-2 px-4 py-2 text-sm font-medium {{ $tabActiva ? ($esAdminVista ? 'border-menta-oscuro text-menta-oscuro dark:border-menta-base dark:text-menta-base' : 'border-azul-oscuro text-azul-oscuro dark:border-azul-fondo dark:text-azul-fondo') : 'border-transparent text-slate-500 hover:text-slate-700' }}">
                         {{ $etiqueta }}
                     </button>
                 @endforeach
@@ -68,12 +70,12 @@
                     <x-gestion.vacio icono="calendario" titulo="Aún no hay sesiones de clase" descripcion="Crea una sesión para pasar lista." />
                 @else
                     <x-gestion.tarjeta :relleno="false">
-                        <ul class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                        <ul class="divide-y {{ $esAdminVista ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
                             @foreach ($sesiones as $sesion)
                                 <li class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center" wire:key="sesion-{{ $sesion->id }}">
                                     <div class="min-w-0 flex-1">
-                                        <p class="font-medium text-stone-800 dark:text-stone-100">#{{ $sesion->numero_sesion }} · {{ $sesion->titulo }}</p>
-                                        <p class="text-xs text-stone-500">{{ $sesion->fecha->formatoFechaHora() }} · {{ $sesion->duracion_minutos }} min · {{ $sesion->asistencias_count }}/{{ $estudiantes->count() }} registrados</p>
+                                        <p class="font-medium text-stone-800 dark:text-stone-100">#{{ $sesion->numero_sesion }} - {{ $sesion->titulo }}</p>
+                                        <p class="text-xs text-stone-500">{{ $sesion->fecha->formatoFechaHora() }} - {{ $sesion->duracion_minutos }} min - {{ $sesion->asistencias_count }}/{{ $estudiantes->count() }} registrados</p>
                                     </div>
                                     <div class="flex gap-1">
                                         <x-gestion.boton tamano="sm" icono="lista" wire:click="abrirPaseLista({{ $sesion->id }})">{{ $this->editable ? 'Pasar lista' : 'Ver asistencia' }}</x-gestion.boton>
@@ -100,7 +102,7 @@
                     @if ($estudiantes->isEmpty())
                         <div class="p-4"><x-gestion.vacio icono="usuarios" titulo="No hay estudiantes matriculados" /></div>
                     @else
-                        <ul class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                        <ul class="divide-y {{ $esAdminVista ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
                             @foreach ($estudiantes as $estudiante)
                                 <li class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between" wire:key="marca-{{ $estudiante->id }}">
                                     <span class="font-medium text-stone-800 dark:text-stone-100">{{ $estudiante->name }}</span>
@@ -108,8 +110,8 @@
                                         @foreach ($estilos as $estado => $estilo)
                                             <label class="cursor-pointer">
                                                 <input type="radio" class="peer sr-only" wire:model.live="marcas.{{ $estudiante->id }}" value="{{ $estado }}" @disabled(! $this->editable)>
-                                                <span class="inline-block rounded-full border border-arena-medio px-3 py-1 text-xs font-semibold transition dark:border-stone-600
-                                                    {{ ($marcas[$estudiante->id] ?? '') === $estado ? $estilo['activo'].' border-transparent' : 'text-stone-600 hover:bg-arena-claro dark:text-stone-300 dark:hover:bg-stone-700' }}">
+                                                <span class="inline-block rounded-full border px-3 py-1 text-xs font-semibold transition {{ $esAdminVista ? 'border-arena-medio dark:border-stone-600' : 'border-celeste dark:border-azul-borde-oscuro' }}
+                                                    {{ ($marcas[$estudiante->id] ?? '') === $estado ? $estilo['activo'].' border-transparent' : ($esAdminVista ? 'text-stone-600 hover:bg-arena-claro dark:text-stone-300 dark:hover:bg-stone-700' : 'text-slate-600 hover:bg-celeste dark:text-slate-300 dark:hover:bg-azul-borde-oscuro') }}">
                                                     {{ $estilo['label'] }}
                                                 </span>
                                             </label>
@@ -120,7 +122,7 @@
                             @endforeach
                         </ul>
                         @if ($this->editable)
-                            <div class="flex justify-end border-t border-arena-medio px-4 py-3 dark:border-stone-700">
+                            <div class="flex justify-end border-t px-4 py-3 {{ $esAdminVista ? 'border-arena-medio dark:border-stone-700' : 'border-celeste dark:border-azul-borde-oscuro' }}">
                                 <x-gestion.boton icono="check" wire:click="guardarAsistencia">Guardar asistencia</x-gestion.boton>
                             </div>
                         @endif
@@ -135,14 +137,14 @@
                     @else
                         <div class="overflow-x-auto">
                             <table class="w-full min-w-[600px] text-sm">
-                                <thead class="bg-arena-claro/50 text-left text-xs font-semibold uppercase tracking-wide text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
+                                <thead class="text-left text-xs font-semibold uppercase tracking-wide {{ $esAdminVista ? 'bg-arena-claro/50 text-stone-500 dark:bg-stone-900/40 dark:text-stone-400' : 'bg-celeste/50 text-slate-500 dark:bg-azul-pagina-oscura dark:text-slate-400' }}">
                                     <tr>
                                         <th class="px-4 py-3">Estudiante</th>
                                         @foreach ($estilos as $estilo) <th class="px-3 py-3 text-center">{{ $estilo['label'] }}</th> @endforeach
                                         <th class="px-3 py-3 text-center">Asistencia</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                                <tbody class="divide-y {{ $esAdminVista ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
                                     @foreach ($resumen as $fila)
                                         <tr wire:key="resumen-{{ $fila['estudiante']->id }}">
                                             <td class="px-4 py-2 font-medium text-stone-800 dark:text-stone-100">{{ $fila['estudiante']->name }}</td>

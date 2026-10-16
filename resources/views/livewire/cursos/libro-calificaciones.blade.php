@@ -1,8 +1,8 @@
 <div class="py-8">
+    @php $esAdminVista = auth()->user()->hasRole('supervisor'); @endphp
     <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado titulo="Libro de calificaciones" icono="lista" :descripcion="$curso->nombre.' · Nota final ponderada por rubros (escala 0 a 20)'"
-            :volver="route('cursos.show', $curso)" volver-texto="Volver al curso">
+        <x-gestion.encabezado titulo="Libro de calificaciones" icono="lista" :descripcion="$curso->nombre.', nota final ponderada por rubros (escala 0 a 20)'">
             <x-gestion.boton variante="secundario" icono="descargar" wire:click="exportarExcel">Exportar a Excel</x-gestion.boton>
         </x-gestion.encabezado>
 
@@ -23,8 +23,8 @@
                 </div>
             @endunless
             @unless ($this->puedeCalificar)
-                <div class="flex items-start gap-3 rounded-xl border border-arena-medio bg-white px-4 py-3 text-sm text-stone-600 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300">
-                    <x-icono nombre="info" class="h-5 w-5 shrink-0 text-menta-oscuro" />
+                <div class="flex items-start gap-3 rounded-xl border bg-white px-4 py-3 text-sm {{ $esAdminVista ? 'border-arena-medio text-stone-600 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300' : 'border-celeste text-slate-600 dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura dark:text-slate-300' }}">
+                    <x-icono nombre="info" class="h-5 w-5 shrink-0 {{ $esAdminVista ? 'text-menta-oscuro' : 'text-azul-oscuro' }}" />
                     <p>{{ $curso->estaFinalizado() ? 'Curso archivado: las notas se muestran en modo consulta.' : 'Modo consulta: solo el profesor del curso registra y edita notas.' }}</p>
                 </div>
             @endunless
@@ -38,10 +38,10 @@
                 <x-gestion.indicador etiqueta="Nota mínima aprobatoria" :valor="$notaMinima" icono="escudo" tono="terracota" />
             </div>
 
-            <div class="flex gap-1 border-b border-arena-medio dark:border-stone-700" role="tablist">
+            <div class="flex gap-1 border-b {{ $esAdminVista ? 'border-arena-medio dark:border-stone-700' : 'border-celeste dark:border-azul-borde-oscuro' }}" role="tablist">
                 @foreach (['rubros' => 'Evaluación por rubros', 'actividades' => 'Tareas y quizzes (práctica)'] as $clave => $etiqueta)
                     <button type="button" role="tab" wire:click="$set('vistaActiva', '{{ $clave }}')" aria-selected="{{ $vistaActiva === $clave ? 'true' : 'false' }}"
-                        class="-mb-px border-b-2 px-4 py-2 text-sm font-medium {{ $vistaActiva === $clave ? 'border-menta-oscuro text-menta-oscuro dark:border-menta-base dark:text-menta-base' : 'border-transparent text-stone-500 hover:text-stone-700' }}">
+                        class="-mb-px border-b-2 px-4 py-2 text-sm font-medium {{ $vistaActiva === $clave ? ($esAdminVista ? 'border-menta-oscuro text-menta-oscuro dark:border-menta-base dark:text-menta-base' : 'border-azul-oscuro text-azul-oscuro dark:border-azul-fondo dark:text-azul-fondo') : 'border-transparent text-slate-500 hover:text-slate-700' }}">
                         {{ $etiqueta }}
                     </button>
                 @endforeach
@@ -54,19 +54,19 @@
                     @else
                         <div class="overflow-x-auto">
                             <table class="w-full text-sm">
-                                <thead class="bg-arena-claro/50 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
+                                <thead class="text-xs font-semibold uppercase tracking-wide {{ $esAdminVista ? 'bg-arena-claro/50 text-stone-500 dark:bg-stone-900/40 dark:text-stone-400' : 'bg-celeste/50 text-slate-500 dark:bg-azul-pagina-oscura dark:text-slate-400' }}">
                                     <tr>
-                                        <th class="sticky left-0 z-10 min-w-[200px] bg-arena-claro px-4 py-3 text-left dark:bg-stone-900">Estudiante</th>
+                                        <th class="sticky left-0 z-10 min-w-[200px] px-4 py-3 text-left {{ $esAdminVista ? 'bg-arena-claro dark:bg-stone-900' : 'bg-celeste dark:bg-azul-pagina-oscura' }}">Estudiante</th>
                                         @foreach ($rubros as $rubro)
                                             <th class="min-w-[110px] px-3 py-3 text-center">
                                                 <span class="block normal-case text-stone-700 dark:text-stone-200">{{ $rubro->nombre }}</span>
-                                                <span class="font-normal normal-case">{{ (float) $rubro->peso }} %@if ($rubro->semana) · sem. {{ $rubro->semana }} @endif</span>
+                                                <span class="font-normal normal-case">{{ (float) $rubro->peso }} %@if ($rubro->semana) - sem. {{ $rubro->semana }} @endif</span>
                                             </th>
                                         @endforeach
                                         <th class="min-w-[110px] px-3 py-3 text-center">Nota final</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                                <tbody class="divide-y {{ $esAdminVista ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
                                     @foreach ($filasRubros as $fila)
                                         <tr wire:key="fila-{{ $fila['estudiante']->id }}">
                                             <td class="sticky left-0 z-10 bg-white px-4 py-2 dark:bg-stone-800">
@@ -78,8 +78,8 @@
                                                 <td class="px-3 py-2 text-center">
                                                     @if ($this->puedeCalificar && $this->esquemaValido)
                                                         <button type="button" wire:click="abrirModalNota({{ $rubro->id }}, {{ $fila['estudiante']->id }})"
-                                                            class="min-w-[3.5rem] rounded-lg border border-dashed px-2 py-1 text-sm font-semibold transition hover:border-menta-oscuro
-                                                                {{ $nota === null ? 'border-arena-medio text-stone-400 dark:border-stone-600' : ($nota < $notaMinima ? 'border-transparent bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300' : 'border-transparent bg-exito-base/10 text-exito-oscuro dark:text-green-300') }}"
+                                                            class="min-w-[3.5rem] rounded-lg border border-dashed px-2 py-1 text-sm font-semibold transition {{ $esAdminVista ? 'hover:border-menta-oscuro' : 'hover:border-azul-oscuro' }}
+                                                                {{ $nota === null ? ($esAdminVista ? 'border-arena-medio text-stone-400 dark:border-stone-600' : 'border-celeste text-slate-400 dark:border-azul-borde-oscuro') : ($nota < $notaMinima ? 'border-transparent bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300' : 'border-transparent bg-exito-base/10 text-exito-oscuro dark:text-green-300') }}"
                                                             aria-label="Nota de {{ $fila['estudiante']->name }} en {{ $rubro->nombre }}">
                                                             {{ $nota !== null ? number_format($nota, 1) : 'Registrar' }}
                                                         </button>
@@ -91,11 +91,11 @@
                                             <td class="px-3 py-2 text-center">
                                                 @if ($fila['condicion'] === 'en_curso')
                                                     {{-- Faltan rubros: nota acumulada, sin aprobar ni desaprobar todavía. --}}
-                                                    <span class="inline-flex min-w-[3.5rem] justify-center rounded-full bg-arena-claro px-2.5 py-1 text-sm font-bold text-stone-700 dark:bg-stone-700 dark:text-stone-200"
+                                                    <span class="inline-flex min-w-[3.5rem] justify-center rounded-full px-2.5 py-1 text-sm font-bold {{ $esAdminVista ? 'bg-arena-claro text-stone-700 dark:bg-stone-700 dark:text-stone-200' : 'bg-celeste text-slate-700 dark:bg-azul-borde-oscuro dark:text-slate-200' }}"
                                                         title="Nota acumulada con {{ $fila['rubros_con_nota'] }} de {{ $rubros->count() }} rubros. Rendimiento a la fecha: {{ number_format($fila['rendimiento'], 1) }}">
                                                         {{ number_format($fila['nota_final'], 1) }}
                                                     </span>
-                                                    <p class="mt-1 text-[11px] text-stone-500">En curso · {{ $fila['rubros_con_nota'] }}/{{ $rubros->count() }}</p>
+                                                    <p class="mt-1 text-[11px] text-stone-500">En curso - {{ $fila['rubros_con_nota'] }}/{{ $rubros->count() }}</p>
                                                 @elseif ($fila['nota_final'] !== null)
                                                     <span class="inline-flex min-w-[3.5rem] justify-center rounded-full px-2.5 py-1 text-sm font-bold {{ $fila['aprobado'] ? 'bg-exito-base/15 text-exito-oscuro dark:text-green-300' : 'bg-red-100 text-red-700 dark:bg-red-950/50 dark:text-red-300' }}">
                                                         {{ number_format($fila['nota_final'], 1) }}
@@ -123,9 +123,9 @@
                 @else
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
-                            <thead class="bg-arena-claro/50 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
+                            <thead class="text-xs font-semibold uppercase tracking-wide {{ $esAdminVista ? 'bg-arena-claro/50 text-stone-500 dark:bg-stone-900/40 dark:text-stone-400' : 'bg-celeste/50 text-slate-500 dark:bg-azul-pagina-oscura dark:text-slate-400' }}">
                                 <tr>
-                                    <th class="sticky left-0 z-10 min-w-[200px] bg-arena-claro px-4 py-3 text-left dark:bg-stone-900">Estudiante</th>
+                                    <th class="sticky left-0 z-10 min-w-[200px] px-4 py-3 text-left {{ $esAdminVista ? 'bg-arena-claro dark:bg-stone-900' : 'bg-celeste dark:bg-azul-pagina-oscura' }}">Estudiante</th>
                                     @foreach ($tareas as $tarea)
                                         <th class="min-w-[110px] px-3 py-3 text-center normal-case"><span class="inline-flex items-center gap-1"><x-icono nombre="tarea" class="h-3.5 w-3.5" /> {{ \Illuminate\Support\Str::limit($tarea->titulo, 22) }}</span></th>
                                     @endforeach
@@ -134,7 +134,7 @@
                                     @endforeach
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                            <tbody class="divide-y {{ $esAdminVista ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
                                 @foreach ($estudiantes as $estudiante)
                                     <tr wire:key="act-{{ $estudiante->id }}">
                                         <td class="sticky left-0 z-10 bg-white px-4 py-2 font-medium text-stone-800 dark:bg-stone-800 dark:text-stone-100">{{ $estudiante->name }}</td>
@@ -142,7 +142,7 @@
                                             @php $entrega = $entregas["{$estudiante->id}_{$tarea->id}"] ?? null; @endphp
                                             <td class="px-3 py-2 text-center">
                                                 @if ($this->puedeCalificar)
-                                                    <button type="button" wire:click="abrirEdicionNota({{ $estudiante->id }}, {{ $tarea->id }})" class="rounded px-2 py-1 hover:bg-arena-claro dark:hover:bg-stone-700">
+                                                    <button type="button" wire:click="abrirEdicionNota({{ $estudiante->id }}, {{ $tarea->id }})" class="rounded px-2 py-1 {{ $esAdminVista ? 'hover:bg-arena-claro dark:hover:bg-stone-700' : 'hover:bg-celeste dark:hover:bg-azul-borde-oscuro' }}">
                                                         {{ $entrega?->nota !== null ? $entrega->nota : '—' }}
                                                     </button>
                                                 @else
@@ -167,7 +167,7 @@
 
     @if ($mostrarModalNota && $rubroModal && $estudianteModal)
         <x-gestion.modal titulo="Nota de {{ $rubroModal->nombre }}" cerrar="$set('mostrarModalNota', false)" ancho="max-w-md"
-            descripcion="{{ $estudianteModal->name }} · Peso {{ (float) $rubroModal->peso }} % · Escala 0 a 20">
+            descripcion="{{ $estudianteModal->name }} - Peso {{ (float) $rubroModal->peso }} % - Escala 0 a 20">
             <x-gestion.campo etiqueta="Nota" nombre="notaInput" requerido>
                 <x-gestion.control id="notaInput" type="number" step="0.1" min="0" max="20" wire:model="notaInput" autofocus />
             </x-gestion.campo>

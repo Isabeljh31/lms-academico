@@ -1,5 +1,6 @@
 @php
     $paletaFria = auth()->user()->hasRole('estudiante');
+    $esAdminVista = auth()->user()->hasRole('supervisor');
 
     $acentosCurso = [
         ['texto' => 'text-azul-oscuro dark:text-azul-fondo', 'fondo' => 'bg-azul-oscuro/10 dark:bg-azul-oscuro/20'],
@@ -146,18 +147,18 @@
             @foreach($cursos as $curso)
             @php $badge = $badgeEstado($curso->estado); @endphp
             <a href="{{ route('cursos.show', $curso) }}" wire:navigate wire:key="curso-{{ $curso->id }}"
-                class="block overflow-hidden rounded-xl border border-arena-medio bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-stone-700 dark:bg-stone-800">
-                <div class="relative flex h-28 items-center justify-center bg-menta-fondo dark:bg-stone-700"
+                class="block overflow-hidden rounded-xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md {{ $esAdminVista ? 'border-arena-medio dark:border-stone-700 dark:bg-stone-800' : 'border-celeste dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura' }}">
+                <div class="relative flex h-28 items-center justify-center {{ $esAdminVista ? 'bg-menta-fondo dark:bg-stone-700' : 'bg-celeste dark:bg-azul-borde-oscuro' }}"
                     @if($curso->imagen_portada_url) style="background-image:url('{{ $curso->portadaUrl() }}');background-size:cover;background-position:center;" @endif>
                     @unless($curso->imagen_portada_url)
-                        <span class="select-none text-3xl font-black tracking-tight text-menta-oscuro/60 dark:text-menta-base/60">{{ $codigoCurso($curso->nombre) }}</span>
+                        <span class="select-none text-3xl font-black tracking-tight {{ $esAdminVista ? 'text-menta-oscuro/60 dark:text-menta-base/60' : 'text-azul-oscuro/60 dark:text-azul-fondo/60' }}">{{ $codigoCurso($curso->nombre) }}</span>
                     @endunless
                     <span class="absolute right-2 top-2 inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $badge['color'] }}">{{ $badge['label'] }}</span>
                 </div>
                 <div class="space-y-1 p-4">
                     <h2 class="truncate font-semibold text-stone-800 dark:text-stone-100">{{ $curso->nombre }}</h2>
                     <p class="text-xs text-stone-500 dark:text-stone-400">
-                        @if($curso->codigo) <span class="font-mono">{{ $curso->codigo }}</span> · @endif
+                        @if($curso->codigo) <span class="font-mono">{{ $curso->codigo }}</span> - @endif
                         Prof. {{ $curso->docentes()->pluck('name')->join(', ') ?: 'sin asignar' }}
                     </p>
                     @if($curso->fecha_inicio || $curso->semanas_duracion)
@@ -165,7 +166,7 @@
                         <x-icono nombre="calendario" class="h-3.5 w-3.5" />
                         @if($curso->fecha_inicio) {{ $curso->fecha_inicio->formatoFecha() }} @endif
                         @if($curso->fecha_inicio && $curso->fecha_fin) – {{ $curso->fecha_fin->formatoFecha() }} @endif
-                        @if($curso->semanas_duracion) · {{ $curso->semanas_duracion }} sem. @endif
+                        @if($curso->semanas_duracion) - {{ $curso->semanas_duracion }} sem. @endif
                     </p>
                     @endif
                     <div class="flex items-center justify-between pt-2 text-xs text-stone-500 dark:text-stone-400">

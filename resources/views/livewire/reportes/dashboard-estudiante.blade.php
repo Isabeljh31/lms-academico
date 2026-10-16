@@ -59,7 +59,7 @@
                                 <x-icono nombre="flecha-abajo" class="h-4 w-4 shrink-0 text-slate-400 transition-transform" x-bind:class="abierto ? 'rotate-180' : ''" />
                                 <div class="min-w-0">
                                     <h2 class="font-semibold text-texto dark:text-slate-100 truncate">{{ $fila['curso']->nombre }}</h2>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ count($fila['tareas']) }} tareas · {{ count($fila['quizzes']) }} quizzes · {{ $fila['avance'] }}% de avance</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ count($fila['tareas']) }} tareas - {{ count($fila['quizzes']) }} quizzes - {{ $fila['avance'] }}% de avance</p>
                                 </div>
                             </div>
 

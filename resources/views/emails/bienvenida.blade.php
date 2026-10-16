@@ -42,7 +42,7 @@
         </div>
     </div>
     <div class="footer">
-        LearnUp — Plataforma de Aprendizaje en Línea<br>
+        LearnUp - Plataforma de Aprendizaje en Línea<br>
         Si no esperabas este mensaje, puedes ignorarlo.
     </div>
 </div>

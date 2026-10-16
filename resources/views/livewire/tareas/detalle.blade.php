@@ -1,7 +1,11 @@
 @php
-    // Paleta fría institucional (ver /DISEÑO FIGMA y ARQUITECTURA.md)
-    // aplicada al estudiante. El profesor/admin conserva la paleta cálida.
+    // $paletaFria SOLO determina qué bloque de contenido se renderiza
+    // (vista de estudiante vs. vista de profesor/supervisor) — no tocar su
+    // significado. $colorFrio es aparte, solo para color: Estudiante y
+    // Profesor comparten paleta azul; Supervisor conserva la cálida.
     $paletaFria = auth()->user()->hasRole('estudiante');
+    $esAdminVista = auth()->user()->hasRole('supervisor');
+    $colorFrio = ! $esAdminVista;
 @endphp
 
 <div class="py-8">
@@ -10,15 +14,15 @@
             <div class="rounded-lg bg-exito-base/15 text-exito-oscuro px-4 py-3 text-sm font-medium">{{ session('estado') }}</div>
         @endif
 
-        <div class="bg-white rounded-xl border p-6 {{ $paletaFria ? 'dark:bg-azul-superficie-oscura border-celeste dark:border-azul-borde-oscuro shadow-sm dark:shadow-none' : 'dark:bg-stone-800 border-arena-medio dark:border-stone-700' }}">
+        <div class="bg-white rounded-xl border p-6 {{ $colorFrio ? 'dark:bg-azul-superficie-oscura border-celeste dark:border-azul-borde-oscuro shadow-sm dark:shadow-none' : 'dark:bg-stone-800 border-arena-medio dark:border-stone-700' }}">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <div>
                     <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">{{ $tarea->curso->nombre }}</span>
-                    <h1 class="text-2xl font-bold mt-1 {{ $paletaFria ? 'text-texto dark:text-slate-100' : 'text-stone-900 dark:text-stone-100' }}">{{ $tarea->titulo }}</h1>
+                    <h1 class="text-2xl font-bold mt-1 {{ $colorFrio ? 'text-texto dark:text-slate-100' : 'text-stone-900 dark:text-stone-100' }}">{{ $tarea->titulo }}</h1>
                 </div>
                 <div class="text-right">
                     <span class="text-xs text-slate-400 block">Vencimiento</span>
-                    <span class="text-sm font-medium {{ $paletaFria ? 'text-texto dark:text-slate-200' : 'text-stone-700 dark:text-stone-200' }}">
+                    <span class="text-sm font-medium {{ $colorFrio ? 'text-texto dark:text-slate-200' : 'text-stone-700 dark:text-stone-200' }}">
                         {{ $tarea->fecha_entrega?->formatoFechaHora() ?? 'Sin fecha límite' }}
                     </span>
                     <span class="text-xs text-slate-400 block mt-1">Peso: {{ (float) $tarea->peso_nota }} %</span>
@@ -26,13 +30,13 @@
             </div>
 
             @if ($tarea->descripcion)
-                <p class="mt-4 {{ $paletaFria ? 'text-slate-600 dark:text-slate-300' : 'text-stone-600 dark:text-stone-300' }}">{{ $tarea->descripcion }}</p>
+                <p class="mt-4 {{ $colorFrio ? 'text-slate-600 dark:text-slate-300' : 'text-stone-600 dark:text-stone-300' }}">{{ $tarea->descripcion }}</p>
             @endif
             @if ($tarea->instrucciones)
-                <p class="mt-4 whitespace-pre-line {{ $paletaFria ? 'text-slate-600 dark:text-slate-300' : 'text-stone-600 dark:text-stone-300' }}"><span class="font-semibold">Instrucciones:</span> {{ $tarea->instrucciones }}</p>
+                <p class="mt-4 whitespace-pre-line {{ $colorFrio ? 'text-slate-600 dark:text-slate-300' : 'text-stone-600 dark:text-stone-300' }}"><span class="font-semibold">Instrucciones:</span> {{ $tarea->instrucciones }}</p>
             @endif
             @if ($tarea->fecha_inicio)
-                <span class="text-xs text-slate-400 block mt-2">Disponible desde: {{ $tarea->fecha_inicio->formatoFechaHora() }} · Intentos: {{ $tarea->intentos_permitidos }}</span>
+                <span class="text-xs text-slate-400 block mt-2">Disponible desde: {{ $tarea->fecha_inicio->formatoFechaHora() }} - Intentos: {{ $tarea->intentos_permitidos }}</span>
             @endif
         </div>
 
@@ -71,7 +75,7 @@
                         <x-badge-estado :estado="$this->miEstado" />
                     </div>
                     @if ($tarea->esGrupal() && $this->miGrupo)
-                        <p class="text-xs text-slate-400 mt-1">{{ $this->miGrupo->nombre }} — {{ $this->miGrupo->estudiantes->pluck('name')->implode(', ') }}</p>
+                        <p class="text-xs text-slate-400 mt-1">{{ $this->miGrupo->nombre }} - {{ $this->miGrupo->estudiantes->pluck('name')->implode(', ') }}</p>
                     @endif
                     @if ($this->miEntrega->archivo_url)
                     <a href="{{ \App\Services\Multimedia\SubidorArchivos::enlace($this->miEntrega->archivo_url) }}" target="_blank" rel="noopener noreferrer" class="text-sm text-azul-oscuro dark:text-azul-fondo hover:underline flex items-center gap-1 mt-2">
@@ -96,7 +100,7 @@
                                 <p class="text-base font-bold text-texto dark:text-slate-100">
                                     Nota: <span class="text-azul-oscuro dark:text-cielo font-black text-lg">{{ $this->miEntrega->nota }}</span> / 20
                                 </p>
-                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $this->miEntrega->nota >= $this->notaMinima ? 'bg-verde-fondo/60 text-verde-oscuro' : 'bg-terracota-base/20 text-terracota-oscuro' }}">
+                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $this->miEntrega->nota >= $this->notaMinima ? 'bg-verde-fondo/60 text-verde-oscuro' : 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300' }}">
                                     {{ $this->miEntrega->nota >= $this->notaMinima ? 'Aprobado' : 'Desaprobado' }}
                                 </span>
                             </div>
@@ -150,16 +154,15 @@
             <x-gestion.alertas />
 
             <div class="flex flex-wrap items-center gap-2">
-                <x-gestion.boton variante="secundario" tamano="sm" icono="flecha-izquierda" :href="route('cursos.tareas.index', $tarea->curso)">Tareas del curso</x-gestion.boton>
                 @if ($this->puedeGestionar && ! $tarea->curso->estaFinalizado())
                     <x-gestion.boton variante="secundario" tamano="sm" icono="lapiz" :href="route('cursos.tareas.editar', [$tarea->curso, $tarea])">Editar tarea</x-gestion.boton>
                 @endif
-                <span class="text-xs text-stone-500">{{ $tarea->etiquetaEstadoPublicacion() }} · {{ $tarea->esGrupal() ? 'Grupal' : 'Individual' }} · {{ $tarea->intentos_permitidos }} {{ $tarea->intentos_permitidos === 1 ? 'intento' : 'intentos' }}</span>
+                <span class="text-xs text-stone-500">{{ $tarea->etiquetaEstadoPublicacion() }}, {{ $tarea->esGrupal() ? 'grupal' : 'individual' }}, {{ $tarea->intentos_permitidos }} {{ $tarea->intentos_permitidos === 1 ? 'intento' : 'intentos' }}</span>
             </div>
 
             @unless ($this->puedeCalificar)
-                <div class="flex items-start gap-3 rounded-xl border border-arena-medio bg-white px-4 py-3 text-sm text-stone-600 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300">
-                    <x-icono nombre="info" class="h-5 w-5 shrink-0 text-menta-oscuro" />
+                <div class="flex items-start gap-3 rounded-xl border bg-white px-4 py-3 text-sm {{ $esAdminVista ? 'border-arena-medio text-stone-600 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300' : 'border-celeste text-slate-600 dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura dark:text-slate-300' }}">
+                    <x-icono nombre="info" class="h-5 w-5 shrink-0 {{ $esAdminVista ? 'text-menta-oscuro' : 'text-azul-oscuro' }}" />
                     <p>{{ $tarea->curso->estaFinalizado() ? 'El curso está archivado: las calificaciones ya no se pueden modificar.' : 'Solo el profesor del curso califica las entregas.' }}</p>
                 </div>
             @endunless
@@ -170,7 +173,7 @@
                         <x-gestion.vacio icono="tarea" titulo="Nadie ha entregado esta tarea todavía" />
                     </div>
                 @else
-                    <ul class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                    <ul class="divide-y {{ $esAdminVista ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
                         @foreach ($entregasAgrupadas as $miembrosDelGrupo)
                             @php $entrega = $miembrosDelGrupo->first(); @endphp
                             <li class="space-y-3 p-4" wire:key="entrega-{{ $entrega->id }}">
@@ -184,24 +187,24 @@
                                                 {{ $entrega->estudiante?->name }}
                                             @endif
                                         </p>
-                                        <p class="text-xs text-stone-500">Entregado el {{ $entrega->updated_at?->formatoFechaHora() }} · intento {{ $entrega->intentos_usados }}</p>
+                                        <p class="text-xs text-stone-500">Entregado el {{ $entrega->updated_at?->formatoFechaHora() }} - intento {{ $entrega->intentos_usados }}</p>
                                     </div>
                                     <x-badge-estado :estado="$tarea->estadoPara($entrega)" />
                                 </div>
 
                                 <div class="space-y-1 text-sm">
                                     @if ($entrega->archivo_url)
-                                        <a href="{{ \App\Services\Multimedia\SubidorArchivos::enlace($entrega->archivo_url) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-menta-oscuro hover:underline dark:text-menta-base">
+                                        <a href="{{ \App\Services\Multimedia\SubidorArchivos::enlace($entrega->archivo_url) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 {{ $esAdminVista ? 'text-menta-oscuro dark:text-menta-base' : 'text-azul-oscuro dark:text-azul-fondo' }} hover:underline">
                                             <x-icono nombre="material" class="h-4 w-4" /> Ver archivo
                                         </a>
                                     @endif
                                     @if ($entrega->enlace)
-                                        <a href="{{ $entrega->enlace }}" target="_blank" rel="noopener noreferrer" class="ml-3 inline-flex items-center gap-1 text-menta-oscuro hover:underline dark:text-menta-base">
+                                        <a href="{{ $entrega->enlace }}" target="_blank" rel="noopener noreferrer" class="ml-3 inline-flex items-center gap-1 {{ $esAdminVista ? 'text-menta-oscuro dark:text-menta-base' : 'text-azul-oscuro dark:text-azul-fondo' }} hover:underline">
                                             <x-icono nombre="enlace" class="h-4 w-4" /> Ver enlace
                                         </a>
                                     @endif
                                     @if ($entrega->respuesta_texto)
-                                        <p class="whitespace-pre-line rounded-lg bg-arena-claro/50 p-3 text-stone-700 dark:bg-stone-900 dark:text-stone-300">{{ $entrega->respuesta_texto }}</p>
+                                        <p class="whitespace-pre-line rounded-lg p-3 {{ $esAdminVista ? 'bg-arena-claro/50 text-stone-700 dark:bg-stone-900 dark:text-stone-300' : 'bg-celeste/50 text-slate-700 dark:bg-azul-pagina-oscura dark:text-slate-300' }}">{{ $entrega->respuesta_texto }}</p>
                                     @endif
                                     @if ($entrega->comentario)
                                         <p class="text-stone-500 dark:text-stone-400">Comentario: "{{ $entrega->comentario }}"</p>
@@ -230,7 +233,7 @@
                                         </div>
                                     </form>
                                 @elseif ($entrega->nota !== null)
-                                    <p class="text-sm text-stone-700 dark:text-stone-200">Nota: <strong>{{ $entrega->nota }}</strong> / 20 @if ($entrega->feedback) · {{ $entrega->feedback }} @endif</p>
+                                    <p class="text-sm text-stone-700 dark:text-stone-200">Nota: <strong>{{ $entrega->nota }}</strong> / 20 @if ($entrega->feedback) - {{ $entrega->feedback }} @endif</p>
                                 @endif
                             </li>
                         @endforeach
@@ -244,7 +247,7 @@
                 @else
                     <div class="flex flex-wrap gap-2">
                         @foreach ($sinEntregar as $estudiante)
-                            <span class="inline-flex items-center gap-1.5 rounded-full bg-arena-claro px-2.5 py-1 text-xs text-stone-700 dark:bg-stone-700 dark:text-stone-200" wire:key="sin-{{ $estudiante->id }}">
+                            <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs {{ $esAdminVista ? 'bg-arena-claro text-stone-700 dark:bg-stone-700 dark:text-stone-200' : 'bg-celeste text-slate-700 dark:bg-azul-borde-oscuro dark:text-slate-200' }}" wire:key="sin-{{ $estudiante->id }}">
                                 {{ $estudiante->name }} <x-badge-estado :estado="$tarea->estaVencida() ? 'no_entregado' : 'pendiente'" />
                             </span>
                         @endforeach

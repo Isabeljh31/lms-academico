@@ -1,20 +1,21 @@
 @php
     $rol = auth()->user()->getRoleNames()->first();
     $esEstudiante = $rol === 'estudiante';
+    $esAdmin = $rol === 'supervisor';
 
     // Sistema de color por rol (ver ARQUITECTURA.md):
-    // - Estudiante: paleta fría (azul oscuro, menta, cielo, lavanda).
-    // - Profesor / Admin: paleta cálida (menta, arena, terracota).
+    // - Estudiante y Profesor comparten una sola paleta azul "LearnUp".
+    // - Supervisor conserva su propio acento (pendiente definir su tono final).
     //
     // Las clases dark:* van asociadas a variables cromáticas semánticas
-    // (azul-fondo-oscuro, azul-superficie-oscura, etc. para el estudiante;
-    // stone-800 / stone-900 para profesor/admin).
+    // (azul-fondo-oscuro, azul-superficie-oscura, etc. para Estudiante/Profesor;
+    // stone-800 / stone-900 para Supervisor).
     $acentos = [
         'estudiante' => [
             'activo' => 'border-azul-oscuro bg-celeste/40 text-azul-oscuro dark:border-cielo dark:bg-azul-oscuro/40 dark:text-cielo',
         ],
         'profesor' => [
-            'activo' => 'border-menta-oscuro bg-menta-fondo text-menta-oscuro dark:border-menta-base dark:bg-stone-800 dark:text-menta-base',
+            'activo' => 'border-azul-oscuro bg-celeste/40 text-azul-oscuro dark:border-cielo dark:bg-azul-oscuro/40 dark:text-cielo',
         ],
         'supervisor' => [
             'activo' => 'border-terracota-oscuro bg-arena-claro text-terracota-oscuro dark:border-terracota-base dark:bg-stone-800 dark:text-terracota-claro',
@@ -24,15 +25,15 @@
 
     // Cromática estructural: fondo, superficies, bordes y tipografías
     // según el rol activo.
-    $cromaBody = $esEstudiante ? 'bg-celeste/20 text-texto dark:bg-azul-fondo-oscuro dark:text-slate-100' : 'bg-arena-claro text-stone-900 dark:bg-stone-900 dark:text-stone-100';
-    $cromaSuperficie = $esEstudiante ? 'bg-white dark:bg-azul-superficie-oscura' : 'bg-white dark:bg-stone-800';
-    $cromaBorde = $esEstudiante ? 'border-celeste dark:border-azul-borde-oscuro' : 'border-arena-medio dark:border-stone-700';
-    $cromaLogo = $esEstudiante ? 'text-azul-oscuro dark:text-cielo' : 'text-menta-oscuro dark:text-menta-base';
-    $cromaTitulo = $esEstudiante ? 'text-texto dark:text-slate-100' : 'text-stone-800 dark:text-stone-100';
-    $cromaNavInactivo = $esEstudiante ? 'text-slate-600 dark:text-slate-300 hover:bg-celeste/30 dark:hover:bg-azul-borde-oscuro' : 'text-stone-600 dark:text-stone-300 hover:bg-arena-claro dark:hover:bg-stone-800';
-    $cromaIconoMenu = $esEstudiante ? 'text-slate-500 dark:text-slate-400' : 'text-stone-500 dark:text-stone-400';
-    $cromaNombreUsuario = $esEstudiante ? 'text-slate-700 dark:text-slate-200' : 'text-stone-700 dark:text-stone-200';
-    $avatarFallbackColor = $esEstudiante ? '2F5A78' : '7FB3AE';
+    $cromaBody = $esAdmin ? 'bg-arena-claro text-stone-900 dark:bg-stone-900 dark:text-stone-100' : 'bg-celeste/20 text-texto dark:bg-azul-fondo-oscuro dark:text-slate-100';
+    $cromaSuperficie = $esAdmin ? 'bg-white dark:bg-stone-800' : 'bg-white dark:bg-azul-superficie-oscura';
+    $cromaBorde = $esAdmin ? 'border-arena-medio dark:border-stone-700' : 'border-celeste dark:border-azul-borde-oscuro';
+    $cromaLogo = $esAdmin ? 'text-menta-oscuro dark:text-menta-base' : 'text-azul-oscuro dark:text-cielo';
+    $cromaTitulo = $esAdmin ? 'text-stone-800 dark:text-stone-100' : 'text-texto dark:text-slate-100';
+    $cromaNavInactivo = $esAdmin ? 'text-stone-600 dark:text-stone-300 hover:bg-arena-claro dark:hover:bg-stone-800' : 'text-slate-600 dark:text-slate-300 hover:bg-celeste/30 dark:hover:bg-azul-borde-oscuro';
+    $cromaIconoMenu = $esAdmin ? 'text-stone-500 dark:text-stone-400' : 'text-slate-500 dark:text-slate-400';
+    $cromaNombreUsuario = $esAdmin ? 'text-stone-700 dark:text-stone-200' : 'text-slate-700 dark:text-slate-200';
+    $avatarFallbackColor = $esAdmin ? '7FB3AE' : '2F5A78';
 
     $menu = [
         ['ruta' => 'dashboard', 'etiqueta' => 'Panel', 'icono' => 'inicio', 'visible' => true],
@@ -98,7 +99,7 @@
                 </nav>
 
                 <div class="px-3 py-4 border-t {{ $cromaBorde }}">
-                    <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs {{ $esEstudiante ? 'font-bold bg-celeste text-azul-oscuro dark:bg-azul-oscuro dark:text-white' : 'font-semibold '.$acento['activo'] }}">
+                    <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs {{ ! $esAdmin ? 'font-bold bg-celeste text-azul-oscuro dark:bg-azul-oscuro dark:text-white' : 'font-semibold '.$acento['activo'] }}">
                         {{ ucfirst($rol) }}
                     </span>
                 </div>
@@ -134,6 +135,7 @@
                                     x-on:profile-updated.window="if ($event.detail.avatar_url) $el.src = $event.detail.avatar_url"
                                 >
                                 <span class="hidden sm:block text-sm font-medium {{ $cromaNombreUsuario }}" x-data="{{ json_encode(['name' => auth()->user()->name]) }}" x-text="name" x-on:profile-updated.window="name = $event.detail.name"></span>
+                                <x-icono nombre="flecha-abajo" class="h-4 w-4 {{ $cromaIconoMenu }} transition-transform duration-200" x-bind:class="{ 'rotate-180': open }" />
                             </button>
                         </x-slot>
 

@@ -1,13 +1,12 @@
 <div class="py-8">
     <div class="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado :titulo="$quiz ? 'Editar quiz' : 'Nuevo quiz'" icono="quiz" :descripcion="$curso->nombre"
-            :volver="route('cursos.quizzes.index', $curso)" volver-texto="Volver a quizzes" />
+        <x-gestion.encabezado :titulo="$quiz ? 'Editar quiz' : 'Nuevo quiz'" icono="quiz" :descripcion="$curso->nombre" />
 
         <x-gestion.alertas />
 
         @if ($this->estructuraBloqueada)
-            <div role="alert" class="flex items-start gap-3 rounded-xl border border-terracota-base/50 bg-arena-claro px-4 py-3 text-sm text-terracota-oscuro dark:bg-stone-800 dark:text-terracota-fondo">
+            <div role="alert" class="flex items-start gap-3 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
                 <x-icono nombre="alerta" class="h-5 w-5 shrink-0" />
                 <p>
                     {{ $this->estudiantesAfectados }} estudiante(s) ya rindieron este quiz. Puedes corregir enunciados, opciones, respuestas correctas y puntajes,
@@ -43,10 +42,10 @@
                     </x-gestion.campo>
                     <div class="space-y-2 pt-6">
                         <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
-                            <input type="checkbox" wire:model="aleatorizar" class="rounded border-arena-medio text-menta-oscuro focus:ring-menta-base"> Orden aleatorio
+                            <input type="checkbox" wire:model="aleatorizar" class="rounded border-celeste text-azul-oscuro focus:ring-azul-oscuro"> Orden aleatorio
                         </label>
                         <label class="flex items-center gap-2 text-sm text-stone-700 dark:text-stone-300">
-                            <input type="checkbox" wire:model="mostrar_retroalimentacion" class="rounded border-arena-medio text-menta-oscuro focus:ring-menta-base"> Mostrar retroalimentación
+                            <input type="checkbox" wire:model="mostrar_retroalimentacion" class="rounded border-celeste text-azul-oscuro focus:ring-azul-oscuro"> Mostrar retroalimentación
                         </label>
                     </div>
                     <x-gestion.campo etiqueta="Disponible desde" nombre="fecha_inicio">
@@ -101,20 +100,20 @@
                             @php $multiple = $pregunta['tipo'] === 'opcion_multiple'; @endphp
                             <fieldset class="space-y-2">
                                 <legend class="text-sm font-medium text-stone-700 dark:text-stone-300">
-                                    Opciones <span class="font-normal text-stone-500">— marca {{ $multiple ? 'todas las correctas' : 'la correcta' }}</span>
+                                    Opciones <span class="font-normal text-stone-500">- marca {{ $multiple ? 'todas las correctas' : 'la correcta' }}</span>
                                 </legend>
                                 @foreach ($pregunta['opciones'] as $j => $opcion)
                                     <div class="flex items-center gap-2" wire:key="pregunta-{{ $i }}-opcion-{{ $j }}">
                                         @if ($multiple)
                                             <input type="checkbox" wire:model="preguntas.{{ $i }}.respuestas_correctas" value="{{ $j }}" aria-label="Opción {{ $j + 1 }} correcta"
-                                                class="rounded border-arena-medio text-menta-oscuro focus:ring-menta-base">
+                                                class="rounded border-celeste text-azul-oscuro focus:ring-azul-oscuro">
                                         @else
                                             <input type="radio" wire:model="preguntas.{{ $i }}.respuesta_correcta" value="{{ $j }}" aria-label="Opción {{ $j + 1 }} correcta"
-                                                class="border-arena-medio text-menta-oscuro focus:ring-menta-base">
+                                                class="border-celeste text-azul-oscuro focus:ring-azul-oscuro">
                                         @endif
                                         <x-gestion.control wire:model="preguntas.{{ $i }}.opciones.{{ $j }}" placeholder="Opción {{ $j + 1 }}" :disabled="$pregunta['tipo'] === 'verdadero_falso'" />
                                         @if (! $this->estructuraBloqueada && $pregunta['tipo'] !== 'verdadero_falso' && count($pregunta['opciones']) > 2)
-                                            <button type="button" wire:click="eliminarOpcion({{ $i }}, {{ $j }})" class="text-stone-400 hover:text-terracota-oscuro" aria-label="Quitar opción {{ $j + 1 }}">
+                                            <button type="button" wire:click="eliminarOpcion({{ $i }}, {{ $j }})" class="text-stone-400 hover:text-red-600" aria-label="Quitar opción {{ $j + 1 }}">
                                                 <x-icono nombre="cerrar" class="h-4 w-4" />
                                             </button>
                                         @endif
@@ -137,7 +136,7 @@
                 @error('preguntas') <p class="text-sm text-red-600">{{ $message }}</p> @enderror
 
                 @unless ($this->estructuraBloqueada)
-                    <div class="flex flex-col gap-3 rounded-xl border border-dashed border-arena-medio p-4 sm:flex-row sm:items-end dark:border-stone-700">
+                    <div class="flex flex-col gap-3 rounded-xl border border-dashed border-celeste p-4 sm:flex-row sm:items-end dark:border-azul-borde-oscuro">
                         <x-gestion.boton variante="secundario" icono="mas" wire:click="agregarPregunta">Agregar pregunta</x-gestion.boton>
                         @if ($temasBanco->isNotEmpty())
                             <div class="flex-1 space-y-2">
@@ -150,10 +149,10 @@
                                     </x-gestion.control>
                                 </x-gestion.campo>
                                 @if ($preguntasBanco->isNotEmpty())
-                                    <div class="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-arena-medio p-2 dark:border-stone-700">
+                                    <div class="max-h-48 space-y-1 overflow-y-auto rounded-lg border border-celeste p-2 dark:border-azul-borde-oscuro">
                                         @foreach ($preguntasBanco as $item)
                                             <label class="flex items-start gap-2 text-sm text-stone-700 dark:text-stone-300" wire:key="banco-{{ $item->id }}">
-                                                <input type="checkbox" wire:model="seleccionBanco" value="{{ $item->id }}" class="mt-0.5 rounded border-arena-medio text-menta-oscuro focus:ring-menta-base">
+                                                <input type="checkbox" wire:model="seleccionBanco" value="{{ $item->id }}" class="mt-0.5 rounded border-celeste text-azul-oscuro focus:ring-azul-oscuro">
                                                 {{ $item->pregunta }}
                                             </label>
                                         @endforeach
@@ -175,8 +174,8 @@
 
     @if ($mostrarModalRecalculo)
         <x-gestion.modal titulo="¿Recalcular las notas?" cerrar="$set('mostrarModalRecalculo', false)" ancho="max-w-md">
-            <div class="flex items-start gap-3 rounded-lg bg-arena-claro p-3 text-sm text-stone-700 dark:bg-stone-900 dark:text-stone-300">
-                <x-icono nombre="alerta" class="h-5 w-5 shrink-0 text-terracota-oscuro" />
+            <div class="flex items-start gap-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                <x-icono nombre="alerta" class="h-5 w-5 shrink-0 text-amber-600" />
                 <p>
                     Cambiaste la corrección de una o más preguntas y {{ $this->estudiantesAfectados }} estudiante(s) ya rindieron este quiz.
                     Si recalculas, sus notas se actualizarán con la nueva corrección, el cambio quedará en la bitácora de auditoría y se les notificará.

@@ -92,7 +92,7 @@
                                                 <p class="truncate font-medium text-stone-800 dark:text-stone-100">{{ $usuario->nombreFormal() }}</p>
                                                 <p class="truncate text-xs text-stone-500 dark:text-stone-400">
                                                     {{ $usuario->email }}
-                                                    · DNI {{ $usuario->dni ?? 'sin registrar' }}
+                                                    - DNI {{ $usuario->dni ?? 'sin registrar' }}
                                                 </p>
                                             </div>
                                             @if ($usuario->primer_login)

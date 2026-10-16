@@ -7,11 +7,17 @@
 @php
     $campo = $attributes->wire('model')->value();
     $invalido = $campo && $errors->has($campo);
+    $esAdmin = auth()->user()?->hasRole('supervisor') ?? false;
 
-    $clases = 'block w-full rounded-lg bg-white text-sm text-stone-800 shadow-sm disabled:bg-arena-claro dark:bg-stone-900 dark:text-stone-100 '
-        .($invalido
-            ? 'border-red-500 focus:border-red-500 focus:ring-red-500 dark:border-red-400'
-            : 'border-arena-medio focus:border-menta-base focus:ring-menta-base dark:border-stone-600');
+    $clases = $esAdmin
+        ? 'block w-full rounded-lg bg-white text-sm text-stone-800 shadow-sm disabled:bg-arena-claro dark:bg-stone-900 dark:text-stone-100 '
+            .($invalido
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-500 dark:border-red-400'
+                : 'border-arena-medio focus:border-menta-base focus:ring-menta-base dark:border-stone-600')
+        : 'block w-full rounded-lg bg-white text-sm text-texto shadow-sm disabled:bg-celeste dark:bg-azul-superficie-oscura dark:text-slate-100 '
+            .($invalido
+                ? 'border-red-500 focus:border-red-500 focus:ring-red-500 dark:border-red-400'
+                : 'border-celeste focus:border-azul-oscuro focus:ring-azul-oscuro dark:border-azul-borde-oscuro');
 
     $atributos = $attributes->merge(['class' => $clases]);
 

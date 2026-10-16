@@ -2,8 +2,7 @@
     <div class="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8">
 
         <x-gestion.encabezado titulo="Importar usuarios" icono="subir"
-            descripcion="Crea cuentas en bloque desde un libro de Excel (.xlsx) o un archivo CSV. Cada cuenta recibe una contraseña temporal y un correo de bienvenida."
-            :volver="route('admin.usuarios.index')" volver-texto="Volver a usuarios" />
+            descripcion="Crea cuentas en bloque desde un libro de Excel (.xlsx) o un archivo CSV. Cada cuenta recibe una contraseña temporal y un correo de bienvenida." />
 
         @if (! $procesado)
             <x-gestion.tarjeta titulo="Formato del archivo" descripcion="Primera fila con encabezados; se lee la primera hoja del libro. En CSV, separador coma (,) o punto y coma (;).">
@@ -124,7 +123,7 @@ Rosa,Díaz Vela,41239876,r.diaz@escuela.edu.pe,profesor</pre>
                     <ul class="divide-y divide-arena-medio/60 dark:divide-stone-700">
                         @foreach ($omitidos as $o)
                             <li wire:key="omitido-{{ $loop->index }}" class="px-4 py-2 text-sm text-stone-600 dark:text-stone-300">
-                                Línea {{ $o['linea'] }} — {{ $o['nombre'] }} ({{ $o['correo'] }}): {{ $o['razon'] }}
+                                Línea {{ $o['linea'] }} - {{ $o['nombre'] }} ({{ $o['correo'] }}): {{ $o['razon'] }}
                             </li>
                         @endforeach
                     </ul>

@@ -2,8 +2,7 @@
     {{-- Ancho de contenedor estandarizado (max-w-6xl) para todas las vistas del estudiante. --}}
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         @if ($this->esVistaDocente)
-        <x-gestion.encabezado titulo="Quizzes" icono="quiz" :descripcion="$curso->nombre.' · Las notas de quizzes son de práctica y no entran en la nota final ponderada.'"
-            :volver="route('cursos.show', $curso)" volver-texto="Volver al curso">
+        <x-gestion.encabezado titulo="Quizzes" icono="quiz" :descripcion="$curso->nombre.', las notas de quizzes son de práctica y no entran en la nota final ponderada.'">
             @if ($this->puedeGestionar)
                 <x-gestion.boton variante="secundario" icono="base-datos" :href="route('cursos.banco-preguntas', $curso)">Banco de preguntas</x-gestion.boton>
             @endif
@@ -36,18 +35,22 @@
         @elseif ($this->esVistaDocente)
             {{-- Vista de Profesor / Supervisor (este último en solo lectura). --}}
             <x-gestion.tarjeta :relleno="false">
-                <ul class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                <ul class="divide-y {{ auth()->user()->hasRole('supervisor') ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
                     @foreach ($quizzes as $quiz)
-                        @php $visibleEstudiante = $quiz->esVisibleParaEstudiante(); @endphp
+                        @php
+                            $visibleEstudiante = $quiz->esVisibleParaEstudiante();
+                            $esAdminVista = auth()->user()->hasRole('supervisor');
+                            $claseBadgeNeutra = $esAdminVista ? 'bg-arena-medio text-stone-700 dark:bg-stone-700 dark:text-stone-200' : 'bg-celeste text-slate-700 dark:bg-azul-borde-oscuro dark:text-slate-200';
+                        @endphp
                         <li wire:key="quiz-{{ $quiz->id }}" class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
                             <a href="{{ route('cursos.quizzes.show', [$curso, $quiz]) }}" wire:navigate class="min-w-0 flex-1">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <h3 class="truncate font-medium text-stone-800 dark:text-stone-100">{{ $quiz->tema }}</h3>
-                                    <span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $visibleEstudiante ? 'bg-exito-base/15 text-exito-oscuro' : 'bg-arena-medio text-stone-700 dark:bg-stone-700 dark:text-stone-200' }}">{{ $quiz->etiquetaEstadoPublicacion() }}</span>
+                                    <h3 class="truncate font-medium {{ $esAdminVista ? 'text-stone-800 dark:text-stone-100' : 'text-texto dark:text-slate-100' }}">{{ $quiz->tema }}</h3>
+                                    <span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $visibleEstudiante ? 'bg-exito-base/15 text-exito-oscuro' : $claseBadgeNeutra }}">{{ $quiz->etiquetaEstadoPublicacion() }}</span>
                                 </div>
                                 <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
-                                    {{ $quiz->modulo?->nombreCompleto() }} · {{ count($quiz->preguntas ?? []) }} preguntas · {{ $quiz->resultados->unique('estudiante_id')->count() }} estudiantes lo rindieron
-                                    @if ($quiz->fecha_limite) · cierra {{ $quiz->fecha_limite->formatoFechaHora() }} @endif
+                                    {{ $quiz->modulo?->nombreCompleto() }} - {{ count($quiz->preguntas ?? []) }} preguntas - {{ $quiz->resultados->unique('estudiante_id')->count() }} estudiantes lo rindieron
+                                    @if ($quiz->fecha_limite) - cierra {{ $quiz->fecha_limite->formatoFechaHora() }} @endif
                                 </p>
                             </a>
                             <div class="flex shrink-0 flex-wrap gap-1">
@@ -95,7 +98,7 @@
                                 <div class="min-w-0">
                                     <h3 class="font-medium text-texto dark:text-slate-100 truncate">{{ $t['quiz']->tema }}</h3>
                                     <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                        {{ $t['quiz']->modulo?->nombreCompleto() }} · {{ count($t['quiz']->preguntas) }} preguntas
+                                        {{ $t['quiz']->modulo?->nombreCompleto() }} - {{ count($t['quiz']->preguntas) }} preguntas
                                     </p>
                                 </div>
                             </div>

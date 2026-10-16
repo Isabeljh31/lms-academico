@@ -7,10 +7,10 @@
         </x-gestion.encabezado>
 
         @foreach ($comunicados as $comunicado)
-            <div class="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm {{ $comunicado->prioridad === 'urgente' ? 'border-red-300 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200' : 'border-arena-medio bg-white text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200' }}" wire:key="banner-com-{{ $comunicado->id }}">
+            <div class="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm {{ $comunicado->prioridad === 'urgente' ? 'border-red-300 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200' : ($esSupervisor ? 'border-arena-medio bg-white text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200' : 'border-celeste bg-white text-slate-700 dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura dark:text-slate-200') }}" wire:key="banner-com-{{ $comunicado->id }}">
                 <x-icono :nombre="$comunicado->prioridad === 'urgente' ? 'alerta' : 'megafono'" class="h-5 w-5 shrink-0" />
                 <div class="min-w-0">
-                    <p class="text-xs font-semibold uppercase tracking-wide opacity-80">Comunicado institucional{{ $comunicado->prioridad === 'urgente' ? ' urgente' : '' }} · {{ $comunicado->created_at->diffForHumans() }}</p>
+                    <p class="text-xs font-semibold uppercase tracking-wide opacity-80">Comunicado institucional{{ $comunicado->prioridad === 'urgente' ? ' urgente' : '' }} - {{ $comunicado->created_at->diffForHumans() }}</p>
                     <p class="font-semibold">{{ $comunicado->titulo }}</p>
                     <p class="whitespace-pre-line text-xs opacity-90">{{ $comunicado->contenido }}</p>
                 </div>
@@ -68,13 +68,13 @@
                         <x-gestion.vacio icono="libro" titulo="Aún no tienes cursos asignados" descripcion="El Supervisor te asignará tus cursos." />
                     </div>
                 @else
-                    <ul class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                    <ul class="divide-y divide-celeste/60 dark:divide-azul-borde-oscuro">
                         @foreach ($cursos as $curso)
                             <li class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between" wire:key="curso-panel-{{ $curso->id }}">
                                 <span class="flex flex-wrap items-center gap-2">
-                                    <a href="{{ route('cursos.show', $curso) }}" wire:navigate class="font-medium text-menta-oscuro hover:underline dark:text-menta-base">{{ $curso->nombre }}</a>
+                                    <a href="{{ route('cursos.show', $curso) }}" wire:navigate class="font-medium text-azul-oscuro hover:underline dark:text-azul-fondo">{{ $curso->nombre }}</a>
                                     @if ($curso->estaFinalizado())
-                                        <span class="rounded-full bg-arena-claro px-2 py-0.5 text-[11px] font-medium text-stone-600 dark:bg-stone-700 dark:text-stone-300">Archivado</span>
+                                        <span class="rounded-full bg-celeste px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-azul-borde-oscuro dark:text-slate-300">Archivado</span>
                                     @endif
                                 </span>
                                 <div class="flex flex-wrap gap-4 text-xs text-stone-500 dark:text-stone-400">

@@ -2,7 +2,7 @@
     // Montada globalmente en layouts/app.blade.php para los 3 roles, así que
     // el color se condiciona al rol en vez de duplicar el componente — ver
     // ARQUITECTURA.md § nueva paleta de color.
-    $paletaFria = auth()->check() && auth()->user()->hasRole('estudiante');
+    $paletaFria = auth()->check() && ! auth()->user()->hasRole('supervisor');
 @endphp
 
 <div class="relative" wire:poll.30s x-data @click.outside="$wire.abierta = false">

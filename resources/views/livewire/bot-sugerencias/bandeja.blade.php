@@ -163,14 +163,14 @@
                                 <div class="min-w-0">
                                     <p class="truncate text-sm text-slate-700 dark:text-slate-200">
                                         <span class="font-medium">{{ $t['tareaTitulo'] }}</span>
-                                        <span class="text-slate-400">·</span>
+                                        <span class="text-slate-400">-</span>
                                         <span class="text-xs font-semibold" style="color: {{ $t['color'] }}">{{ $t['curso'] }}</span>
                                     </p>
                                     <p class="text-xs text-slate-500 dark:text-slate-400">
                                         @if ($aceptada)
-                                            Aceptada el {{ $propuesta->fecha_respuesta?->formatoFechaHora() }} · recordatorio para el {{ $t['recordatorio']->formatoFechaHora() }}
+                                            Aceptada el {{ $propuesta->fecha_respuesta?->formatoFechaHora() }} - recordatorio para el {{ $t['recordatorio']->formatoFechaHora() }}
                                         @else
-                                            Rechazada el {{ $propuesta->fecha_respuesta?->formatoFechaHora() }} · tu calendario no cambió
+                                            Rechazada el {{ $propuesta->fecha_respuesta?->formatoFechaHora() }} - tu calendario no cambió
                                         @endif
                                     </p>
                                 </div>

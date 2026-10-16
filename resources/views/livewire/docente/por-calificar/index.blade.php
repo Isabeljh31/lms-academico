@@ -36,7 +36,7 @@
             @else
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[760px] text-left text-sm">
-                        <thead class="bg-arena-claro/50 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
+                        <thead class="bg-celeste/50 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-azul-pagina-oscura dark:text-slate-400">
                             <tr>
                                 <th class="px-4 py-3">Estudiante / grupo</th>
                                 <th class="px-4 py-3">Curso</th>
@@ -45,7 +45,7 @@
                                 <th class="px-4 py-3 text-right">Acción</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                        <tbody class="divide-y divide-celeste/60 dark:divide-azul-borde-oscuro">
                             @foreach ($entregas as $entrega)
                                 @php $esUrgente = $entrega->updated_at->diffInDays(now()) >= 3; @endphp
                                 <tr wire:key="ent-{{ $entrega->id }}" class="{{ $esUrgente ? 'bg-red-50/40 dark:bg-red-950/10' : '' }}">
@@ -57,7 +57,7 @@
                                     </td>
                                     <td class="px-4 py-3 text-stone-600 dark:text-stone-300">{{ $entrega->tarea->curso->nombre }}</td>
                                     <td class="px-4 py-3">
-                                        <a href="{{ route('cursos.tareas.show', [$entrega->tarea->curso_id, $entrega->tarea_id]) }}" wire:navigate class="font-medium text-menta-oscuro hover:underline dark:text-menta-base">{{ $entrega->tarea->titulo }}</a>
+                                        <a href="{{ route('cursos.tareas.show', [$entrega->tarea->curso_id, $entrega->tarea_id]) }}" wire:navigate class="font-medium text-azul-oscuro hover:underline dark:text-azul-fondo">{{ $entrega->tarea->titulo }}</a>
                                     </td>
                                     <td class="px-4 py-3 text-xs text-stone-500">
                                         {{ $entrega->updated_at->formatoFechaHora() }}
@@ -73,20 +73,20 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="border-t border-arena-medio px-4 py-3 dark:border-stone-700">{{ $entregas->links() }}</div>
+                <div class="border-t border-celeste px-4 py-3 dark:border-azul-borde-oscuro">{{ $entregas->links() }}</div>
             @endif
         </x-gestion.tarjeta>
     </div>
 
     @if ($mostrarModalCalificar && $entregaSeleccionada)
         <x-gestion.modal titulo="Calificar entrega" cerrar="$set('mostrarModalCalificar', false)"
-            descripcion="{{ $entregaSeleccionada->tarea->titulo }} · {{ $entregaSeleccionada->grupo ? $entregaSeleccionada->grupo->nombre.' (se aplica a todo el grupo)' : $entregaSeleccionada->estudiante?->name }}">
-            <div class="space-y-2 rounded-lg bg-arena-claro/50 p-3 text-sm dark:bg-stone-900">
+            descripcion="{{ $entregaSeleccionada->tarea->titulo }} - {{ $entregaSeleccionada->grupo ? $entregaSeleccionada->grupo->nombre.' (se aplica a todo el grupo)' : $entregaSeleccionada->estudiante?->name }}">
+            <div class="space-y-2 rounded-lg bg-celeste/50 p-3 text-sm dark:bg-azul-pagina-oscura">
                 @if ($entregaSeleccionada->archivo_url)
-                    <a href="{{ \App\Services\Multimedia\SubidorArchivos::enlace($entregaSeleccionada->archivo_url) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-menta-oscuro hover:underline"><x-icono nombre="material" class="h-4 w-4" /> Ver archivo</a>
+                    <a href="{{ \App\Services\Multimedia\SubidorArchivos::enlace($entregaSeleccionada->archivo_url) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-azul-oscuro hover:underline"><x-icono nombre="material" class="h-4 w-4" /> Ver archivo</a>
                 @endif
                 @if ($entregaSeleccionada->enlace)
-                    <a href="{{ $entregaSeleccionada->enlace }}" target="_blank" rel="noopener noreferrer" class="ml-3 inline-flex items-center gap-1 text-menta-oscuro hover:underline"><x-icono nombre="enlace" class="h-4 w-4" /> Ver enlace</a>
+                    <a href="{{ $entregaSeleccionada->enlace }}" target="_blank" rel="noopener noreferrer" class="ml-3 inline-flex items-center gap-1 text-azul-oscuro hover:underline"><x-icono nombre="enlace" class="h-4 w-4" /> Ver enlace</a>
                 @endif
                 @if ($entregaSeleccionada->respuesta_texto)
                     <p class="whitespace-pre-line text-stone-700 dark:text-stone-300">{{ $entregaSeleccionada->respuesta_texto }}</p>

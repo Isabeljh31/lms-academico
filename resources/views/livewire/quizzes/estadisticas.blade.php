@@ -1,9 +1,9 @@
 <div class="py-8">
+    @php $esAdminVista = auth()->user()->hasRole('supervisor'); @endphp
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
         <x-gestion.encabezado titulo="Estadísticas: {{ $quiz->tema }}" icono="grafico"
-            descripcion="{{ $quiz->modulo?->nombreCompleto() }} · Preguntas ordenadas de mayor a menor tasa de error (último intento de cada estudiante)."
-            :volver="route('cursos.quizzes.index', $quiz->curso)" volver-texto="Volver a quizzes" />
+            descripcion="{{ $quiz->modulo?->nombreCompleto() }}, preguntas ordenadas de mayor a menor tasa de error (último intento de cada estudiante)." />
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <x-gestion.indicador etiqueta="Intentos registrados" :valor="$totalIntentos" icono="usuarios" />
@@ -15,14 +15,14 @@
         @else
             <div class="space-y-3">
                 @foreach ($preguntas as $pregunta)
-                    <div class="bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 p-5">
+                    <div class="bg-white dark:bg-stone-800 rounded-xl border p-5 {{ $esAdminVista ? 'border-arena-medio dark:border-stone-700' : 'border-celeste dark:border-azul-borde-oscuro' }}">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <span class="text-xs font-semibold uppercase text-stone-400">Pregunta {{ $pregunta['indice'] + 1 }}</span>
                                 <h3 class="font-medium text-stone-800 dark:text-stone-100">{{ $pregunta['enunciado'] }}</h3>
                             </div>
                             <span class="shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold
-                                {{ $pregunta['tasa_error'] >= 50 ? 'bg-terracota-fondo/60 text-terracota-oscuro' : ($pregunta['tasa_error'] > 0 ? 'bg-arena-medio/60 text-stone-600' : 'bg-verde-fondo/50 text-verde-oscuro') }}">
+                                {{ $pregunta['tasa_error'] >= 50 ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300' : ($pregunta['tasa_error'] > 0 ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' : 'bg-verde-fondo/50 text-verde-oscuro') }}">
                                 {{ $pregunta['tasa_error'] }}% de error
                             </span>
                         </div>
@@ -42,8 +42,8 @@
                                     <span class="w-32 sm:w-48 shrink-0 truncate {{ $opcion['es_correcta'] ? 'font-semibold text-verde-oscuro' : 'text-stone-500 dark:text-stone-400' }}">
                                         @if ($opcion['es_correcta']) <x-icono nombre="check" class="inline h-3 w-3" /> @endif {{ $opcion['opcion'] }}
                                     </span>
-                                    <div class="flex-1 h-2 rounded-full bg-arena-claro dark:bg-stone-700 overflow-hidden">
-                                        <div class="h-full rounded-full {{ $opcion['es_correcta'] ? 'bg-verde-oscuro' : 'bg-terracota-base' }}" style="width: {{ $porcentaje }}%"></div>
+                                    <div class="flex-1 h-2 rounded-full {{ $esAdminVista ? 'bg-arena-claro dark:bg-stone-700' : 'bg-celeste dark:bg-azul-borde-oscuro' }} overflow-hidden">
+                                        <div class="h-full rounded-full {{ $opcion['es_correcta'] ? 'bg-verde-oscuro' : 'bg-red-400' }}" style="width: {{ $porcentaje }}%"></div>
                                     </div>
                                     <span class="w-16 shrink-0 text-right text-stone-400">{{ $opcion['elegida_por'] }} ({{ $porcentaje }}%)</span>
                                 </div>

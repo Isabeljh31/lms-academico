@@ -1,12 +1,15 @@
 @php
-    // Compartido entre roles; Estudiante usa la paleta fría nueva y
-    // Profesor/Administrador conservan la anterior — ver ARQUITECTURA.md §
-    // nueva paleta de color.
+    // $paletaFria SOLO determina qué bloque de contenido se renderiza (vista
+    // de estudiante vs. profesor/supervisor) — no tocar su significado.
+    // $colorFrio es aparte, solo para color: Estudiante y Profesor comparten
+    // la paleta azul; Supervisor conserva la cálida.
     $paletaFria = auth()->user()->hasRole('estudiante');
-    $tarjeta = 'bg-white rounded-xl border p-6 '.($paletaFria ? 'dark:bg-azul-superficie-oscura border-celeste dark:border-azul-borde-oscuro' : 'dark:bg-stone-800 border-arena-medio dark:border-stone-700');
-    $textoPrincipal = $paletaFria ? 'text-texto dark:text-slate-100' : 'text-stone-800 dark:text-stone-100';
-    $textoSecundario = $paletaFria ? 'text-slate-600 dark:text-slate-300' : 'text-stone-600 dark:text-stone-300';
-    $acento = $paletaFria ? 'text-azul-oscuro dark:text-azul-fondo' : 'text-menta-oscuro dark:text-menta-base';
+    $esAdminVista = auth()->user()->hasRole('supervisor');
+    $colorFrio = ! $esAdminVista;
+    $tarjeta = 'bg-white rounded-xl border p-6 '.($colorFrio ? 'dark:bg-azul-superficie-oscura border-celeste dark:border-azul-borde-oscuro' : 'dark:bg-stone-800 border-arena-medio dark:border-stone-700');
+    $textoPrincipal = $colorFrio ? 'text-texto dark:text-slate-100' : 'text-stone-800 dark:text-stone-100';
+    $textoSecundario = $colorFrio ? 'text-slate-600 dark:text-slate-300' : 'text-stone-600 dark:text-stone-300';
+    $acento = $colorFrio ? 'text-azul-oscuro dark:text-azul-fondo' : 'text-menta-oscuro dark:text-menta-base';
 @endphp
 
 <div class="py-8">
@@ -15,17 +18,17 @@
         <div>
             <a href="{{ route('cursos.quizzes.index', $quiz->curso) }}" wire:navigate
                 class="text-sm {{ $acento }} hover:underline">&larr; Quizzes</a>
-            <h1 class="text-2xl font-bold {{ $paletaFria ? 'text-texto dark:text-slate-100' : 'text-stone-900 dark:text-stone-100' }}">{{ $quiz->tema }}</h1>
+            <h1 class="text-2xl font-bold {{ $colorFrio ? 'text-texto dark:text-slate-100' : 'text-stone-900 dark:text-stone-100' }}">{{ $quiz->tema }}</h1>
             <p class="text-xs text-slate-400 mt-1">
                 {{ count($quiz->preguntas ?? []) }} preguntas
-                · {{ $quiz->intentosPermitidos() }} {{ $quiz->intentosPermitidos() === 1 ? 'intento' : 'intentos' }}
-                @if ($quiz->tiempoLimiteMinutos()) · {{ $quiz->tiempoLimiteMinutos() }} min por intento @endif
-                @if ($quiz->fecha_limite) · disponible hasta el {{ $quiz->fecha_limite->formatoFechaHora() }} @endif
+                - {{ $quiz->intentosPermitidos() }} {{ $quiz->intentosPermitidos() === 1 ? 'intento' : 'intentos' }}
+                @if ($quiz->tiempoLimiteMinutos()) - {{ $quiz->tiempoLimiteMinutos() }} min por intento @endif
+                @if ($quiz->fecha_limite) - disponible hasta el {{ $quiz->fecha_limite->formatoFechaHora() }} @endif
             </p>
         </div>
 
         @if (! $paletaFria)
-            <div class="rounded-lg bg-arena-claro/60 dark:bg-stone-800 px-4 py-3 text-sm text-stone-600 dark:text-stone-300 flex items-center gap-2">
+            <div class="rounded-lg px-4 py-3 text-sm flex items-center gap-2 {{ $esAdminVista ? 'bg-arena-claro/60 dark:bg-stone-800 text-stone-600 dark:text-stone-300' : 'bg-celeste/60 dark:bg-azul-superficie-oscura text-slate-600 dark:text-slate-300' }}">
                 <x-icono nombre="ojo" class="h-4 w-4" /> Vista previa del profesor: las respuestas no se registran.
             </div>
         @endif
@@ -105,7 +108,7 @@
                             @foreach ($pregunta['opciones'] as $j => $opcion)
                                 <label class="flex items-center gap-2 text-sm {{ $textoSecundario }} cursor-pointer">
                                     <input type="{{ $multiple ? 'checkbox' : 'radio' }}" wire:model="respuestas.{{ $i }}" value="{{ $j }}"
-                                        class="{{ $multiple ? 'rounded ' : '' }}{{ $paletaFria ? 'text-azul-oscuro focus:ring-azul-fondo' : 'text-menta-oscuro focus:ring-menta-base' }}">
+                                        class="{{ $multiple ? 'rounded ' : '' }}{{ $colorFrio ? 'text-azul-oscuro focus:ring-azul-fondo' : 'text-menta-oscuro focus:ring-menta-base' }}">
                                     {{ $opcion }}
                                 </label>
                             @endforeach

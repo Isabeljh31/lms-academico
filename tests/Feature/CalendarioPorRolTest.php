@@ -81,8 +81,7 @@ class CalendarioPorRolTest extends TestCase
         $this->actingAs($escenario['estudiante'])
             ->get(route('evento-calendario.index', ['fecha' => '2026-10-05', 'evento' => 'tarea-'.$escenario['tarea']->id, 'desde' => 'propuestas']))
             ->assertOk()
-            ->assertSee('Mostrando el')
-            ->assertSee('Volver a propuestas');
+            ->assertSee('Mostrando el');
 
         Livewire::withQueryParams(['fecha' => '2026-10-05', 'evento' => 'tarea-'.$escenario['tarea']->id])
             ->actingAs($escenario['estudiante'])

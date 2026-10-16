@@ -15,8 +15,8 @@
     </style>
 </head>
 <body>
-    <h1>LearnUp — Boleta de notas</h1>
-    <p>{{ $progreso['curso']->nombre }} — {{ now()->formatoFecha() }}</p>
+    <h1>LearnUp - Boleta de notas</h1>
+    <p>{{ $progreso['curso']->nombre }} - {{ now()->formatoFecha() }}</p>
     <p>Estudiante: <strong>{{ $estudiante->name }}</strong> ({{ $estudiante->email }})</p>
 
     <div class="resumen">

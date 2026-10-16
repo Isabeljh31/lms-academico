@@ -1,14 +1,18 @@
 <div class="py-8">
+    @php
+        $esAdminVista = auth()->user()->hasRole('supervisor');
+        $claseBadgeOrigen = $esAdminVista ? 'bg-arena-medio text-stone-700 dark:bg-stone-700 dark:text-stone-200' : 'bg-celeste text-slate-700 dark:bg-azul-borde-oscuro dark:text-slate-200';
+        $claseBadgeAcento = $esAdminVista ? 'bg-menta-fondo text-menta-oscuro dark:bg-stone-700 dark:text-menta-base' : 'bg-azul-oscuro/10 text-azul-oscuro dark:bg-azul-oscuro/20 dark:text-azul-fondo';
+    @endphp
     <div class="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado titulo="Matrícula del curso" icono="usuario-mas" :descripcion="$curso->nombre"
-            :volver="route('cursos.show', $curso)" volver-texto="Volver al curso" />
+        <x-gestion.encabezado titulo="Matrícula del curso" icono="usuario-mas" :descripcion="$curso->nombre" />
 
         <x-gestion.alertas />
 
         @unless ($this->puedeMatricular)
-            <div class="flex items-start gap-3 rounded-xl border border-arena-medio bg-white px-4 py-3 text-sm text-stone-600 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300">
-                <x-icono nombre="info" class="h-5 w-5 shrink-0 text-menta-oscuro" />
+            <div class="flex items-start gap-3 rounded-xl border bg-white px-4 py-3 text-sm {{ $esAdminVista ? 'border-arena-medio text-stone-600 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300' : 'border-celeste text-slate-600 dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura dark:text-slate-300' }}">
+                <x-icono nombre="info" class="h-5 w-5 shrink-0 {{ $esAdminVista ? 'text-menta-oscuro' : 'text-azul-oscuro' }}" />
                 <p>
                     @if ($curso->estaFinalizado())
                         El curso está archivado: la matrícula queda en modo consulta.
@@ -32,10 +36,10 @@
                         <label for="busquedaEstudiante" class="sr-only">Buscar estudiante</label>
                         <x-gestion.control id="busquedaEstudiante" wire:model.live.debounce.350ms="busquedaEstudiante" placeholder="Nombre o correo del estudiante" autocomplete="off" />
                         @if ($estudiantesBusqueda->isNotEmpty())
-                            <div class="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border border-arena-medio bg-white shadow-lg dark:border-stone-600 dark:bg-stone-800">
+                            <div class="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border bg-white shadow-lg {{ $esAdminVista ? 'border-arena-medio dark:border-stone-600 dark:bg-stone-800' : 'border-celeste dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura' }}">
                                 @foreach ($estudiantesBusqueda as $est)
                                     <button type="button" wire:click="seleccionarEstudiante({{ $est->id }})" wire:key="busqueda-{{ $est->id }}"
-                                        class="flex w-full items-center gap-3 border-b border-arena-medio/60 px-4 py-2.5 text-left last:border-0 hover:bg-arena-claro dark:border-stone-700 dark:hover:bg-stone-700">
+                                        class="flex w-full items-center gap-3 border-b px-4 py-2.5 text-left last:border-0 {{ $esAdminVista ? 'border-arena-medio/60 hover:bg-arena-claro dark:border-stone-700 dark:hover:bg-stone-700' : 'border-celeste/60 hover:bg-celeste dark:border-azul-borde-oscuro dark:hover:bg-azul-borde-oscuro' }}">
                                         <x-icono nombre="usuarios" class="h-4 w-4 shrink-0 text-stone-400" />
                                         <span class="min-w-0">
                                             <span class="block truncate text-sm font-medium text-stone-800 dark:text-stone-100">{{ $est->name }}</span>
@@ -78,7 +82,7 @@
             @else
                 <div class="overflow-x-auto">
                     <table class="w-full min-w-[680px] text-sm">
-                        <thead class="bg-arena-claro/50 text-left text-xs font-semibold uppercase tracking-wide text-stone-500 dark:bg-stone-900/40 dark:text-stone-400">
+                        <thead class="text-left text-xs font-semibold uppercase tracking-wide {{ $esAdminVista ? 'bg-arena-claro/50 text-stone-500 dark:bg-stone-900/40 dark:text-stone-400' : 'bg-celeste/50 text-slate-500 dark:bg-azul-pagina-oscura dark:text-slate-400' }}">
                             <tr>
                                 <th class="px-4 py-3">Estudiante</th>
                                 <th class="px-4 py-3">Origen</th>
@@ -87,7 +91,7 @@
                                 @if ($this->puedeDarDeBaja) <th class="px-4 py-3 text-right">Acciones</th> @endif
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                        <tbody class="divide-y {{ $esAdminVista ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
                             @foreach ($inscripciones as $insc)
                                 <tr wire:key="insc-{{ $insc->id }}">
                                     <td class="px-4 py-3">
@@ -95,7 +99,7 @@
                                         <p class="text-xs text-stone-500">{{ $insc->estudiante?->email }}</p>
                                     </td>
                                     <td class="px-4 py-3">
-                                        <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium {{ $insc->esDeApiExterna() ? 'bg-arena-medio text-stone-700 dark:bg-stone-700 dark:text-stone-200' : 'bg-menta-fondo text-menta-oscuro dark:bg-stone-700 dark:text-menta-base' }}">
+                                        <span class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium {{ $insc->esDeApiExterna() ? $claseBadgeOrigen : $claseBadgeAcento }}">
                                             <x-icono :nombre="$insc->esDeApiExterna() ? 'enlace' : 'usuarios'" class="h-3 w-3" />
                                             {{ $insc->esDeApiExterna() ? 'API externa' : 'Manual' }}
                                         </span>
@@ -104,12 +108,12 @@
                                         @if ($insc->estaActiva())
                                             <span class="rounded-full bg-exito-base/15 px-2.5 py-0.5 text-xs font-medium text-exito-oscuro">Activo</span>
                                         @elseif ($insc->esDeApiExterna() && $insc->estado === 'activo')
-                                            <span class="rounded-full bg-arena-claro px-2.5 py-0.5 text-xs font-medium text-terracota-oscuro dark:bg-stone-700 dark:text-terracota-fondo">Acceso local desactivado</span>
+                                            <span class="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">Acceso local desactivado</span>
                                         @else
                                             <span class="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">Baja</span>
                                         @endif
                                         @if ($insc->fecha_baja)
-                                            <p class="mt-1 text-xs text-stone-500">{{ $insc->fecha_baja->formatoFecha() }}{{ $insc->dadoDeBajaPor ? ' · '.$insc->dadoDeBajaPor->name : '' }}</p>
+                                            <p class="mt-1 text-xs text-stone-500">{{ $insc->fecha_baja->formatoFecha() }}{{ $insc->dadoDeBajaPor ? ' - '.$insc->dadoDeBajaPor->name : '' }}</p>
                                         @endif
                                     </td>
                                     <td class="px-4 py-3 text-xs text-stone-500">{{ $insc->fecha_inscripcion?->formatoFecha() }}</td>
@@ -127,7 +131,7 @@
                         </tbody>
                     </table>
                 </div>
-                <div class="border-t border-arena-medio px-4 py-3 dark:border-stone-700">{{ $inscripciones->links() }}</div>
+                <div class="border-t px-4 py-3 {{ $esAdminVista ? 'border-arena-medio dark:border-stone-700' : 'border-celeste dark:border-azul-borde-oscuro' }}">{{ $inscripciones->links() }}</div>
             @endif
         </x-gestion.tarjeta>
     </div>
@@ -135,8 +139,8 @@
     @if ($mostrarModalBaja && $inscripcionBaja)
         <x-gestion.modal titulo="{{ $inscripcionBaja->esDeApiExterna() ? 'Desactivar acceso local' : 'Dar de baja del curso' }}"
             cerrar="$set('mostrarModalBaja', false)" ancho="max-w-md">
-            <div class="flex items-start gap-3 rounded-lg bg-arena-claro p-3 text-sm text-stone-700 dark:bg-stone-900 dark:text-stone-300">
-                <x-icono nombre="alerta" class="h-5 w-5 shrink-0 text-terracota-oscuro" />
+            <div class="flex items-start gap-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                <x-icono nombre="alerta" class="h-5 w-5 shrink-0 text-amber-600" />
                 <p>
                     @if ($inscripcionBaja->esDeApiExterna())
                         {{ $inscripcionBaja->estudiante?->name }} perderá el acceso a este curso en LearnUp. La matrícula pertenece al sistema externo y no se modificará allí.

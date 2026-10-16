@@ -2,8 +2,7 @@
     {{-- Ancho de contenedor estandarizado (max-w-6xl) para todas las vistas del estudiante. --}}
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         @if ($this->esVistaDocente)
-        <x-gestion.encabezado titulo="Tareas" icono="tarea" :descripcion="$curso->nombre.' · Las notas de tareas son de práctica y no entran en la nota final ponderada.'"
-            :volver="route('cursos.show', $curso)" volver-texto="Volver al curso">
+        <x-gestion.encabezado titulo="Tareas" icono="tarea" :descripcion="$curso->nombre.', las notas de tareas son de práctica y no entran en la nota final ponderada.'">
             @if ($this->puedeGestionar && ! $curso->estaFinalizado())
                 <x-gestion.boton icono="mas" :href="route('cursos.tareas.crear', $curso)">Nueva tarea</x-gestion.boton>
             @endif
@@ -33,20 +32,24 @@
         @elseif ($this->esVistaDocente)
             {{-- Vista de Profesor / Supervisor (este último en solo lectura). --}}
             <x-gestion.tarjeta :relleno="false">
-                <ul class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                <ul class="divide-y {{ auth()->user()->hasRole('supervisor') ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
                     @foreach ($tareas as $tarea)
-                        @php $visibleEstudiante = $tarea->esVisibleParaEstudiante(); @endphp
+                        @php
+                            $visibleEstudiante = $tarea->esVisibleParaEstudiante();
+                            $esAdminVista = auth()->user()->hasRole('supervisor');
+                            $claseBadgeNeutra = $esAdminVista ? 'bg-arena-medio text-stone-700 dark:bg-stone-700 dark:text-stone-200' : 'bg-celeste text-slate-700 dark:bg-azul-borde-oscuro dark:text-slate-200';
+                        @endphp
                         <li wire:key="tarea-{{ $tarea->id }}" class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
                             <a href="{{ route('cursos.tareas.show', [$curso, $tarea]) }}" wire:navigate class="min-w-0 flex-1">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <h3 class="truncate font-medium text-stone-800 dark:text-stone-100">{{ $tarea->titulo }}</h3>
-                                    <span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $visibleEstudiante ? 'bg-exito-base/15 text-exito-oscuro' : 'bg-arena-medio text-stone-700 dark:bg-stone-700 dark:text-stone-200' }}">{{ $tarea->etiquetaEstadoPublicacion() }}</span>
+                                    <h3 class="truncate font-medium {{ $esAdminVista ? 'text-stone-800 dark:text-stone-100' : 'text-texto dark:text-slate-100' }}">{{ $tarea->titulo }}</h3>
+                                    <span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $visibleEstudiante ? 'bg-exito-base/15 text-exito-oscuro' : $claseBadgeNeutra }}">{{ $tarea->etiquetaEstadoPublicacion() }}</span>
                                     @if ($tarea->esGrupal())
-                                        <span class="rounded-full bg-arena-claro px-2 py-0.5 text-xs text-stone-600 dark:bg-stone-700 dark:text-stone-300">Grupal{{ $tarea->grupoAsignado ? ': '.$tarea->grupoAsignado->nombre : '' }}</span>
+                                        <span class="rounded-full px-2 py-0.5 text-xs {{ $claseBadgeNeutra }}">Grupal{{ $tarea->grupoAsignado ? ': '.$tarea->grupoAsignado->nombre : '' }}</span>
                                     @endif
                                 </div>
                                 <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">
-                                    {{ $tarea->modulo?->nombreCompleto() }} · Vence {{ $tarea->fecha_entrega->formatoFechaHora() }} · {{ $tarea->entregas->count() }} entregas · {{ $tarea->entregas->where('estado', '!=', 'calificado')->count() }} por calificar
+                                    {{ $tarea->modulo?->nombreCompleto() }} - Vence {{ $tarea->fecha_entrega->formatoFechaHora() }} - {{ $tarea->entregas->count() }} entregas - {{ $tarea->entregas->where('estado', '!=', 'calificado')->count() }} por calificar
                                 </p>
                             </a>
                             @if ($this->puedeGestionar && ! $curso->estaFinalizado())
@@ -94,7 +97,7 @@
                                 <div class="min-w-0">
                                     <h3 class="font-medium text-texto dark:text-slate-100 truncate">{{ $t['tarea']->titulo }}</h3>
                                     <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                                        {{ $t['tarea']->modulo?->nombreCompleto() }} · Vence {{ $t['tarea']->fecha_entrega->formatoFechaHora() }}
+                                        {{ $t['tarea']->modulo?->nombreCompleto() }} - Vence {{ $t['tarea']->fecha_entrega->formatoFechaHora() }}
                                     </p>
                                 </div>
                             </div>

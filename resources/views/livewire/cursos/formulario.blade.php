@@ -2,8 +2,6 @@
     <div class="mx-auto max-w-3xl space-y-6 px-4 sm:px-6 lg:px-8">
 
         <x-gestion.encabezado :titulo="$curso ? 'Editar curso' : 'Nuevo curso'" icono="libro"
-            :volver="$curso ? route('cursos.show', $curso) : route('cursos.index')"
-            :volver-texto="$curso ? 'Volver al curso' : 'Volver a cursos'"
             descripcion="Los campos con * son obligatorios. Un curso nuevo empieza como borrador hasta que tenga módulos." />
 
         @if ($this->esArchivado)

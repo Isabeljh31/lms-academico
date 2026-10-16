@@ -1,20 +1,22 @@
 @php
-    // ERS RF-78/RF-79. Misma estructura para los tres roles, cada uno con su paleta:
-    // Estudiante (azul corporativo) y Profesor/Supervisor (menta de gestión).
+    // ERS RF-78/RF-79. Misma estructura para los tres roles. Estudiante y
+    // Profesor comparten la paleta azul corporativa; Supervisor conserva
+    // su acento cálido de gestión.
     $esEstudiante = $rol === 'estudiante';
-    $tarjeta = $esEstudiante
+    $esAdminVista = $rol === 'supervisor';
+    $tarjeta = ! $esAdminVista
         ? 'bg-white dark:bg-azul-superficie-oscura rounded-xl border border-celeste dark:border-azul-borde-oscuro shadow-sm dark:shadow-none'
         : 'bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 shadow-sm dark:shadow-none';
-    $titulo = $esEstudiante ? 'text-texto dark:text-slate-100' : 'text-stone-900 dark:text-stone-100';
-    $suave = $esEstudiante ? 'text-slate-500 dark:text-slate-400' : 'text-stone-500 dark:text-stone-400';
-    $acento = $esEstudiante ? 'text-azul-oscuro dark:text-azul-fondo' : 'text-menta-oscuro dark:text-menta-base';
-    $acentoFondo = $esEstudiante ? 'bg-celeste/60 text-azul-oscuro dark:bg-azul-oscuro/30 dark:text-celeste' : 'bg-menta-fondo text-menta-oscuro dark:bg-stone-700 dark:text-menta-base';
-    $divisor = $esEstudiante ? 'divide-celeste dark:divide-azul-borde-oscuro' : 'divide-arena-medio/60 dark:divide-stone-700';
-    $borde = $esEstudiante ? 'border-celeste dark:border-azul-borde-oscuro' : 'border-arena-medio dark:border-stone-700';
-    $campo = $esEstudiante
+    $titulo = ! $esAdminVista ? 'text-texto dark:text-slate-100' : 'text-stone-900 dark:text-stone-100';
+    $suave = ! $esAdminVista ? 'text-slate-500 dark:text-slate-400' : 'text-stone-500 dark:text-stone-400';
+    $acento = ! $esAdminVista ? 'text-azul-oscuro dark:text-azul-fondo' : 'text-menta-oscuro dark:text-menta-base';
+    $acentoFondo = ! $esAdminVista ? 'bg-celeste/60 text-azul-oscuro dark:bg-azul-oscuro/30 dark:text-celeste' : 'bg-menta-fondo text-menta-oscuro dark:bg-stone-700 dark:text-menta-base';
+    $divisor = ! $esAdminVista ? 'divide-celeste dark:divide-azul-borde-oscuro' : 'divide-arena-medio/60 dark:divide-stone-700';
+    $borde = ! $esAdminVista ? 'border-celeste dark:border-azul-borde-oscuro' : 'border-arena-medio dark:border-stone-700';
+    $campo = ! $esAdminVista
         ? 'mt-1 block w-full rounded-md border-slate-300 dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura dark:text-slate-200 focus:border-azul-fondo focus:ring-azul-fondo text-sm'
         : 'mt-1 block w-full rounded-md border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base text-sm';
-    $variablesCalendario = $esEstudiante
+    $variablesCalendario = ! $esAdminVista
         ? '[--fc-button-bg-color:#2541B2] [--fc-button-border-color:#2541B2] [--fc-button-hover-bg-color:#1768AC] [--fc-button-hover-border-color:#1768AC] [--fc-button-active-bg-color:#03256C] [--fc-button-active-border-color:#03256C] [--fc-border-color:#EBF0FB] [--fc-page-bg-color:transparent] [--fc-neutral-bg-color:#EBF0FB] [--fc-neutral-text-color:#374151] [--fc-today-bg-color:rgba(6,190,225,0.10)] [--fc-highlight-color:rgba(37,65,178,0.12)] [--fc-more-link-bg-color:#EBF0FB] [--fc-more-link-text-color:#2541B2] dark:[--fc-border-color:#1A3242] dark:[--fc-neutral-bg-color:#12232F] dark:[--fc-neutral-text-color:#d6d3d1] dark:[--fc-today-bg-color:rgba(6,190,225,0.12)] dark:[--fc-more-link-bg-color:#1A3242] dark:[--fc-more-link-text-color:#e7e5e4]'
         : '[--fc-button-bg-color:#3C7A75] [--fc-button-border-color:#3C7A75] [--fc-button-hover-bg-color:#2f615d] [--fc-button-hover-border-color:#2f615d] [--fc-button-active-bg-color:#2f615d] [--fc-button-active-border-color:#2f615d] [--fc-border-color:#E7D8C9] [--fc-page-bg-color:transparent] [--fc-neutral-bg-color:#EEE4E1] [--fc-neutral-text-color:#57534e] [--fc-today-bg-color:rgba(127,179,174,0.18)] [--fc-highlight-color:rgba(127,179,174,0.25)] [--fc-more-link-bg-color:#E7D8C9] [--fc-more-link-text-color:#44403c] dark:[--fc-border-color:#44403c] dark:[--fc-neutral-bg-color:#292524] dark:[--fc-neutral-text-color:#d6d3d1] dark:[--fc-today-bg-color:rgba(127,179,174,0.15)] dark:[--fc-more-link-bg-color:#44403c] dark:[--fc-more-link-text-color:#e7e5e4]';
 
@@ -195,7 +197,7 @@
 
                 <section class="{{ $tarjeta }} p-4">
                     <h2 class="flex items-center gap-2 text-sm font-semibold {{ $titulo }}">
-                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-arena-claro text-terracota-oscuro dark:bg-stone-700 dark:text-terracota-fondo"><x-icono nombre="reloj" class="h-4 w-4" /></span>
+                        <span class="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"><x-icono nombre="reloj" class="h-4 w-4" /></span>
                         Por calificar, por semana de entrega
                     </h2>
                     <ul class="mt-3 space-y-3">
@@ -203,15 +205,15 @@
                             <li>
                                 <div class="flex items-center justify-between text-xs font-semibold uppercase tracking-wide {{ $suave }}">
                                     <span>Semana del {{ $semana['semana']->translatedFormat('d M') }}</span>
-                                    <span class="rounded-full bg-terracota-fondo/40 px-2 py-0.5 text-terracota-oscuro dark:bg-stone-700 dark:text-terracota-fondo">{{ $semana['total'] }}</span>
+                                    <span class="rounded-full bg-amber-100 px-2 py-0.5 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">{{ $semana['total'] }}</span>
                                 </div>
                                 <ul class="mt-1 space-y-1">
                                     @foreach ($semana['tareas'] as $item)
                                         <li>
                                             <a href="{{ route('cursos.tareas.show', [$item['tarea']->curso_id, $item['tarea']->id]) }}" wire:navigate
-                                                class="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-sm hover:bg-arena-claro dark:hover:bg-stone-700">
-                                                <span class="truncate {{ $titulo }}">{{ $item['tarea']->titulo }} <span class="text-xs {{ $suave }}">· {{ $item['tarea']->curso->codigo ?? $item['tarea']->curso->nombre }}</span></span>
-                                                <span class="shrink-0 text-xs font-semibold text-terracota-oscuro dark:text-terracota-fondo">{{ $item['total'] }}</span>
+                                                class="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-sm {{ $esAdminVista ? 'hover:bg-arena-claro dark:hover:bg-stone-700' : 'hover:bg-celeste dark:hover:bg-azul-borde-oscuro' }}">
+                                                <span class="truncate {{ $titulo }}">{{ $item['tarea']->titulo }} <span class="text-xs {{ $suave }}">- {{ $item['tarea']->curso->codigo ?? $item['tarea']->curso->nombre }}</span></span>
+                                                <span class="shrink-0 text-xs font-semibold text-amber-700 dark:text-amber-300">{{ $item['total'] }}</span>
                                             </a>
                                         </li>
                                     @endforeach
@@ -234,7 +236,7 @@
                                 <a href="{{ route('cursos.libro-calificaciones', $item['curso']) }}" wire:navigate class="flex items-center justify-between gap-3 text-sm">
                                     <span class="min-w-0">
                                         <span class="block truncate font-medium {{ $titulo }}">{{ $item['rubro']->nombre }} ({{ (float) $item['rubro']->peso }} %)</span>
-                                        <span class="text-xs {{ $suave }}">{{ $item['curso']->nombre }} · semana {{ $item['rubro']->semana }}</span>
+                                        <span class="text-xs {{ $suave }}">{{ $item['curso']->nombre }} - semana {{ $item['rubro']->semana }}</span>
                                     </span>
                                     <span class="shrink-0 text-xs {{ $item['fecha']->isCurrentWeek() ? 'font-semibold '.$acento : $suave }}">
                                         {{ $item['fecha']->isCurrentWeek() ? 'Esta semana' : 'Sem. del '.$item['fecha']->translatedFormat('d M') }}
@@ -265,8 +267,8 @@
                                         <span class="shrink-0 text-xs {{ $suave }}">{{ $item['semana'] ? 'Semana '.$item['semana'].' de '.$item['total'] : 'Sin iniciar o cerrado' }}</span>
                                     </span>
                                     @if ($pct !== null)
-                                        <span class="mt-1 block h-1.5 overflow-hidden rounded-full bg-arena-claro dark:bg-stone-700">
-                                            <span class="block h-full rounded-full bg-menta-oscuro dark:bg-menta-base" style="width: {{ $pct }}%"></span>
+                                        <span class="mt-1 block h-1.5 overflow-hidden rounded-full {{ $esAdminVista ? 'bg-arena-claro dark:bg-stone-700' : 'bg-celeste dark:bg-azul-borde-oscuro' }}">
+                                            <span class="block h-full rounded-full {{ $esAdminVista ? 'bg-menta-oscuro dark:bg-menta-base' : 'bg-azul-oscuro dark:bg-azul-fondo' }}" style="width: {{ $pct }}%"></span>
                                         </span>
                                     @endif
                                 </a>
@@ -303,9 +305,9 @@
                             @foreach ($agenda['notasPendientes'] as $item)
                                 <li>
                                     <a href="{{ route('cursos.libro-calificaciones', $item['curso']) }}" wire:navigate
-                                        class="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-sm hover:bg-arena-claro dark:hover:bg-stone-700">
-                                        <span class="truncate {{ $titulo }}">{{ $item['rubro']->nombre }} <span class="text-xs {{ $suave }}">· {{ $item['curso']->codigo ?? $item['curso']->nombre }}</span></span>
-                                        <span class="shrink-0 rounded-full bg-terracota-fondo/40 px-2 py-0.5 text-xs font-semibold text-terracota-oscuro dark:bg-stone-700 dark:text-terracota-fondo">{{ $item['faltan'] }} sin nota</span>
+                                        class="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-sm {{ $esAdminVista ? 'hover:bg-arena-claro dark:hover:bg-stone-700' : 'hover:bg-celeste dark:hover:bg-azul-borde-oscuro' }}">
+                                        <span class="truncate {{ $titulo }}">{{ $item['rubro']->nombre }} <span class="text-xs {{ $suave }}">- {{ $item['curso']->codigo ?? $item['curso']->nombre }}</span></span>
+                                        <span class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-950/40 dark:text-amber-300">{{ $item['faltan'] }} sin nota</span>
                                     </a>
                                 </li>
                             @endforeach
@@ -336,16 +338,11 @@
         {{-- Llegada desde otra pantalla (p. ej. "Ver en calendario" de una propuesta): fecha enfocada y regreso. --}}
         @if ($fechaInicial !== '')
             <div id="contexto-calendario" x-init="$nextTick(() => $el.scrollIntoView({ behavior: 'smooth', block: 'start' }))"
-                class="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm {{ $esEstudiante ? 'border-azul-oscuro/20 bg-celeste/60 text-azul-oscuro dark:border-azul-borde-oscuro dark:bg-azul-oscuro/20 dark:text-celeste' : 'border-menta-base/40 bg-menta-fondo text-menta-oscuro dark:border-stone-700 dark:bg-stone-800 dark:text-menta-base' }}">
+                class="flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm {{ ! $esAdminVista ? 'border-azul-oscuro/20 bg-celeste/60 text-azul-oscuro dark:border-azul-borde-oscuro dark:bg-azul-oscuro/20 dark:text-celeste' : 'border-menta-base/40 bg-menta-fondo text-menta-oscuro dark:border-stone-700 dark:bg-stone-800 dark:text-menta-base' }}">
                 <p class="flex items-center gap-2">
                     <x-icono nombre="calendario" class="h-4 w-4 shrink-0" />
                     <span>Mostrando el <strong class="font-semibold">{{ \Illuminate\Support\Carbon::parse($fechaInicial)->translatedFormat('l j \d\e F') }}</strong>{{ $eventoResaltado !== '' ? '; la actividad relacionada aparece resaltada.' : '.' }}</span>
                 </p>
-                @if ($origen === 'propuestas')
-                    <a href="{{ route('bot.propuestas') }}" wire:navigate class="inline-flex items-center gap-1 font-semibold hover:underline">
-                        <x-icono nombre="flecha-izquierda" class="h-4 w-4" /> Volver a propuestas
-                    </a>
-                @endif
             </div>
         @endif
 
@@ -427,7 +424,7 @@
                     <ul class="mt-3 space-y-1">
                         @forelse ($this->cursos as $curso)
                             <li>
-                                <label class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm {{ $esEstudiante ? 'hover:bg-celeste/40 dark:hover:bg-azul-borde-oscuro/40' : 'hover:bg-arena-claro dark:hover:bg-stone-700' }}">
+                                <label class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm {{ ! $esAdminVista ? 'hover:bg-celeste/40 dark:hover:bg-azul-borde-oscuro/40' : 'hover:bg-arena-claro dark:hover:bg-stone-700' }}">
                                     <input type="checkbox" class="sr-only" x-on:change="alternar('cursosSeleccionados', {{ $curso->id }})" checked>
                                     <span class="flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 transition"
                                         style="border-color: {{ $this->coloresCursos[$curso->id] }}"
@@ -454,7 +451,7 @@
                         @foreach ($tipos as $clave => $etiqueta)
                             <button type="button" x-on:click="alternar('tiposSeleccionados', '{{ $clave }}')"
                                 class="rounded-full border px-2.5 py-1 text-xs font-medium transition"
-                                :class="tiposSeleccionados.includes('{{ $clave }}') ? @js($esEstudiante ? 'border-azul-oscuro bg-azul-oscuro text-white' : 'border-menta-oscuro bg-menta-oscuro text-white') : @js($esEstudiante ? 'border-celeste text-slate-600 dark:border-azul-borde-oscuro dark:text-slate-300' : 'border-arena-medio text-stone-600 dark:border-stone-600 dark:text-stone-300')"
+                                :class="tiposSeleccionados.includes('{{ $clave }}') ? @js(! $esAdminVista ? 'border-azul-oscuro bg-azul-oscuro text-white' : 'border-menta-oscuro bg-menta-oscuro text-white') : @js(! $esAdminVista ? 'border-celeste text-slate-600 dark:border-azul-borde-oscuro dark:text-slate-300' : 'border-arena-medio text-stone-600 dark:border-stone-600 dark:text-stone-300')"
                                 :aria-pressed="tiposSeleccionados.includes('{{ $clave }}')">
                                 {{ $etiqueta }}
                             </button>
@@ -520,7 +517,7 @@
                         <div class="mt-2 flex flex-wrap gap-1.5">
                             @foreach ([['9:00 AM', 9, 0], ['12:00 PM', 12, 0], ['3:00 PM', 15, 0], ['6:00 PM', 18, 0], ['8:00 PM', 20, 0]] as [$etiqueta, $hora24, $minuto])
                                 <button type="button" x-on:click="ponerHora({{ $hora24 }}, {{ $minuto }})"
-                                    class="rounded-md border px-2 py-1 text-[11px] font-medium transition {{ $esEstudiante ? 'border-celeste text-azul-oscuro hover:bg-celeste/30 dark:border-azul-borde-oscuro dark:text-azul-fondo' : 'border-arena-medio text-menta-oscuro hover:bg-arena-claro dark:border-stone-600 dark:text-menta-base' }}">
+                                    class="rounded-md border px-2 py-1 text-[11px] font-medium transition {{ ! $esAdminVista ? 'border-celeste text-azul-oscuro hover:bg-celeste/30 dark:border-azul-borde-oscuro dark:text-azul-fondo' : 'border-arena-medio text-menta-oscuro hover:bg-arena-claro dark:border-stone-600 dark:text-menta-base' }}">
                                     {{ $etiqueta }}
                                 </button>
                             @endforeach
@@ -538,7 +535,7 @@
                 </div>
                 <div class="flex justify-end gap-2 pt-2">
                     <button type="button" x-on:click="modalAbierto = false" class="rounded-md px-4 py-2 text-sm font-semibold {{ $suave }} hover:bg-slate-100 dark:hover:bg-slate-700">Cancelar</button>
-                    <button type="submit" class="rounded-md px-4 py-2 text-sm font-semibold text-white {{ $esEstudiante ? 'bg-azul-oscuro hover:bg-azul-oscuro/90' : 'bg-menta-oscuro hover:bg-menta-oscuro/90' }}">Agregar</button>
+                    <button type="submit" class="rounded-md px-4 py-2 text-sm font-semibold text-white {{ ! $esAdminVista ? 'bg-azul-oscuro hover:bg-azul-oscuro/90' : 'bg-menta-oscuro hover:bg-menta-oscuro/90' }}">Agregar</button>
                 </div>
             </form>
         </div>

@@ -1,10 +1,10 @@
 @php
     // El widget se monta globalmente para los 3 roles (layouts/app.blade.php),
     // así que su color se condiciona al rol en vez de duplicar la vista.
-    // Estudiante usa la paleta fría nueva con acento lavanda (acento
+    // Estudiante y Profesor usan la paleta fría con acento lavanda (acento
     // secundario del bot, ver ARQUITECTURA.md § nueva paleta de color);
-    // Profesor/Administrador conservan la paleta cálida anterior.
-    $paletaFria = auth()->check() && auth()->user()->hasRole('estudiante');
+    // Supervisor conserva la paleta cálida.
+    $paletaFria = auth()->check() && ! auth()->user()->hasRole('supervisor');
 @endphp
 
 <div class="fixed bottom-5 right-5 z-50" @if (! $botHabilitado) style="display:none" @endif>

@@ -37,7 +37,7 @@
                             <div class="min-w-0">
                                 <h2 class="truncate text-base font-bold text-stone-900 dark:text-stone-100">{{ $prof->name }}</h2>
                                 <p class="truncate text-sm text-stone-500 dark:text-stone-400">{{ $prof->email }}</p>
-                                <p class="mt-1 text-xs text-stone-500">{{ $fila['estudiantes_count'] }} estudiantes activos · {{ $fila['tareas_count'] }} tareas</p>
+                                <p class="mt-1 text-xs text-stone-500">{{ $fila['estudiantes_count'] }} estudiantes activos - {{ $fila['tareas_count'] }} tareas</p>
                             </div>
                         </div>
 
@@ -76,7 +76,7 @@
                             <div class="h-2 w-full overflow-hidden rounded-full bg-arena-medio/50 dark:bg-stone-700" role="progressbar" aria-valuenow="{{ $tasa }}" aria-valuemin="0" aria-valuemax="100">
                                 <div class="h-2 rounded-full {{ $tasa >= 80 ? 'bg-exito-base' : 'bg-terracota-base' }}" style="width: {{ $tasa }}%"></div>
                             </div>
-                            <p class="text-xs text-stone-500">{{ $fila['calificadas'] }} calificadas · {{ $fila['pendientes'] }} pendientes · {{ $fila['total_entregas'] }} en total</p>
+                            <p class="text-xs text-stone-500">{{ $fila['calificadas'] }} calificadas - {{ $fila['pendientes'] }} pendientes - {{ $fila['total_entregas'] }} en total</p>
                             @if ($fila['atrasos_calificacion'] > 0)
                                 <p class="flex items-center gap-1.5 rounded-md bg-arena-claro px-2 py-1.5 text-xs text-terracota-oscuro dark:bg-stone-700 dark:text-terracota-fondo">
                                     <x-icono nombre="alerta" class="h-3.5 w-3.5" />

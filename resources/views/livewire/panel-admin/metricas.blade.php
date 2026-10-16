@@ -49,7 +49,7 @@
                     </li>
                 </ul>
             </x-gestion.tarjeta>
-            <x-gestion.tarjeta titulo="Distribución de notas por rubro" :descripcion="$totalNotas.' notas registradas · mínima aprobatoria '.$notaMinima">
+            <x-gestion.tarjeta titulo="Distribución de notas por rubro" :descripcion="$totalNotas.' notas registradas - mínima aprobatoria '.$notaMinima">
                 @if ($totalNotas === 0)
                     <p class="text-sm text-stone-500">Aún no hay notas registradas.</p>
                 @else
@@ -139,8 +139,8 @@
                         <li class="flex items-start gap-3 px-4 py-3 text-sm" wire:key="audit-{{ $log->id }}">
                             <x-icono :nombre="$iconosAuditoria[$log->tipo_evento] ?? 'engranaje'" class="mt-0.5 h-4 w-4 shrink-0 text-stone-400" />
                             <div class="min-w-0">
-                                <p class="truncate text-stone-700 dark:text-stone-200"><strong>{{ $log->ejecutadoPor?->name ?? 'Sistema externo' }}</strong> · {{ $log->descripcion ?? $log->etiquetaTipo() }}</p>
-                                <p class="text-xs text-stone-500">{{ $log->created_at?->diffForHumans() }}@if ($log->curso) · {{ $log->curso->nombre }}@endif</p>
+                                <p class="truncate text-stone-700 dark:text-stone-200"><strong>{{ $log->ejecutadoPor?->name ?? 'Sistema externo' }}</strong> - {{ $log->descripcion ?? $log->etiquetaTipo() }}</p>
+                                <p class="text-xs text-stone-500">{{ $log->created_at?->diffForHumans() }}@if ($log->curso) - {{ $log->curso->nombre }}@endif</p>
                             </div>
                         </li>
                     @endforeach

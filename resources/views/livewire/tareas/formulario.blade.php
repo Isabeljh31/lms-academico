@@ -1,8 +1,7 @@
 <div class="py-8">
     <div class="mx-auto max-w-3xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado :titulo="$tarea ? 'Editar tarea' : 'Nueva tarea'" icono="tarea" :descripcion="$curso->nombre"
-            :volver="route('cursos.tareas.index', $curso)" volver-texto="Volver a tareas" />
+        <x-gestion.encabezado :titulo="$tarea ? 'Editar tarea' : 'Nueva tarea'" icono="tarea" :descripcion="$curso->nombre" />
 
         <form wire:submit="guardar" class="space-y-6">
             <x-gestion.tarjeta titulo="Contenido">
@@ -70,7 +69,7 @@
                         <div class="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-6">
                             @foreach ($extensiones as $extension)
                                 <label class="flex items-center gap-1.5 text-sm text-stone-700 dark:text-stone-300">
-                                    <input type="checkbox" wire:model="formatos_permitidos" value="{{ $extension }}" class="rounded border-arena-medio text-menta-oscuro focus:ring-menta-base">
+                                    <input type="checkbox" wire:model="formatos_permitidos" value="{{ $extension }}" class="rounded border-celeste text-azul-oscuro focus:ring-azul-oscuro">
                                     .{{ $extension }}
                                 </label>
                             @endforeach

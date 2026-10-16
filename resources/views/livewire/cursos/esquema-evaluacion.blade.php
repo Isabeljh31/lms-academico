@@ -1,8 +1,7 @@
 <div class="py-8">
     <div class="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado titulo="Esquema de evaluación" icono="grafico" :descripcion="$curso->nombre"
-            :volver="route('cursos.show', $curso)" volver-texto="Volver al curso">
+        <x-gestion.encabezado titulo="Esquema de evaluación" icono="grafico" :descripcion="$curso->nombre">
             <x-gestion.boton variante="secundario" icono="lista" :href="route('cursos.libro-calificaciones', $curso)">Libro de calificaciones</x-gestion.boton>
         </x-gestion.encabezado>
 

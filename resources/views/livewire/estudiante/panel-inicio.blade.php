@@ -26,11 +26,12 @@
 @endphp
 
 <div class="space-y-8">
-    {{-- Hero: único degradado permitido en el rediseño (así está en el
-         Figma de referencia; el resto de la plataforma usa color plano). --}}
-    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-imperial via-azul-fondo to-cielo text-white p-6 sm:p-8 flex flex-wrap items-center gap-6 justify-between shadow-lg shadow-imperial/15">
+    {{-- Hero: color plano (imperial), igual que el resto de la plataforma —
+         el degradado diagonal se quitó por pedido del usuario (se leía como
+         plantilla genérica de IA); el patrón de círculos da la textura. --}}
+    <div class="relative overflow-hidden rounded-2xl bg-imperial text-white p-6 sm:p-8 flex flex-wrap items-center gap-6 justify-between shadow-lg shadow-imperial/15">
         {{-- Elemento decorativo discreto: patrón geométrico de baja opacidad --}}
-        <svg class="absolute -right-10 -top-10 h-56 w-56 text-white/10 pointer-events-none" fill="none" viewBox="0 0 200 200">
+        <svg class="absolute -right-10 -top-10 h-56 w-56 text-white/15 pointer-events-none" fill="none" viewBox="0 0 200 200">
             <circle cx="100" cy="100" r="99" stroke="currentColor" stroke-width="1.5" />
             <circle cx="100" cy="100" r="70" stroke="currentColor" stroke-width="1.5" />
             <circle cx="100" cy="100" r="41" stroke="currentColor" stroke-width="1.5" />
@@ -46,7 +47,7 @@
                     Sigues avanzando en {{ $cursos->count() }} {{ $cursos->count() === 1 ? 'curso' : 'cursos' }}. ¡Vamos por más!
                 @endif
             </p>
-            <a href="{{ route('cursos.index') }}" wire:navigate class="inline-flex items-center gap-1.5 mt-4 text-sm font-semibold bg-white text-azul-oscuro rounded-lg px-4 py-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition">
+            <a href="{{ route('cursos.index') }}" wire:navigate class="inline-flex items-center gap-1.5 mt-4 text-sm font-semibold bg-white text-azul-oscuro rounded-lg px-4 py-2 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97] transition">
                 Ver mis cursos <x-icono nombre="flecha-derecha" class="h-4 w-4" />
             </a>
         </div>
@@ -125,7 +126,7 @@
                                 $acento = $acentosCurso[crc32($curso->nombre) % count($acentosCurso)];
                             @endphp
                             <a href="{{ route('cursos.show', $curso) }}" wire:navigate wire:key="curso-{{ $curso->id }}"
-                                class="block bg-white dark:bg-azul-superficie-oscura rounded-xl border border-celeste dark:border-azul-borde-oscuro overflow-hidden shadow-sm dark:shadow-none hover:shadow-lg hover:-translate-y-0.5 transition">
+                                class="block bg-white dark:bg-azul-superficie-oscura rounded-xl border border-celeste dark:border-azul-borde-oscuro overflow-hidden shadow-sm dark:shadow-none hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.97] transition">
                                 <div class="relative h-20 overflow-hidden flex items-center justify-center {{ $acento['fondo'] }}"
                                     @if ($curso->imagen_portada_url) style="background-image:url('{{ $curso->portadaUrl() }}');background-size:cover;background-position:center;" @endif>
                                     @if (! $curso->imagen_portada_url)
@@ -179,7 +180,7 @@
                     <div class="space-y-2">
                         @foreach ($proximas_entregas as $item)
                             <a href="{{ $item['url'] }}" wire:navigate wire:key="pendiente-{{ $item['tipo'] }}-{{ $loop->index }}"
-                                class="flex items-center gap-3 rounded-xl border p-3 shadow-sm dark:shadow-none transition hover:shadow-md
+                                class="flex items-center gap-3 rounded-xl border p-3 shadow-sm dark:shadow-none transition hover:shadow-md hover:-translate-y-0.5 active:scale-[0.97]
                                     {{ $item['atrasado']
                                         ? 'border-red-200 bg-red-50 dark:border-red-900/40 dark:bg-red-900/10'
                                         : 'border-celeste dark:border-azul-borde-oscuro bg-white dark:bg-azul-superficie-oscura' }}">
@@ -231,6 +232,7 @@
                         <button type="button" wire:key="dia-{{ $dia }}"
                             @if (count($eventosDia)) @click="diaAbierto = (diaAbierto === {{ $dia }} ? null : {{ $dia }})" @endif
                             class="relative h-7 rounded-md text-xs flex items-center justify-center transition
+                                {{ count($eventosDia) ? 'active:scale-95' : '' }}
                                 {{ $esHoy ? 'bg-azul-oscuro text-white font-bold' : 'text-slate-600 dark:text-slate-300 hover:bg-celeste dark:hover:bg-azul-borde-oscuro' }}">
                             {{ $dia }}
                             @if (count($eventosDia) && ! $esHoy)
@@ -242,7 +244,13 @@
 
                         @if (count($eventosDia))
                             <template x-if="diaAbierto === {{ $dia }}">
-                                <div class="col-span-7 -mt-1 mb-1 rounded-md bg-celeste dark:bg-azul-borde-oscuro/60 px-3 py-2 text-left text-xs text-slate-600 dark:text-slate-300">
+                                <div x-transition:enter="transition ease-out duration-150"
+                                    x-transition:enter-start="opacity-0 -translate-y-1"
+                                    x-transition:enter-end="opacity-100 translate-y-0"
+                                    x-transition:leave="transition ease-in duration-100"
+                                    x-transition:leave-start="opacity-100 translate-y-0"
+                                    x-transition:leave-end="opacity-0 -translate-y-1"
+                                    class="col-span-7 -mt-1 mb-1 rounded-md bg-celeste dark:bg-azul-borde-oscuro/60 px-3 py-2 text-left text-xs text-slate-600 dark:text-slate-300">
                                     @foreach ($eventosDia as $titulo)
                                         <p class="truncate">{{ $titulo }}</p>
                                     @endforeach
@@ -275,7 +283,7 @@
                 <h2 class="font-semibold text-texto dark:text-slate-100 mb-4">Accesos rápidos</h2>
                 <div class="grid grid-cols-3 gap-3">
                     <a href="{{ route('evento-calendario.index') }}" wire:navigate
-                        class="flex flex-col items-center gap-2 rounded-xl border border-celeste dark:border-azul-borde-oscuro p-3 text-center hover:border-azul-oscuro/40 hover:bg-celeste/60 dark:hover:bg-azul-borde-oscuro/40 transition">
+                        class="flex flex-col items-center gap-2 rounded-xl border border-celeste dark:border-azul-borde-oscuro p-3 text-center hover:border-azul-oscuro/40 hover:bg-celeste/60 dark:hover:bg-azul-borde-oscuro/40 active:scale-[0.97] transition">
                         <span class="flex h-10 w-10 items-center justify-center rounded-full bg-azul-oscuro/10 text-azul-oscuro dark:bg-azul-oscuro/30 dark:text-celeste">
                             <x-icono nombre="calendario" class="h-5 w-5" />
                         </span>
@@ -283,7 +291,7 @@
                     </a>
 
                     <button type="button" wire:click="$dispatch('abrir-bot')"
-                        class="flex flex-col items-center gap-2 rounded-xl border border-celeste dark:border-azul-borde-oscuro p-3 text-center hover:border-cielo/50 hover:bg-cielo/10 dark:hover:bg-azul-borde-oscuro/40 transition">
+                        class="flex flex-col items-center gap-2 rounded-xl border border-celeste dark:border-azul-borde-oscuro p-3 text-center hover:border-cielo/50 hover:bg-cielo/10 dark:hover:bg-azul-borde-oscuro/40 active:scale-[0.97] transition">
                         <span class="flex h-10 w-10 items-center justify-center rounded-full bg-cielo/15 text-cielo">
                             <x-icono nombre="chat" class="h-5 w-5" />
                         </span>
@@ -291,7 +299,7 @@
                     </button>
 
                     <a href="{{ route('cursos.index') }}" wire:navigate
-                        class="flex flex-col items-center gap-2 rounded-xl border border-celeste dark:border-azul-borde-oscuro p-3 text-center hover:border-azul-fondo/40 hover:bg-azul-fondo/10 dark:hover:bg-azul-borde-oscuro/40 transition">
+                        class="flex flex-col items-center gap-2 rounded-xl border border-celeste dark:border-azul-borde-oscuro p-3 text-center hover:border-azul-fondo/40 hover:bg-azul-fondo/10 dark:hover:bg-azul-borde-oscuro/40 active:scale-[0.97] transition">
                         <span class="flex h-10 w-10 items-center justify-center rounded-full bg-azul-fondo/10 text-azul-fondo dark:bg-azul-oscuro/30 dark:text-celeste">
                             <x-icono nombre="libro" class="h-5 w-5" />
                         </span>
