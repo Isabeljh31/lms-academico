@@ -1,8 +1,14 @@
 <?php
 
 use App\Livewire\Actions\Logout;
+use App\Livewire\Auth\CambiarPasswordPrimerLogin;
+use App\Livewire\Cursos\BoletaEstudiante;
+use App\Livewire\Cursos\EsquemaEvaluacion;
+use App\Livewire\Cursos\GestionMatricula;
 use App\Livewire\Docente\PorCalificar\Index as PorCalificarIndex;
 use App\Livewire\EventoCalendario\Index;
+use App\Livewire\Mensajeria\Selector as MensajeriaSelector;
+use App\Livewire\Usuarios\ImportarCSV;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -22,12 +28,14 @@ Route::post('logout', function (Request $request, Logout $logout) {
     return redirect('/');
 })->middleware(['auth'])->name('logout');
 
+// ERS RF-78/RF-79: calendario propio de cada usuario
 Route::get('/evento-calendario', Index::class)
-    ->middleware(['auth'])
+    ->middleware(['auth', 'verified'])
     ->name('evento-calendario.index');
 
+// ERS RF-49: bandeja de entregas por calificar del profesor
 Route::get('/por-calificar', PorCalificarIndex::class)
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth', 'verified', 'role:profesor'])
     ->name('docente.por-calificar');
 
 require __DIR__.'/auth.php';
@@ -36,52 +44,43 @@ require __DIR__.'/cursos.php';
 require __DIR__.'/bot.php';
 require __DIR__.'/reportes.php';
 
-// ERS RF-54: Esquema de Evaluacion por curso
-Route::middleware(['auth', 'verified'])
-    ->group(function () {
-        Route::get('cursos/{curso}/esquema', App\Livewire\Cursos\EsquemaEvaluacion::class)
-            ->name('cursos.esquema');
-    });
+// ERS RF-05: cambio obligatorio de contraseña en el primer ingreso
+Route::get('primer-login', CambiarPasswordPrimerLogin::class)
+    ->middleware(['auth', 'verified'])
+    ->name('primer-login');
 
-// ERS RF-05: Cambio obligatorio de contraseña en primer login
-Route::middleware(['auth', 'verified'])
-    ->group(function () {
-        Route::get('primer-login', App\Livewire\Auth\CambiarPasswordPrimerLogin::class)
-            ->name('primer-login');
-    });
-
-// ERS RF-59, RF-63: Boleta de notas por rubro para el estudiante
-Route::middleware(['auth', 'verified'])
-    ->group(function () {
-        Route::get('cursos/{curso}/boleta', App\Livewire\Cursos\BoletaEstudiante::class)
-            ->name('cursos.boleta');
-    });
-
-// ERS RF-26, RF-29: Gestión de Matrícula (manual + baja lógica)
-Route::middleware(['auth', 'verified'])
-    ->group(function () {
-        Route::get('cursos/{curso}/matriculas', App\Livewire\Cursos\GestionMatricula::class)
-            ->name('cursos.matriculas');
-    });
-
-// ERS RF-11: Importar usuarios CSV
-Route::middleware(['auth', 'verified'])
-    ->group(function () {
-        Route::get('usuarios/importar', App\Livewire\Usuarios\ImportarCSV::class)
-            ->name('usuarios.importar');
-    });
-
-// ==================== FASE 2 ====================
 Route::middleware(['auth', 'verified'])->group(function () {
-    // Lecciones (RF-35)
-    Route::get('modulos/{modulo}/lecciones', App\Livewire\Lecciones\Index::class)->name('lecciones.index');
+    // ERS RF-54 a RF-56, RF-62: esquema de evaluación (solo Supervisor)
+    Route::get('cursos/{curso}/esquema', EsquemaEvaluacion::class)
+        ->middleware('role:supervisor')
+        ->name('cursos.esquema');
 
-    // Asistencia (RF-70)
-    Route::get('cursos/{curso}/asistencia', App\Livewire\Asistencia\Index::class)->name('asistencia.index');
+    // ERS RF-59: boleta de notas por rubro del estudiante
+    Route::get('cursos/{curso}/boleta', BoletaEstudiante::class)
+        ->name('cursos.boleta');
 
-    // Mensajería (RF-80)
-    Route::get('mensajeria', App\Livewire\Mensajeria\Bandeja::class)->name('mensajeria.bandeja');
+    // ERS RF-26 a RF-33: matrícula del curso (el Profesor solo consulta)
+    Route::get('cursos/{curso}/matriculas', GestionMatricula::class)
+        ->middleware('role:supervisor|profesor')
+        ->name('cursos.matriculas');
+
+    // ERS RF-11 a RF-13: importación masiva de usuarios (solo Supervisor)
+    Route::get('usuarios/importar', ImportarCSV::class)
+        ->middleware('role:supervisor')
+        ->name('usuarios.importar');
+
+    // ERS RF-35 a RF-38: lecciones de un módulo (gestión)
+    Route::get('modulos/{modulo}/lecciones', App\Livewire\Lecciones\Index::class)
+        ->middleware('role:profesor')
+        ->name('lecciones.index');
+
+    // ERS RF-70, RF-71, RF-73: registro de asistencia (Profesor del curso)
+    Route::get('cursos/{curso}/asistencia', App\Livewire\Asistencia\Index::class)
+        ->middleware('role:profesor|supervisor')
+        ->name('asistencia.index');
+
+    // ERS RF-80 a RF-83: selector de curso para entrar a su mensajería
+    Route::get('mensajeria', MensajeriaSelector::class)
+        ->middleware('role:estudiante|profesor')
+        ->name('mensajeria.selector');
 });
-
-    // Fase 3: Métricas y Riesgo
-    Route::get('admin/metricas', App\Livewire\Admin\Metricas\Index::class)->name('admin.metricas');

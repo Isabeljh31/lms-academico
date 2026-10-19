@@ -3,15 +3,16 @@
 namespace App\Livewire\Cursos;
 
 use App\Models\Curso;
-use App\Models\Inscripcion;
 use App\Models\NotaRubro;
 use App\Models\RubroEvaluacion;
+use App\Services\Evaluacion\CalculadoraNotas;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
 /**
- * ERS RF-59: El estudiante puede ver su nota por rubro y nota final ponderada.
- * ERS RF-63: Vista preparada para impresión (PDF futuro).
+ * ERS RF-59: el estudiante ve cada rubro, su peso, su nota y la nota final
+ * ponderada; RF-64: en rojo si queda bajo la nota mínima aprobatoria.
+ * Cada estudiante solo ve su propia boleta (sin parámetros de otro usuario).
  */
 #[Layout('layouts.app')]
 class BoletaEstudiante extends Component
@@ -20,74 +21,50 @@ class BoletaEstudiante extends Component
 
     public function mount(Curso $curso): void
     {
-        $user = auth()->user();
+        $usuario = auth()->user();
 
-        // El estudiante solo puede ver su propia boleta si está inscrito
-        if ($user->hasRole('estudiante')) {
-            $inscrito = Inscripcion::where('curso_id', $curso->id)
-                ->where('estudiante_id', $user->id)
-                ->where('activo_local', true)
-                ->exists();
-            abort_unless($inscrito, 403, 'No estás inscrito en este curso.');
-        } else {
-            // Supervisor y profesor también pueden ver la boleta de cualquier estudiante
-            abort_unless($user->hasAnyRole(['supervisor', 'profesor']), 403);
-        }
+        abort_unless($usuario->hasRole('estudiante'), 403, 'La boleta es personal de cada estudiante.');
+        abort_unless($usuario->estaMatriculadoEn($curso), 403, 'No estás matriculado en este curso.');
 
         $this->curso = $curso;
     }
 
-    public function render()
+    public function render(CalculadoraNotas $calculadora)
     {
-        $user    = auth()->user();
         $esquema = $this->curso->esquemaEvaluacion()->with('rubros')->first();
-        $rubros  = $esquema?->rubros ?? collect();
+        $rubros = $esquema?->rubros ?? collect();
+        $notaMinima = $calculadora->notaMinima();
 
-        $rubroIds   = $rubros->pluck('id');
-        $notaMinima = config('app.nota_minima_aprobatoria', 10.5);
-
-        $notasMap = NotaRubro::whereIn('rubro_id', $rubroIds)
-            ->where('estudiante_id', $user->id)
-            ->get()
-            ->keyBy('rubro_id');
+        $notasMap = NotaRubro::whereIn('rubro_id', $rubros->pluck('id'))
+            ->where('estudiante_id', auth()->id())
+            ->pluck('nota', 'rubro_id')
+            ->map(fn ($nota) => $nota !== null ? (float) $nota : null)
+            ->all();
 
         $filas = $rubros->map(function (RubroEvaluacion $rubro) use ($notasMap, $notaMinima) {
-            $nota = $notasMap->get($rubro->id);
+            $nota = $notasMap[$rubro->id] ?? null;
+
             return [
-                'rubro'    => $rubro,
-                'nota'     => $nota?->nota,
-                'aprobado' => $nota !== null && $nota->nota >= $notaMinima,
-                'aporte'   => $nota?->nota !== null
-                    ? round($nota->nota * ($rubro->peso / 100), 2)
-                    : null,
+                'rubro' => $rubro,
+                'nota' => $nota,
+                'aprobado' => $nota !== null && $nota >= $notaMinima,
+                'aporte' => $nota !== null ? round($nota * ((float) $rubro->peso / 100), 2) : null,
             ];
         });
 
-        $notaFinal = null;
-        $pesoTotal = 0;
-        $sumaFinal = 0;
-        foreach ($filas as $f) {
-            if ($f['nota'] !== null) {
-                $sumaFinal += $f['nota'] * ($f['rubro']->peso / 100);
-                $pesoTotal += $f['rubro']->peso;
-            }
-        }
-        if ($pesoTotal > 0) {
-            $notaFinal = round($sumaFinal, 1);
-        }
-
-        $aprobado   = $notaFinal !== null && $notaFinal >= $notaMinima;
-        $sumaPesos  = $esquema?->sumaPesos() ?? 0;
-        $pesosOk    = abs($sumaPesos - 100) < 0.01;
+        $notaFinal = $calculadora->notaFinal($rubros, $notasMap);
 
         return view('livewire.cursos.boleta-estudiante', [
-            'esquema'    => $esquema,
-            'rubros'     => $rubros,
-            'filas'      => $filas,
-            'notaFinal'  => $notaFinal,
-            'aprobado'   => $aprobado,
+            'esquema' => $esquema,
+            'rubros' => $rubros,
+            'filas' => $filas,
+            'notaFinal' => $notaFinal,
+            // Mientras falten rubros la nota es acumulada y la condición es "en_curso".
+            'condicion' => $calculadora->condicion($rubros, $notasMap),
+            'rubrosConNota' => count(array_filter($notasMap, fn ($nota) => $nota !== null)),
+            'aprobado' => $calculadora->condicion($rubros, $notasMap) === 'aprobado',
             'notaMinima' => $notaMinima,
-            'pesosOk'    => $pesosOk,
+            'pesosOk' => $calculadora->pesosSumanCien($rubros->pluck('peso')),
         ])->title("Boleta — {$this->curso->nombre}");
     }
 }

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Support\Facades\Password;
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
@@ -13,6 +14,8 @@ new #[Layout('layouts.guest')] class extends Component
      */
     public function sendPasswordResetLink(): void
     {
+        $this->email = User::normalizarEmail($this->email);
+
         $this->validate([
             'email' => ['required', 'string', 'email'],
         ]);

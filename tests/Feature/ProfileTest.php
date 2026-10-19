@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Volt\Volt;
 use Tests\TestCase;
 
@@ -21,81 +23,64 @@ class ProfileTest extends TestCase
             ->assertOk()
             ->assertSeeVolt('profile.update-profile-information-form')
             ->assertSeeVolt('profile.update-password-form')
-            ->assertSeeVolt('profile.delete-user-form');
+            ->assertDontSee('Eliminar cuenta');
     }
 
-    public function test_profile_information_can_be_updated(): void
+    public function test_el_perfil_muestra_nombres_apellidos_dni_y_correo_sin_permitir_editarlos(): void
     {
+        $user = User::factory()->create([
+            'nombres' => 'María José',
+            'apellidos' => 'Pérez Salinas',
+            'dni' => '07123456',
+            'email' => 'maria.perez@lms.edu.pe',
+        ]);
+
+        $this->actingAs($user)
+            ->get('/profile')
+            ->assertSeeInOrder(['María José', 'Pérez Salinas', '07123456', 'maria.perez@lms.edu.pe'])
+            ->assertSee('solicita la corrección al Supervisor')
+            ->assertDontSee('wire:model="email"', false);
+    }
+
+    public function test_el_usuario_cambia_su_foto_de_perfil(): void
+    {
+        Storage::fake('public');
         $user = User::factory()->create();
 
         $this->actingAs($user);
 
-        $component = Volt::test('profile.update-profile-information-form')
-            ->set('name', 'Test User')
-            ->set('email', 'test@example.com')
-            ->call('updateProfileInformation');
-
-        $component
+        Volt::test('profile.update-profile-information-form')
+            ->set('foto', UploadedFile::fake()->image('foto.png'))
+            ->call('updateProfileInformation')
             ->assertHasNoErrors()
-            ->assertNoRedirect();
+            ->assertDispatched('profile-updated');
 
-        $user->refresh();
-
-        $this->assertSame('Test User', $user->name);
-        $this->assertSame('test@example.com', $user->email);
-        $this->assertNull($user->email_verified_at);
+        $this->assertNotNull($user->fresh()->avatar_url);
     }
 
-    public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged(): void
+    public function test_guardar_sin_elegir_una_foto_muestra_un_mensaje_claro(): void
     {
         $user = User::factory()->create();
 
         $this->actingAs($user);
 
-        $component = Volt::test('profile.update-profile-information-form')
-            ->set('name', 'Test User')
-            ->set('email', $user->email)
-            ->call('updateProfileInformation');
-
-        $component
-            ->assertHasNoErrors()
-            ->assertNoRedirect();
-
-        $this->assertNotNull($user->refresh()->email_verified_at);
+        Volt::test('profile.update-profile-information-form')
+            ->call('updateProfileInformation')
+            ->assertHasErrors(['foto' => 'Selecciona una imagen para tu foto de perfil.']);
     }
 
-    public function test_user_can_delete_their_account(): void
+    /**
+     * ERS RF-17: ninguna cuenta se elimina físicamente desde la interfaz;
+     * solo el Supervisor puede desactivarla. El formulario de Breeze para
+     * borrar la propia cuenta se retiró.
+     */
+    public function test_el_usuario_no_puede_eliminar_su_propia_cuenta(): void
     {
         $user = User::factory()->create();
 
-        $this->actingAs($user);
+        $this->actingAs($user)->get('/profile')->assertOk()->assertDontSeeVolt('profile.delete-user-form');
 
-        $component = Volt::test('profile.delete-user-form')
-            ->set('password', 'password')
-            ->call('deleteUser');
-
-        $component
-            ->assertHasNoErrors()
-            ->assertRedirect('/');
-
-        $this->assertGuest();
-        $this->assertNull($user->fresh());
-    }
-
-    public function test_correct_password_must_be_provided_to_delete_account(): void
-    {
-        $user = User::factory()->create();
-
-        $this->actingAs($user);
-
-        $component = Volt::test('profile.delete-user-form')
-            ->set('password', 'wrong-password')
-            ->call('deleteUser');
-
-        $component
-            ->assertHasErrors('password')
-            ->assertNoRedirect();
-
+        $this->assertFalse(view()->exists('livewire.profile.delete-user-form'));
         $this->assertNotNull($user->fresh());
     }
 }

@@ -1,259 +1,171 @@
-<div class="py-6 px-4 sm:px-6 lg:px-8 space-y-6">
+@php
+    // Colores de estado de asistencia: semánticos, no cambian según el rol de quien los ve.
+    $estilos = [
+        'presente' => ['label' => 'Presente', 'activo' => 'bg-exito-oscuro text-white', 'suave' => 'bg-exito-base/15 text-exito-oscuro'],
+        'tardanza' => ['label' => 'Tardanza', 'activo' => 'bg-amber-500 text-white', 'suave' => 'bg-amber-50 text-amber-700'],
+        'justificado' => ['label' => 'Justificado', 'activo' => 'bg-slate-500 text-white', 'suave' => 'bg-slate-100 text-slate-700'],
+        'ausente' => ['label' => 'Ausente', 'activo' => 'bg-red-600 text-white', 'suave' => 'bg-red-50 text-red-700'],
+    ];
+    $esAdminVista = auth()->user()->hasRole('supervisor');
+@endphp
 
-    <div class="flex items-center justify-between flex-wrap gap-4">
-        <div>
-            <a href="{{ route('cursos.show', $curso) }}" wire:navigate
-                class="text-xs text-stone-400 hover:text-stone-600 flex items-center gap-1 mb-1 transition">
-                ← Volver al curso
-            </a>
-            <h1 class="text-2xl font-bold text-stone-900 dark:text-stone-100">Asistencia</h1>
-            <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">{{ $curso->nombre }} · {{ $totalSesiones }} sesiones programadas</p>
-        </div>
+<div class="py-8">
+    <div class="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <div class="flex gap-2 flex-wrap">
-            <div class="flex rounded-lg border border-stone-200 dark:border-stone-700 overflow-hidden text-sm">
-                <button wire:click="$set('vista','sesiones')"
-                    class="px-4 py-2 transition {{ $vista === 'sesiones' ? 'bg-menta-oscuro text-white' : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700' }}">
-                    📋 Sesiones
-                </button>
-                <button wire:click="$set('vista','historial')"
-                    class="px-4 py-2 transition border-l border-stone-200 dark:border-stone-700 {{ $vista === 'historial' ? 'bg-menta-oscuro text-white' : 'bg-white dark:bg-stone-800 text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700' }}">
-                    📊 Historial
-                </button>
-            </div>
-            @if($vista === 'sesiones')
-            <button wire:click="$set('mostrarFormSesion', true)"
-                class="rounded-lg bg-terracota-base px-4 py-2 text-sm font-semibold text-white hover:bg-terracota-oscuro transition">
-                + Nueva sesión
-            </button>
+        <x-gestion.encabezado titulo="Asistencia" icono="calendario" :descripcion="$curso->nombre.' - '.$totalSesiones.' sesiones registradas'">
+            @if ($this->puedeConfigurar && $curso->usa_asistencia)
+                <x-gestion.boton variante="secundario" icono="ojo-tachado" wire:click="alternarUsoAsistencia"
+                    wire:confirm="¿Omitir el control de asistencia en este curso? Los registros ya guardados se conservan y puedes volver a activarlo.">Omitir asistencia</x-gestion.boton>
             @endif
-        </div>
-    </div>
+            @if ($this->editable && $vista === 'sesiones')
+                <x-gestion.boton icono="mas" wire:click="$set('mostrarFormSesion', true)">Nueva sesión</x-gestion.boton>
+            @endif
+        </x-gestion.encabezado>
 
-    @if(session('estado'))
-    <div class="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 px-4 py-3 text-sm text-green-700 dark:text-green-400">
-        {{ session('estado') }}
-    </div>
-    @endif
+        <x-gestion.alertas />
 
-    {{-- ============================== VISTA: SESIONES ============================== --}}
-    @if($vista === 'sesiones')
+        @unless ($curso->usa_asistencia)
+            <x-gestion.vacio icono="calendario" titulo="Este curso no registra asistencia"
+                descripcion="El control de asistencia está omitido en este curso. Los registros anteriores, si los hay, se conservan.">
+                @if ($this->puedeConfigurar)
+                    <x-gestion.boton icono="check" wire:click="alternarUsoAsistencia">Activar control de asistencia</x-gestion.boton>
+                @endif
+            </x-gestion.vacio>
+        @else
+            <div class="flex gap-1 border-b {{ $esAdminVista ? 'border-arena-medio dark:border-stone-700' : 'border-celeste dark:border-azul-borde-oscuro' }}" role="tablist">
+                @foreach (['sesiones' => 'Sesiones', 'resumen' => 'Resumen por estudiante'] as $clave => $etiqueta)
+                    @php $tabActiva = $vista === $clave || ($clave === 'sesiones' && $vista === 'pase_lista'); @endphp
+                    <button type="button" role="tab" wire:click="$set('vista', '{{ $clave }}')" aria-selected="{{ $tabActiva ? 'true' : 'false' }}"
+                        class="-mb-px border-b-2 px-4 py-2 text-sm font-medium {{ $tabActiva ? ($esAdminVista ? 'border-menta-oscuro text-menta-oscuro dark:border-menta-base dark:text-menta-base' : 'border-azul-oscuro text-azul-oscuro dark:border-azul-fondo dark:text-azul-fondo') : 'border-transparent text-slate-500 hover:text-slate-700' }}">
+                        {{ $etiqueta }}
+                    </button>
+                @endforeach
+            </div>
 
-    @if($mostrarFormSesion)
-    <div class="bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 p-5 space-y-4">
-        <h2 class="text-sm font-semibold text-stone-700 dark:text-stone-300">Nueva sesión de clase</h2>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-                <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Título *</label>
-                <input wire:model="sesionTitulo" type="text" placeholder="ej. Clase 1: Introducción"
-                    class="w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 px-3 py-2 text-sm">
-                @error('sesionTitulo') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Fecha y hora *</label>
-                <input wire:model="sesionFecha" type="datetime-local"
-                    class="w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 px-3 py-2 text-sm">
-                @error('sesionFecha') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Duración (minutos)</label>
-                <input wire:model="sesionDuracion" type="number" min="15" max="480"
-                    class="w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 px-3 py-2 text-sm">
-            </div>
-            <div>
-                <label class="block text-xs font-medium text-stone-600 dark:text-stone-400 mb-1">Descripción</label>
-                <input wire:model="sesionDescripcion" type="text" placeholder="(opcional)"
-                    class="w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 px-3 py-2 text-sm">
-            </div>
-        </div>
-        <div class="flex justify-end gap-3">
-            <button wire:click="$set('mostrarFormSesion', false)"
-                class="rounded-lg border border-stone-300 dark:border-stone-600 px-4 py-2 text-sm text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700 transition">
-                Cancelar
-            </button>
-            <button wire:click="crearSesion"
-                class="rounded-lg bg-menta-oscuro px-4 py-2 text-sm font-semibold text-white hover:bg-menta-base transition">
-                Crear sesión
-            </button>
-        </div>
-    </div>
-    @endif
+            @if ($vista === 'sesiones')
+                @if ($mostrarFormSesion)
+                    <x-gestion.tarjeta titulo="Nueva sesión de clase">
+                        <form wire:submit="crearSesion" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <x-gestion.campo etiqueta="Título" nombre="sesionTitulo" requerido>
+                                <x-gestion.control id="sesionTitulo" wire:model="sesionTitulo" placeholder="Clase 1: Introducción" />
+                            </x-gestion.campo>
+                            <x-gestion.campo etiqueta="Fecha y hora" nombre="sesionFecha" requerido>
+                                <x-gestion.control id="sesionFecha" type="datetime-local" wire:model="sesionFecha" />
+                            </x-gestion.campo>
+                            <x-gestion.campo etiqueta="Duración (minutos)" nombre="sesionDuracion" requerido>
+                                <x-gestion.control id="sesionDuracion" type="number" min="15" max="480" wire:model="sesionDuracion" />
+                            </x-gestion.campo>
+                            <x-gestion.campo etiqueta="Descripción" nombre="sesionDescripcion">
+                                <x-gestion.control id="sesionDescripcion" wire:model="sesionDescripcion" />
+                            </x-gestion.campo>
+                            <div class="flex gap-2 sm:col-span-2 sm:justify-end">
+                                <x-gestion.boton variante="secundario" wire:click="$set('mostrarFormSesion', false)">Cancelar</x-gestion.boton>
+                                <x-gestion.boton type="submit" icono="check">Crear sesión</x-gestion.boton>
+                            </div>
+                        </form>
+                    </x-gestion.tarjeta>
+                @endif
 
-    @if($sesiones->isEmpty())
-    <div class="text-center py-16 text-stone-400 dark:text-stone-500">
-        <p class="text-4xl mb-3">🗓️</p>
-        <p class="text-sm">No hay sesiones programadas aún.</p>
-    </div>
-    @else
-    <div class="bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 overflow-hidden">
-        <table class="w-full text-sm">
-            <thead class="border-b border-stone-100 dark:border-stone-700">
-                <tr class="text-xs font-medium text-stone-500 dark:text-stone-400 uppercase tracking-wider">
-                    <th class="px-4 py-3 text-left">#</th>
-                    <th class="px-4 py-3 text-left">Sesión</th>
-                    <th class="px-4 py-3 text-center">Fecha</th>
-                    <th class="px-4 py-3 text-center">Duración</th>
-                    <th class="px-4 py-3 text-center">Asistencias</th>
-                    <th class="px-4 py-3 text-center">Acciones</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-stone-50 dark:divide-stone-700/50">
-                @foreach($sesiones as $sesion)
-                <tr wire:key="sesion-{{ $sesion->id }}" class="hover:bg-stone-50 dark:hover:bg-stone-700/20 transition">
-                    <td class="px-4 py-3 font-mono text-xs text-stone-400">{{ $sesion->numero_sesion ?? $loop->iteration }}</td>
-                    <td class="px-4 py-3">
-                        <p class="font-medium text-stone-800 dark:text-stone-200">{{ $sesion->titulo }}</p>
-                        @if($sesion->descripcion)
-                        <p class="text-xs text-stone-400 truncate mt-0.5">{{ $sesion->descripcion }}</p>
+                @if ($sesiones->isEmpty())
+                    <x-gestion.vacio icono="calendario" titulo="Aún no hay sesiones de clase" descripcion="Crea una sesión para pasar lista." />
+                @else
+                    <x-gestion.tarjeta :relleno="false">
+                        <ul class="divide-y {{ $esAdminVista ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
+                            @foreach ($sesiones as $sesion)
+                                <li class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center" wire:key="sesion-{{ $sesion->id }}">
+                                    <div class="min-w-0 flex-1">
+                                        <p class="font-medium text-stone-800 dark:text-stone-100">#{{ $sesion->numero_sesion }} - {{ $sesion->titulo }}</p>
+                                        <p class="text-xs text-stone-500">{{ $sesion->fecha->formatoFechaHora() }} - {{ $sesion->duracion_minutos }} min - {{ $sesion->asistencias_count }}/{{ $estudiantes->count() }} registrados</p>
+                                    </div>
+                                    <div class="flex gap-1">
+                                        <x-gestion.boton tamano="sm" icono="lista" wire:click="abrirPaseLista({{ $sesion->id }})">{{ $this->editable ? 'Pasar lista' : 'Ver asistencia' }}</x-gestion.boton>
+                                        @if ($this->editable && $sesion->asistencias_count === 0)
+                                            <x-gestion.boton variante="fantasma-peligro" tamano="sm" icono="papelera" wire:click="eliminarSesion({{ $sesion->id }})"
+                                                wire:confirm="¿Eliminar la sesión #{{ $sesion->numero_sesion }}?">Eliminar</x-gestion.boton>
+                                        @endif
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </x-gestion.tarjeta>
+                @endif
+            @endif
+
+            @if ($vista === 'pase_lista' && $sesionActiva)
+                <x-gestion.tarjeta :titulo="'Sesión #'.$sesionActiva->numero_sesion.': '.$sesionActiva->titulo" :descripcion="$sesionActiva->fecha->formatoFechaHora()" :relleno="false">
+                    <x-slot name="acciones">
+                        <x-gestion.boton variante="secundario" tamano="sm" icono="flecha-izquierda" wire:click="$set('vista', 'sesiones')">Sesiones</x-gestion.boton>
+                        @if ($this->editable)
+                            <x-gestion.boton variante="secundario" tamano="sm" icono="check" wire:click="marcarTodos('presente')">Todos presentes</x-gestion.boton>
                         @endif
-                    </td>
-                    <td class="px-4 py-3 text-center text-xs text-stone-500 dark:text-stone-400">
-                        {{ $sesion->fecha->format('d/m/Y H:i') }}
-                    </td>
-                    <td class="px-4 py-3 text-center text-xs text-stone-500 dark:text-stone-400">
-                        {{ $sesion->duracion_minutos }} min
-                    </td>
-                    <td class="px-4 py-3 text-center">
-                        <span class="text-sm font-semibold {{ $sesion->asistencias_count > 0 ? 'text-menta-oscuro dark:text-menta-base' : 'text-stone-300 dark:text-stone-600' }}">
-                            {{ $sesion->asistencias_count }} / {{ $estudiantesActivos }}
-                        </span>
-                    </td>
-                    <td class="px-4 py-3 text-center">
-                        <div class="flex items-center justify-center gap-2">
-                            <button wire:click="abrirPaseLista({{ $sesion->id }})"
-                                class="text-xs font-medium text-menta-oscuro hover:text-menta-base px-3 py-1.5 rounded-lg hover:bg-menta-fondo/20 dark:hover:bg-menta-base/10 transition">
-                                ✓ Pase de lista
-                            </button>
-                            <button wire:click="eliminarSesion({{ $sesion->id }})"
-                                wire:confirm="¿Eliminar esta sesión? Se perderán los registros de asistencia."
-                                class="text-xs text-red-500 hover:text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition">
-                                Eliminar
-                            </button>
+                    </x-slot>
+                    @if ($estudiantes->isEmpty())
+                        <div class="p-4"><x-gestion.vacio icono="usuarios" titulo="No hay estudiantes matriculados" /></div>
+                    @else
+                        <ul class="divide-y {{ $esAdminVista ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
+                            @foreach ($estudiantes as $estudiante)
+                                <li class="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between" wire:key="marca-{{ $estudiante->id }}">
+                                    <span class="font-medium text-stone-800 dark:text-stone-100">{{ $estudiante->name }}</span>
+                                    <div class="flex flex-wrap gap-1" role="radiogroup" aria-label="Asistencia de {{ $estudiante->name }}">
+                                        @foreach ($estilos as $estado => $estilo)
+                                            <label class="cursor-pointer">
+                                                <input type="radio" class="peer sr-only" wire:model.live="marcas.{{ $estudiante->id }}" value="{{ $estado }}" @disabled(! $this->editable)>
+                                                <span class="inline-block rounded-full border px-3 py-1 text-xs font-semibold transition {{ $esAdminVista ? 'border-arena-medio dark:border-stone-600' : 'border-celeste dark:border-azul-borde-oscuro' }}
+                                                    {{ ($marcas[$estudiante->id] ?? '') === $estado ? $estilo['activo'].' border-transparent' : ($esAdminVista ? 'text-stone-600 hover:bg-arena-claro dark:text-stone-300 dark:hover:bg-stone-700' : 'text-slate-600 hover:bg-celeste dark:text-slate-300 dark:hover:bg-azul-borde-oscuro') }}">
+                                                    {{ $estilo['label'] }}
+                                                </span>
+                                            </label>
+                                        @endforeach
+                                    </div>
+                                    @error('marcas.'.$estudiante->id) <p class="text-xs text-red-600">{{ $message }}</p> @enderror
+                                </li>
+                            @endforeach
+                        </ul>
+                        @if ($this->editable)
+                            <div class="flex justify-end border-t px-4 py-3 {{ $esAdminVista ? 'border-arena-medio dark:border-stone-700' : 'border-celeste dark:border-azul-borde-oscuro' }}">
+                                <x-gestion.boton icono="check" wire:click="guardarAsistencia">Guardar asistencia</x-gestion.boton>
+                            </div>
+                        @endif
+                    @endif
+                </x-gestion.tarjeta>
+            @endif
+
+            @if ($vista === 'resumen')
+                <x-gestion.tarjeta :relleno="false" titulo="Porcentaje acumulado" descripcion="Presente y Tardanza cuentan como asistencia; Justificado no cuenta a favor ni en contra. Solo sesiones ya realizadas.">
+                    @if ($resumen->isEmpty())
+                        <div class="p-4"><x-gestion.vacio icono="usuarios" titulo="No hay estudiantes matriculados" /></div>
+                    @else
+                        <div class="overflow-x-auto">
+                            <table class="w-full min-w-[600px] text-sm">
+                                <thead class="text-left text-xs font-semibold uppercase tracking-wide {{ $esAdminVista ? 'bg-arena-claro/50 text-stone-500 dark:bg-stone-900/40 dark:text-stone-400' : 'bg-celeste/50 text-slate-500 dark:bg-azul-pagina-oscura dark:text-slate-400' }}">
+                                    <tr>
+                                        <th class="px-4 py-3">Estudiante</th>
+                                        @foreach ($estilos as $estilo) <th class="px-3 py-3 text-center">{{ $estilo['label'] }}</th> @endforeach
+                                        <th class="px-3 py-3 text-center">Asistencia</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y {{ $esAdminVista ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
+                                    @foreach ($resumen as $fila)
+                                        <tr wire:key="resumen-{{ $fila['estudiante']->id }}">
+                                            <td class="px-4 py-2 font-medium text-stone-800 dark:text-stone-100">{{ $fila['estudiante']->name }}</td>
+                                            @foreach ($estilos as $estado => $estilo)
+                                                <td class="px-3 py-2 text-center text-stone-600 dark:text-stone-300">{{ $fila['conteo'][$estado] ?? 0 }}</td>
+                                            @endforeach
+                                            <td class="px-3 py-2 text-center">
+                                                @if ($fila['porcentaje'] !== null)
+                                                    <span class="rounded-full px-2.5 py-0.5 text-xs font-bold {{ $fila['porcentaje'] >= 70 ? 'bg-exito-base/15 text-exito-oscuro' : 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300' }}">{{ number_format($fila['porcentaje'], 1) }} %</span>
+                                                @else
+                                                    <span class="text-stone-400">—</span>
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
                         </div>
-                    </td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
+                    @endif
+                </x-gestion.tarjeta>
+            @endif
+        @endunless
     </div>
-    @endif
-
-    @endif {{-- fin vista sesiones --}}
-
-    {{-- ============================== VISTA: PASE DE LISTA ============================== --}}
-    @if($vista === 'pase_lista' && $sesionActiva)
-    <div class="space-y-4">
-        <div class="flex items-center gap-3">
-            <button wire:click="$set('vista','sesiones')"
-                class="text-xs text-stone-400 hover:text-stone-700 flex items-center gap-1 transition">
-                ← Volver a sesiones
-            </button>
-            <h2 class="text-lg font-bold text-stone-800 dark:text-stone-100">
-                Pase de lista — {{ $sesionActiva->titulo }}
-            </h2>
-            <span class="text-xs text-stone-400">{{ $sesionActiva->fecha->format('d/m/Y H:i') }}</span>
-        </div>
-
-        <div class="bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 overflow-hidden">
-            <div class="px-4 py-3 border-b border-stone-100 dark:border-stone-700 flex gap-6 text-xs text-stone-500 dark:text-stone-400">
-                <span>🟢 Presente</span><span>🟡 Tardanza</span><span>🔵 Justificado</span><span>🔴 Ausente</span>
-            </div>
-            <table class="w-full text-sm">
-                <thead class="border-b border-stone-100 dark:border-stone-700">
-                    <tr class="text-xs font-medium text-stone-500 dark:text-stone-400 uppercase">
-                        <th class="px-4 py-3 text-left">Estudiante</th>
-                        <th class="px-4 py-3 text-center">Estado</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-stone-50 dark:divide-stone-700/50">
-                    @forelse($estudiantesConAsistencia as $fila)
-                    @php $est = $fila['estudiante']; @endphp
-                    <tr wire:key="pase-{{ $est->id }}" class="hover:bg-stone-50 dark:hover:bg-stone-700/20">
-                        <td class="px-4 py-3">
-                            <div class="flex items-center gap-3">
-                                <img src="{{ $est->avatar_url ?? 'https://ui-avatars.com/api/?name='.urlencode($est->name).'&background=2F5A78&color=fff&size=28' }}"
-                                    class="h-7 w-7 rounded-full object-cover shrink-0" alt="">
-                                <p class="font-medium text-stone-800 dark:text-stone-200">{{ $est->name }}</p>
-                            </div>
-                        </td>
-                        <td class="px-4 py-3">
-                            <div class="flex items-center justify-center gap-2">
-                                @foreach(['presente' => ['🟢', 'green'], 'tardanza' => ['🟡', 'amber'], 'justificado' => ['🔵', 'blue'], 'ausente' => ['🔴', 'red']] as $est_val => [$icono, $color])
-                                <button wire:click="marcarAsistencia({{ $est->id }}, '{{ $est_val }}')"
-                                    class="w-9 h-9 rounded-lg text-sm transition
-                                        {{ $fila['estado'] === $est_val
-                                            ? 'ring-2 ring-offset-1 ring-'.$color.'-500 dark:ring-offset-stone-800 scale-110'
-                                            : 'opacity-40 hover:opacity-80 hover:scale-105' }}">
-                                    {{ $icono }}
-                                </button>
-                                @endforeach
-                            </div>
-                        </td>
-                    </tr>
-                    @empty
-                    <tr><td colspan="2" class="px-4 py-10 text-center text-sm text-stone-400">No hay estudiantes inscritos activos.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
-    @endif
-
-    {{-- ============================== VISTA: HISTORIAL ============================== --}}
-    @if($vista === 'historial')
-    <div class="space-y-4">
-        <div class="bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 p-4">
-            <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-2">Seleccionar estudiante</label>
-            <select wire:model.live="estudianteHistorialId"
-                class="w-full sm:w-80 rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 px-3 py-2 text-sm">
-                <option value="">-- Seleccionar estudiante --</option>
-                @foreach($estudiantesParaFiltro as $est)
-                <option value="{{ $est->id }}">{{ $est->name }}</option>
-                @endforeach
-            </select>
-        </div>
-
-        @if($estudianteFiltrado && $historialEstudiante->isNotEmpty())
-        @php
-            $presentes = $historialEstudiante->whereIn('estado', ['presente','tardanza'])->count();
-            $total = $historialEstudiante->count();
-            $pct = $total > 0 ? round($presentes / $total * 100) : 0;
-        @endphp
-        <div class="bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 p-5">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="font-semibold text-stone-800 dark:text-stone-100">{{ $estudianteFiltrado->name }}</h3>
-                <span class="text-2xl font-black {{ $pct >= 70 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">
-                    {{ $pct }}% asistencia
-                </span>
-            </div>
-            <table class="w-full text-sm">
-                <thead class="border-b border-stone-100 dark:border-stone-700">
-                    <tr class="text-xs font-medium text-stone-500 dark:text-stone-400 uppercase">
-                        <th class="pb-2 text-left">Sesión</th>
-                        <th class="pb-2 text-center">Fecha</th>
-                        <th class="pb-2 text-center">Estado</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-stone-50 dark:divide-stone-700/50">
-                    @foreach($historialEstudiante as $a)
-                    @php $badge = $a->badge(); @endphp
-                    <tr>
-                        <td class="py-2 text-stone-700 dark:text-stone-300">{{ $a->sesion?->titulo }}</td>
-                        <td class="py-2 text-center text-xs text-stone-400">{{ $a->sesion?->fecha->format('d/m/Y') }}</td>
-                        <td class="py-2 text-center">
-                            <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium {{ $badge['color'] }}">
-                                {{ $badge['label'] }}
-                            </span>
-                        </td>
-                    </tr>
-                    @endforeach
-                </tbody>
-            </table>
-        </div>
-        @elseif($estudianteHistorialId)
-        <p class="text-center text-sm text-stone-400 py-8">Sin registros de asistencia para este estudiante.</p>
-        @endif
-    </div>
-    @endif
-
 </div>

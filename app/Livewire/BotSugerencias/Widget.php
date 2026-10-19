@@ -6,6 +6,8 @@ use App\Models\ConversacionBot;
 use App\Models\Curso;
 use App\Services\Bot\Contracts\ProveedorIA;
 use App\Services\ConfiguracionPlataforma;
+use Illuminate\Support\Facades\Gate;
+use Livewire\Attributes\Locked;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -15,14 +17,19 @@ class Widget extends Component
 
     public string $mensaje = '';
 
+    /**
+     * ERS RF-94: el curso de contexto lo fija el servidor al montar el
+     * componente y no puede cambiarse desde el navegador.
+     */
+    #[Locked]
     public ?int $cursoId = null;
 
     public bool $enviando = false;
 
-    public function mount(): void
+    public function mount(?Curso $curso = null): void
     {
-        $curso = request()->route('curso');
-        $this->cursoId = $curso instanceof Curso ? $curso->id : null;
+        $curso ??= request()->route('curso');
+        $this->cursoId = $curso instanceof Curso && Gate::allows('ver', $curso) ? $curso->id : null;
     }
 
     public function alternar(): void
@@ -51,7 +58,9 @@ class Widget extends Component
 
     public function getCursoActualProperty(): ?Curso
     {
-        return $this->cursoId ? Curso::find($this->cursoId) : null;
+        $curso = $this->cursoId ? Curso::find($this->cursoId) : null;
+
+        return $curso && Gate::allows('ver', $curso) ? $curso : null;
     }
 
     public function enviar(ProveedorIA $bot): void
@@ -60,14 +69,17 @@ class Widget extends Component
 
         $this->validate(['mensaje' => ['required', 'string', 'max:1000']]);
 
-        $conversacion = $this->conversacion;
+        $conversacion = ConversacionBot::firstOrCreate(
+            ['usuario_id' => auth()->id(), 'curso_id' => $this->cursoActual?->id],
+            ['mensajes' => []]
+        );
         $historialPrevio = $conversacion->mensajes ?? [];
 
         $conversacion->agregarMensaje('usuario', $this->mensaje);
         $pregunta = $this->mensaje;
         $this->mensaje = '';
 
-        $respuesta = $bot->responder($pregunta, $this->cursoActual, $historialPrevio);
+        $respuesta = $bot->responder($pregunta, $this->cursoActual, $historialPrevio, auth()->user());
 
         $conversacion->agregarMensaje('asistente', $respuesta);
     }

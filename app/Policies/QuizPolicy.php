@@ -19,22 +19,38 @@ class QuizPolicy
         return Gate::forUser($usuario)->allows('gestionar', $quiz->curso);
     }
 
+    /** Consulta de solo lectura: Supervisor y Profesor del curso. */
+    public function supervisar(User $usuario, Quiz $quiz): bool
+    {
+        return Gate::forUser($usuario)->allows('supervisar', $quiz->curso);
+    }
+
+    /**
+     * El estudiante solo ve quizzes publicados (RF-38) de un curso visible
+     * en el que tiene matrícula activa.
+     */
     public function ver(User $usuario, Quiz $quiz): bool
     {
-        if ($this->gestionar($usuario, $quiz)) {
+        if ($this->supervisar($usuario, $quiz)) {
             return true;
         }
 
-        return $quiz->visible
-            && $usuario->hasRole('estudiante')
-            && $quiz->curso->inscripciones()->where('estudiante_id', $usuario->id)->exists();
+        return $usuario->hasRole('estudiante')
+            && $quiz->esVisibleParaEstudiante()
+            && Gate::forUser($usuario)->allows('ver', $quiz->curso);
     }
 
+    /**
+     * RF-45: puede rendir mientras el quiz esté abierto (fechas) y le queden
+     * intentos. Un curso archivado ya no admite intentos nuevos.
+     */
     public function responder(User $usuario, Quiz $quiz): bool
     {
-        return $this->ver($usuario, $quiz)
-            && $usuario->hasRole('estudiante')
-            && ! $quiz->resultadoDe($usuario);
+        return $usuario->hasRole('estudiante')
+            && $this->ver($usuario, $quiz)
+            && ! $quiz->curso->estaFinalizado()
+            && $quiz->estaAbierto()
+            && $quiz->quedanIntentos($usuario);
     }
 
     public function eliminar(User $usuario, Quiz $quiz): bool

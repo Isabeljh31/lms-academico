@@ -1,164 +1,137 @@
-<div class="py-6 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto space-y-6">
+<div class="py-8">
+    <div class="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-    <div class="flex items-center justify-between">
-        <div>
-            <a href="{{ route('cursos.show', $modulo->curso_id) }}" wire:navigate
-                class="text-xs text-stone-400 hover:text-stone-600 flex items-center gap-1 mb-1 transition">
-                ← Volver al curso
-            </a>
-            <h1 class="text-2xl font-bold text-stone-900 dark:text-stone-100">Lecciones</h1>
-            <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">Módulo: <strong>{{ $modulo->titulo }}</strong></p>
-        </div>
-        <button wire:click="abrirNueva"
-            class="inline-flex items-center gap-2 rounded-lg bg-menta-oscuro px-4 py-2 text-sm font-semibold text-white hover:bg-menta-base transition">
-            + Nueva lección
-        </button>
+        <x-gestion.encabezado titulo="Lecciones" icono="documento"
+            descripcion="{{ $modulo->nombreCompleto() }}, {{ $modulo->curso->nombre }}">
+            @if ($this->cursoEditable)
+                <x-gestion.boton icono="mas" wire:click="abrirNueva">Nueva lección</x-gestion.boton>
+            @endif
+        </x-gestion.encabezado>
+
+        <x-gestion.alertas />
+
+        @if ($lecciones->isEmpty())
+            <x-gestion.vacio icono="documento" titulo="Este módulo todavía no tiene lecciones"
+                descripcion="Crea lecciones con descripción, video y material. Los estudiantes solo verán las publicadas.">
+                @if ($this->cursoEditable)
+                    <x-gestion.boton icono="mas" wire:click="abrirNueva">Crear la primera lección</x-gestion.boton>
+                @endif
+            </x-gestion.vacio>
+        @else
+            <x-gestion.tarjeta :relleno="false">
+                <ul class="divide-y divide-celeste/60 dark:divide-azul-borde-oscuro">
+                    @foreach ($lecciones as $leccion)
+                        @php
+                            $estilosEstado = [
+                                'publicado' => 'bg-exito-base/15 text-exito-oscuro',
+                                'programado' => 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+                                'borrador' => 'bg-celeste text-slate-700 dark:bg-azul-borde-oscuro dark:text-slate-200',
+                            ];
+                        @endphp
+                        <li class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center" wire:key="leccion-{{ $leccion->id }}">
+                            @if ($this->cursoEditable)
+                                <div class="flex shrink-0 gap-1 sm:flex-col">
+                                    <button type="button" wire:click="moverArriba({{ $leccion->id }})" @disabled($loop->first)
+                                        class="rounded p-1 text-stone-400 hover:bg-celeste hover:text-slate-700 disabled:opacity-30 dark:hover:bg-stone-700" aria-label="Subir lección">
+                                        <x-icono nombre="flecha-arriba" class="h-4 w-4" />
+                                    </button>
+                                    <button type="button" wire:click="moverAbajo({{ $leccion->id }})" @disabled($loop->last)
+                                        class="rounded p-1 text-stone-400 hover:bg-celeste hover:text-slate-700 disabled:opacity-30 dark:hover:bg-stone-700" aria-label="Bajar lección">
+                                        <x-icono nombre="flecha-abajo" class="h-4 w-4" />
+                                    </button>
+                                </div>
+                            @endif
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-azul-oscuro/10 text-azul-oscuro dark:bg-azul-oscuro/20 dark:text-azul-fondo" title="{{ $leccion->tipoRecurso()['etiqueta'] }}">
+                                        <x-icono :nombre="$leccion->tipoRecurso()['icono']" class="h-4 w-4" />
+                                    </span>
+                                    <h3 class="font-medium text-stone-800 dark:text-stone-100">{{ $leccion->titulo }}</h3>
+                                    <span class="text-xs text-stone-500 dark:text-stone-400">{{ $leccion->tipoRecurso()['etiqueta'] }}</span>
+                                    <span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $estilosEstado[$leccion->estado] ?? '' }}">
+                                        {{ $leccion->estado === 'programado' && $leccion->fecha_publicacion ? 'Programada para '.$leccion->fecha_publicacion->formatoFechaHora() : ucfirst($leccion->estado) }}
+                                    </span>
+                                </div>
+                                @if ($leccion->descripcion)
+                                    <p class="mt-0.5 line-clamp-2 text-sm text-stone-500 dark:text-stone-400">{{ $leccion->descripcion }}</p>
+                                @endif
+                                <div class="mt-1 flex flex-wrap gap-3 text-xs text-stone-500">
+                                    @if ($leccion->video_url)
+                                        <a href="{{ $leccion->video_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 hover:text-azul-oscuro"><x-icono nombre="video" class="h-3.5 w-3.5" /> Video</a>
+                                    @endif
+                                    @if ($leccion->material_url)
+                                        <a href="{{ \App\Services\Multimedia\SubidorArchivos::enlace($leccion->material_url) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 hover:text-azul-oscuro"><x-icono nombre="material" class="h-3.5 w-3.5" /> {{ $leccion->material_nombre ?? 'Material' }}</a>
+                                    @endif
+                                    <span class="inline-flex items-center gap-1"><x-icono nombre="check-circulo" class="h-3.5 w-3.5" /> {{ $leccion->completadas_count }}/{{ $totalEstudiantes }} la completaron</span>
+                                </div>
+                            </div>
+                            @if ($this->cursoEditable)
+                                <div class="flex shrink-0 gap-1">
+                                    <x-gestion.boton variante="fantasma" tamano="sm" icono="lapiz" wire:click="editar({{ $leccion->id }})">Editar</x-gestion.boton>
+                                    <x-gestion.boton variante="fantasma-peligro" tamano="sm" icono="papelera" wire:click="eliminar({{ $leccion->id }})"
+                                        wire:confirm="¿Eliminar la lección {{ $leccion->titulo }}? Esta acción no se puede deshacer.">Eliminar</x-gestion.boton>
+                                </div>
+                            @endif
+                        </li>
+                    @endforeach
+                </ul>
+            </x-gestion.tarjeta>
+        @endif
     </div>
 
-    @if(session('estado'))
-    <div class="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 px-4 py-3 text-sm text-green-700 dark:text-green-400">
-        {{ session('estado') }}
-    </div>
-    @endif
-
-    {{-- Formulario (modal) --}}
-    @if($mostrarFormulario)
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-        <div class="bg-white dark:bg-stone-800 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4 overflow-y-auto max-h-[90vh]">
-            <h2 class="text-lg font-bold text-stone-800 dark:text-stone-100">
-                {{ $leccionEditId ? 'Editar lección' : 'Nueva lección' }}
-            </h2>
-
-            <div>
-                <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Título *</label>
-                <input wire:model="titulo" type="text" placeholder="ej. Introducción al tema"
-                    class="w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 px-3 py-2 text-sm focus:ring-2 focus:ring-menta-base">
-                @error('titulo') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+    @if ($mostrarFormulario)
+        <x-gestion.modal :titulo="$leccionEditId ? 'Editar lección' : 'Nueva lección'" cerrar="$set('mostrarFormulario', false)" ancho="max-w-2xl">
+            <x-gestion.campo etiqueta="Título" nombre="titulo" requerido>
+                <x-gestion.control id="titulo" wire:model="titulo" placeholder="Introducción al tema" />
+            </x-gestion.campo>
+            <x-gestion.campo etiqueta="Tipo de recurso" nombre="tipo_recurso" requerido ayuda="Define el ícono con que los estudiantes ven esta lección dentro de la semana.">
+                <x-gestion.control tipo="select" id="tipo_recurso" wire:model="tipo_recurso">
+                    @foreach (\App\Models\Leccion::TIPOS_RECURSO as $valor => $tipo)
+                        <option value="{{ $valor }}">{{ $tipo['etiqueta'] }}</option>
+                    @endforeach
+                </x-gestion.control>
+            </x-gestion.campo>
+            <x-gestion.campo etiqueta="Descripción" nombre="descripcion">
+                <x-gestion.control tipo="textarea" id="descripcion" rows="4" wire:model="descripcion" />
+            </x-gestion.campo>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <x-gestion.campo etiqueta="Enlace del video" nombre="video_url">
+                    <x-gestion.control id="video_url" type="url" wire:model="video_url" placeholder="https://youtube.com/..." />
+                </x-gestion.campo>
+                <x-gestion.campo etiqueta="Enlace a material externo" nombre="material_url">
+                    <x-gestion.control id="material_url" type="url" wire:model="material_url" placeholder="https://drive.google.com/..." />
+                </x-gestion.campo>
             </div>
-
-            <div>
-                <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Descripción</label>
-                <textarea wire:model="descripcion" rows="3"
-                    class="w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 px-3 py-2 text-sm focus:ring-2 focus:ring-menta-base"></textarea>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">URL de Video</label>
-                    <input wire:model="video_url" type="url" placeholder="https://youtube.com/..."
-                        class="w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 px-3 py-2 text-sm focus:ring-2 focus:ring-menta-base">
-                    @error('video_url') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">URL de Material</label>
-                    <input wire:model="material_url" type="url" placeholder="https://drive.google.com/..."
-                        class="w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 px-3 py-2 text-sm focus:ring-2 focus:ring-menta-base">
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Estado *</label>
-                    <select wire:model.live="estado"
-                        class="w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 px-3 py-2 text-sm">
-                        <option value="borrador">Borrador</option>
+            <x-gestion.campo etiqueta="O sube un archivo" nombre="archivo" ayuda="PDF, Word, Excel, PowerPoint, ZIP o imagen. Máximo 10 MB. Reemplaza al enlace de material.">
+                <input id="archivo" type="file" wire:model="archivo"
+                    class="block w-full text-sm text-stone-600 file:mr-4 file:rounded-lg file:border-0 file:bg-azul-oscuro file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white dark:text-stone-300">
+                <p wire:loading wire:target="archivo" class="text-xs text-stone-500">Cargando archivo...</p>
+            </x-gestion.campo>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <x-gestion.campo etiqueta="Estado" nombre="estado" requerido>
+                    <x-gestion.control tipo="select" id="estado" wire:model.live="estado">
+                        <option value="borrador">Borrador (no visible)</option>
                         <option value="publicado">Publicado</option>
                         <option value="programado">Programado</option>
-                    </select>
-                </div>
-                @if($estado === 'programado')
-                <div>
-                    <label class="block text-sm font-medium text-stone-700 dark:text-stone-300 mb-1">Fecha de publicación *</label>
-                    <input wire:model="fecha_publicacion" type="datetime-local"
-                        class="w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-100 px-3 py-2 text-sm">
-                    @error('fecha_publicacion') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                </div>
+                    </x-gestion.control>
+                </x-gestion.campo>
+                @if ($estado === 'programado')
+                    <x-gestion.campo etiqueta="Publicar automáticamente el" nombre="fecha_publicacion" requerido>
+                        <x-gestion.control id="fecha_publicacion" type="datetime-local" wire:model="fecha_publicacion" />
+                    </x-gestion.campo>
                 @endif
             </div>
-
-            <div class="flex justify-end gap-3 pt-2">
-                <button wire:click="$set('mostrarFormulario', false)"
-                    class="rounded-lg border border-stone-300 dark:border-stone-600 px-4 py-2 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700 transition">
-                    Cancelar
-                </button>
-                <button wire:click="guardar"
-                    class="rounded-lg bg-menta-oscuro px-4 py-2 text-sm font-semibold text-white hover:bg-menta-base transition">
-                    {{ $leccionEditId ? 'Guardar cambios' : 'Crear lección' }}
-                </button>
-            </div>
-        </div>
-    </div>
+            <x-gestion.campo etiqueta="Se considera completada" nombre="condicion_completitud" requerido ayuda="Cuenta para el avance del estudiante y para completar el módulo.">
+                <x-gestion.control tipo="select" id="condicion_completitud" wire:model="condicion_completitud">
+                    @foreach (\App\Models\Leccion::CONDICIONES as $valor => $etiqueta)
+                        <option value="{{ $valor }}">{{ $etiqueta }}</option>
+                    @endforeach
+                </x-gestion.control>
+            </x-gestion.campo>
+            <x-slot name="pie">
+                <x-gestion.boton variante="secundario" wire:click="$set('mostrarFormulario', false)">Cancelar</x-gestion.boton>
+                <x-gestion.boton icono="check" wire:click="guardar" wire:loading.attr="disabled" wire:target="guardar,archivo">Guardar lección</x-gestion.boton>
+            </x-slot>
+        </x-gestion.modal>
     @endif
-
-    {{-- Lista de lecciones --}}
-    @if($lecciones->isEmpty())
-    <div class="text-center py-16 text-stone-400 dark:text-stone-500">
-        <p class="text-4xl mb-4">📄</p>
-        <p class="text-sm">No hay lecciones en este módulo aún.</p>
-        <button wire:click="abrirNueva" class="mt-4 text-sm text-menta-oscuro hover:underline">Crear la primera lección →</button>
-    </div>
-    @else
-    <div class="space-y-3">
-        @foreach($lecciones as $leccion)
-        <div wire:key="leccion-{{ $leccion->id }}"
-            class="bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 p-4 flex items-start gap-4">
-
-            {{-- Orden / reordenar --}}
-            <div class="flex flex-col items-center gap-1 shrink-0 pt-0.5">
-                <button wire:click="moverArriba({{ $leccion->id }})"
-                    class="text-stone-300 hover:text-stone-600 dark:hover:text-stone-200 transition text-xs">▲</button>
-                <span class="text-xs font-mono text-stone-400">{{ $loop->iteration }}</span>
-                <button wire:click="moverAbajo({{ $leccion->id }})"
-                    class="text-stone-300 hover:text-stone-600 dark:hover:text-stone-200 transition text-xs">▼</button>
-            </div>
-
-            {{-- Contenido --}}
-            <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 flex-wrap">
-                    <h3 class="font-semibold text-stone-800 dark:text-stone-100">{{ $leccion->titulo }}</h3>
-                    {{-- Badge estado RF-37 --}}
-                    <span class="inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium
-                        {{ $leccion->estado === 'publicado' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : ($leccion->estado === 'programado' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                        : 'bg-stone-100 text-stone-600 dark:bg-stone-700 dark:text-stone-300') }}">
-                        {{ ucfirst($leccion->estado) }}
-                        @if($leccion->estado === 'programado' && $leccion->fecha_publicacion)
-                        · {{ $leccion->fecha_publicacion->format('d/m H:i') }}
-                        @endif
-                    </span>
-                </div>
-                @if($leccion->descripcion)
-                <p class="text-sm text-stone-500 dark:text-stone-400 mt-1 truncate">{{ $leccion->descripcion }}</p>
-                @endif
-                <div class="flex items-center gap-4 mt-2 text-xs text-stone-400 dark:text-stone-500">
-                    @if($leccion->video_url)
-                    <a href="{{ $leccion->video_url }}" target="_blank" class="flex items-center gap-1 hover:text-menta-oscuro transition">
-                        🎥 Video
-                    </a>
-                    @endif
-                    @if($leccion->material_url)
-                    <a href="{{ $leccion->material_url }}" target="_blank" class="flex items-center gap-1 hover:text-menta-oscuro transition">
-                        📎 Material
-                    </a>
-                    @endif
-                </div>
-            </div>
-
-            {{-- Acciones --}}
-            <div class="flex items-center gap-2 shrink-0">
-                <button wire:click="editar({{ $leccion->id }})"
-                    class="text-xs text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 px-3 py-1.5 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-700 transition">
-                    Editar
-                </button>
-                <button wire:click="eliminar({{ $leccion->id }})"
-                    wire:confirm="¿Eliminar esta lección? Esta acción no se puede deshacer."
-                    class="text-xs text-red-500 hover:text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition">
-                    Eliminar
-                </button>
-            </div>
-        </div>
-        @endforeach
-    </div>
-    @endif
-
 </div>

@@ -11,6 +11,7 @@ class LogIntegracionApi extends Model
     protected $table = 'logs_integracion_api';
 
     public $timestamps = false;
+
     const CREATED_AT = 'created_at';
 
     protected $fillable = [
@@ -27,8 +28,16 @@ class LogIntegracionApi extends Model
     {
         return [
             'payload_recibido' => 'array',
-            'created_at'       => 'datetime',
+            'created_at' => 'datetime',
         ];
+    }
+
+    /** ERS RF-108: la hora se asigna en la zona de la plataforma, no la de la base de datos. */
+    protected static function booted(): void
+    {
+        static::creating(function (LogIntegracionApi $log) {
+            $log->created_at ??= now();
+        });
     }
 
     public function integracion(): BelongsTo

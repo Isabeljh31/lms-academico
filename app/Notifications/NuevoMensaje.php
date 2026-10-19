@@ -12,15 +12,17 @@ class NuevoMensaje extends Notification
 {
     public function __construct(protected Mensaje $mensaje) {}
 
-    public function via(object $notifiable): array { return ['database']; }
+    public function via(object $notifiable): array
+    {
+        return ['database'];
+    }
 
     public function toArray(object $notifiable): array
     {
         return [
-            'titulo'  => 'Mensaje nuevo de ' . $this->mensaje->remitente?->name,
+            'titulo' => 'Mensaje nuevo de '.$this->mensaje->remitente?->name,
             'mensaje' => "Asunto: \"{$this->mensaje->asunto}\"",
-            'url'     => route('mensajeria.bandeja'),
-            'icono'   => '💬',
+            'url' => route('cursos.mensajeria', $this->mensaje->curso_id),
         ];
     }
 }

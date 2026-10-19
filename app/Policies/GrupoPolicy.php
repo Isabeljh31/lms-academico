@@ -18,4 +18,10 @@ class GrupoPolicy
     {
         return Gate::forUser($usuario)->allows('gestionar', $grupo->curso);
     }
+
+    /** Consulta de solo lectura: Supervisor y Profesor del curso. */
+    public function supervisar(User $usuario, Grupo $grupo): bool
+    {
+        return Gate::forUser($usuario)->allows('supervisar', $grupo->curso);
+    }
 }

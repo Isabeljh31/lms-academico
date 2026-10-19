@@ -12,28 +12,37 @@
     // Str::ascii() quita tildes antes de recortar, para que el código quede
     // consistente (p. ej. "Física" -> "FIS", no "Fís" con strtoupper solo).
     $codigoCurso = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', \Illuminate\Support\Str::ascii($curso->nombre)), 0, 3));
+
+    // Estudiante y Profesor comparten la paleta azul; Supervisor conserva su acento cálido.
+    $esAdminVista = auth()->user()->hasRole('supervisor');
+    $claseBadgeNeutra = $esAdminVista ? 'bg-arena-medio text-stone-700 dark:bg-stone-700 dark:text-stone-200' : 'bg-celeste text-slate-700 dark:bg-azul-borde-oscuro dark:text-slate-200';
+    $claseSemanaConContenido = $esAdminVista ? 'bg-menta-fondo text-menta-oscuro dark:bg-stone-700 dark:text-menta-base' : 'bg-azul-oscuro/10 text-azul-oscuro dark:bg-azul-oscuro/20 dark:text-azul-fondo';
+    $claseSemanaVacia = $esAdminVista ? 'border border-dashed border-arena-medio text-stone-400 dark:border-stone-600' : 'border border-dashed border-celeste text-slate-400 dark:border-azul-borde-oscuro';
 @endphp
 
 <div class="py-8">
     {{-- Ancho de contenedor estandarizado (max-w-6xl) para todas las vistas del estudiante. --}}
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-        @if (session('estado'))
+        @if (session('estado') && auth()->user()->hasRole('estudiante'))
             <div class="rounded-lg bg-exito-base/15 text-exito-oscuro px-4 py-3 text-sm font-medium">{{ session('estado') }}</div>
         @endif
 
-        <div class="bg-white rounded-xl border overflow-hidden {{ auth()->user()->hasRole('estudiante') ? 'dark:bg-azul-superficie-oscura border-celeste dark:border-azul-borde-oscuro' : 'dark:bg-stone-800 border-arena-medio dark:border-stone-700' }}">
-            <div class="relative h-40 overflow-hidden flex items-center justify-center {{ auth()->user()->hasRole('estudiante') ? $acentoCurso['fondo'] : 'bg-gradient-to-br from-menta-fondo to-arena-medio dark:from-stone-700 dark:to-stone-800' }}"
-                @if ($curso->imagen_portada_url) style="background-image:url('{{ $curso->imagen_portada_url }}');background-size:cover;background-position:center;" @endif>
+        <div class="bg-white rounded-xl border overflow-hidden {{ $esAdminVista ? 'dark:bg-stone-800 border-arena-medio dark:border-stone-700' : 'dark:bg-azul-superficie-oscura border-celeste dark:border-azul-borde-oscuro' }}">
+            <div class="relative h-40 overflow-hidden flex items-center justify-center {{ auth()->user()->hasRole('estudiante') ? $acentoCurso['fondo'] : ($esAdminVista ? 'bg-menta-fondo dark:bg-stone-700' : 'bg-celeste dark:bg-azul-borde-oscuro') }}"
+                @if ($curso->imagen_portada_url) style="background-image:url('{{ $curso->portadaUrl() }}');background-size:cover;background-position:center;" @endif>
                 @if (! $curso->imagen_portada_url && auth()->user()->hasRole('estudiante'))
                     {{-- Rediseño visual del rol estudiante: código del curso sobre fondo tenue del acento. --}}
                     <span class="text-5xl font-black tracking-tight {{ $acentoCurso['texto'] }} opacity-70 select-none">{{ $codigoCurso }}</span>
+                @elseif (! $curso->imagen_portada_url)
+                    {{-- Profesor / Supervisor sin portada: código del curso en la paleta de gestión. --}}
+                    <span class="select-none text-4xl font-black tracking-tight {{ $esAdminVista ? 'text-menta-oscuro/60 dark:text-menta-base/60' : 'text-azul-oscuro/60 dark:text-azul-fondo/60' }}">{{ $curso->codigo ?? $codigoCurso }}</span>
                 @endif
             </div>
             <div class="p-6">
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div>
                         <h1 class="text-2xl font-bold {{ auth()->user()->hasRole('estudiante') ? 'text-texto dark:text-slate-100' : 'text-stone-900 dark:text-stone-100' }}">{{ $curso->nombre }}</h1>
-                        <p class="text-sm text-slate-500 dark:text-slate-400">Prof. {{ $curso->profesor?->name }}
+                        <p class="text-sm text-slate-500 dark:text-slate-400">Prof. {{ $curso->docentes()->pluck('name')->join(', ') }}
                         </p>
                         {{-- ERS RF-22: Badge de estado del curso --}}
                         <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium mt-1
@@ -43,9 +52,10 @@
                             @elseif($curso->estado === 'archivado') bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400
                             @endif" id="badge-estado-curso">
                             {{ ucfirst($curso->estado) }}
-                        </span</p>
+                        </span>
                     </div>
 
+                    @if (auth()->user()->hasRole('estudiante'))
                     <div class="flex items-center gap-2 flex-wrap">
                         <a href="{{ route('cursos.tareas.index', $curso) }}" wire:navigate>
                             <x-secondary-button>Tareas</x-secondary-button>
@@ -55,49 +65,9 @@
                             <x-secondary-button>Quizzes</x-secondary-button>
                         </a>
 
-                        @if ($this->puedeGestionar)
-                            <a href="{{ route('cursos.grupos.index', $curso) }}" wire:navigate>
-                                <x-secondary-button>Grupos</x-secondary-button>
-                            </a>
-
-                            {{-- ERS RF-26: Gestión de Matrícula (manual + baja) --}}
-                            <a href="{{ route('cursos.matriculas', $curso) }}" wire:navigate>
-                                <x-secondary-button class="border-azul-fondo text-azul-fondo dark:text-celeste hover:bg-azul-fondo/10">
-                                    <x-icono nombre="usuario" class="w-4 h-4 mr-1.5 inline" /> Matrículas
-                                </x-secondary-button>
-                            </a>
-
-                            {{-- ERS RF-70: Asistencia --}}
-                            <a href="{{ route('asistencia.index', $curso) }}" wire:navigate>
-                                <x-secondary-button class="border-amber-600 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/10">
-                                    🗓️ Asistencia
-                                </x-secondary-button>
-                            </a>
-
-                            {{-- ERS RF-20: Clonar curso --}}
-                            <button wire:click="clonarCurso" wire:confirm="¿Estás seguro de clonar este curso? Se copiará el contenido y el esquema de evaluación, pero no los estudiantes ni calificaciones."
-                                class="inline-flex items-center px-4 py-2 bg-stone-100 dark:bg-stone-700 border border-stone-300 dark:border-stone-600 rounded-md font-semibold text-xs text-stone-700 dark:text-stone-300 uppercase tracking-widest shadow-sm hover:bg-stone-200 dark:hover:bg-stone-600 focus:outline-none focus:ring-2 focus:ring-menta-base disabled:opacity-25 transition">
-                                📑 Clonar
-                            </button>
-
-                            <a href="{{ route('cursos.libro-calificaciones', $curso) }}" wire:navigate>
-                                <x-secondary-button class="border-menta-oscuro text-menta-oscuro dark:text-menta-base hover:bg-menta-fondo/20">
-                                    <x-icono nombre="tarea" class="w-4 h-4 mr-1.5 inline" /> Libro de Calificaciones
-                                </x-secondary-button>
-                            </a>
-
-                            @role('supervisor')
-                            <a href="{{ route('cursos.esquema', $curso) }}" wire:navigate>
-                                <x-secondary-button class="border-terracota-base text-terracota-base dark:text-terracota-claro hover:bg-terracota-base/10">
-                                    <x-icono nombre="tarea" class="w-4 h-4 mr-1.5 inline" /> Esquema de Evaluación
-                                </x-secondary-button>
-                            </a>
-                            @endrole
-
-                            <a href="{{ route('cursos.editar', $curso) }}" wire:navigate>
-                                <x-secondary-button>Editar</x-secondary-button>
-                            </a>
-                        @endif
+                        <a href="{{ route('cursos.mensajeria', $curso) }}" wire:navigate>
+                            <x-secondary-button>Mensajería</x-secondary-button>
+                        </a>
 
                         @if (auth()->user()->hasRole('estudiante'))
                             @if ($this->estaInscrito)
@@ -106,15 +76,48 @@
                                 </span>
                                 {{-- ERS RF-59: el estudiante accede a su boleta de notas --}}
                                 <a href="{{ route('cursos.boleta', $curso) }}" wire:navigate>
-                                    <x-secondary-button class="border-menta-oscuro text-menta-oscuro dark:text-menta-base hover:bg-menta-fondo/20">
+                                    <x-secondary-button class="border-azul-oscuro text-azul-oscuro dark:text-azul-fondo hover:bg-celeste/40">
                                         <x-icono nombre="tarea" class="w-4 h-4 mr-1.5 inline" /> Mi Boleta
                                     </x-secondary-button>
                                 </a>
+                                {{-- ERS RF-72: historial de asistencia del estudiante --}}
+                                @if ($curso->usa_asistencia)
+                                    <a href="{{ route('cursos.mi-asistencia', $curso) }}" wire:navigate>
+                                        <x-secondary-button class="border-azul-oscuro text-azul-oscuro dark:text-azul-fondo hover:bg-celeste/40">
+                                            <x-icono nombre="calendario" class="w-4 h-4 mr-1.5 inline" /> Mi Asistencia
+                                        </x-secondary-button>
+                                    </a>
+                                @endif
                             @else
                                 <x-primary-button wire:click="inscribirme">Inscribirme</x-primary-button>
                             @endif
                         @endif
                     </div>
+                    @else
+                    <div class="flex flex-wrap items-center gap-2">
+                        <x-gestion.boton variante="secundario" tamano="sm" icono="tarea" :href="route('cursos.tareas.index', $curso)">Tareas</x-gestion.boton>
+                        <x-gestion.boton variante="secundario" tamano="sm" icono="quiz" :href="route('cursos.quizzes.index', $curso)">Quizzes</x-gestion.boton>
+                        @if (auth()->user()->hasRole('profesor'))
+                            <x-gestion.boton variante="secundario" tamano="sm" icono="usuarios" :href="route('cursos.mensajeria', $curso)">Mensajería</x-gestion.boton>
+                        @endif
+                        @if ($this->puedeGestionar)
+                            <x-gestion.boton variante="secundario" tamano="sm" icono="base-datos" :href="route('cursos.banco-preguntas', $curso)">Banco de preguntas</x-gestion.boton>
+                        @endif
+                        @if ($this->puedeSupervisar)
+                            <x-gestion.boton variante="secundario" tamano="sm" icono="usuarios" :href="route('cursos.grupos.index', $curso)">Grupos</x-gestion.boton>
+                            <x-gestion.boton variante="secundario" tamano="sm" icono="usuario-mas" :href="route('cursos.matriculas', $curso)">Matrícula</x-gestion.boton>
+                            @if ($curso->usa_asistencia || $this->puedeGestionar)
+                                <x-gestion.boton variante="secundario" tamano="sm" icono="calendario" :href="route('asistencia.index', $curso)">Asistencia</x-gestion.boton>
+                            @endif
+                            <x-gestion.boton variante="secundario" tamano="sm" icono="lista" :href="route('cursos.libro-calificaciones', $curso)">Libro de calificaciones</x-gestion.boton>
+                        @endif
+                        @if ($this->puedeAdministrar)
+                            <x-gestion.boton variante="secundario" tamano="sm" icono="grafico" :href="route('cursos.esquema', $curso)">Esquema de evaluación</x-gestion.boton>
+                            <x-gestion.boton variante="secundario" tamano="sm" icono="lapiz" :href="route('cursos.editar', $curso)">Editar</x-gestion.boton>
+                            <x-gestion.boton variante="secundario" tamano="sm" icono="copiar" wire:click="abrirClonar">Clonar</x-gestion.boton>
+                        @endif
+                    </div>
+                    @endif
                 </div>
 
                 @if ($curso->descripcion)
@@ -123,127 +126,243 @@
             </div>
         </div>
 
-        @if ($this->puedeGestionar || ! auth()->user()->hasRole('estudiante'))
-            {{-- Vista de profesor/administrador --}}
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {{-- Columna izquierda (2 cols): Unidades / Módulos --}}
-                <div class="lg:col-span-2 space-y-6">
-                    <div class="space-y-4">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-lg font-semibold text-stone-800 dark:text-stone-100">Unidades / Módulos</h2>
-                        </div>
+        @if (! auth()->user()->hasRole('estudiante'))
+            {{-- Vista de Profesor / Supervisor --}}
+            <x-gestion.alertas />
 
-                        @forelse ($modulos as $modulo)
-                            <div class="bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 p-4" wire:key="modulo-{{ $modulo->id }}">
-                                <div class="flex items-center justify-between">
-                                    <h3 class="font-medium text-stone-800 dark:text-stone-100">{{ $modulo->titulo }}</h3>
+            @if ($curso->estaFinalizado())
+                <div role="alert" class="flex items-start gap-3 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                    <x-icono nombre="archivo" class="h-5 w-5 shrink-0" />
+                    <p>Curso archivado (finalizado): se puede consultar, pero no admite cambios en su contenido ni en sus notas.</p>
+                </div>
+            @endif
+
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <div class="space-y-6 lg:col-span-2">
+                    @php $editable = $this->puedeGestionar && ! $curso->estaFinalizado(); @endphp
+
+                    {{-- Prácticas de campo: bloque propio, fuera de la numeración semanal. Solo aparece si el curso lo tiene. --}}
+                    @if ($secciones['practicas'])
+                        @php $practicas = $secciones['practicas']['modulo']; @endphp
+                        <section aria-labelledby="titulo-practicas-gestion" wire:key="practicas-gestion-{{ $practicas->id }}"
+                            class="overflow-hidden rounded-xl border shadow-sm {{ $esAdminVista ? 'border-arena-medio border-l-4 border-l-terracota-base bg-arena-claro/60 dark:border-stone-700 dark:border-l-terracota-base dark:bg-stone-800' : 'border-celeste border-l-4 border-l-azul-oscuro bg-celeste/60 dark:border-azul-borde-oscuro dark:border-l-azul-oscuro dark:bg-azul-superficie-oscura' }}">
+                            <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+                                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white shadow-sm {{ $esAdminVista ? 'bg-terracota-oscuro' : 'bg-azul-oscuro' }}">
+                                    <x-icono nombre="maletin" class="h-6 w-6" />
+                                </span>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wider {{ $esAdminVista ? 'text-terracota-oscuro dark:text-terracota-fondo' : 'text-azul-oscuro dark:text-azul-fondo' }}">Fuera de la numeración semanal</p>
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <h2 id="titulo-practicas-gestion" class="text-base font-bold text-stone-800 dark:text-stone-100">
+                                            {{ 'Prácticas de campo' }}@if ($practicas->tema() && $practicas->tema() !== 'Prácticas de campo')<span class="font-normal text-stone-600 dark:text-stone-300">: {{ $practicas->tema() }}</span>@endif
+                                        </h2>
+                                        <span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $practicas->esVisibleParaEstudiante() ? 'bg-exito-base/15 text-exito-oscuro' : $claseBadgeNeutra }}">
+                                            {{ $practicas->etiquetaEstadoPublicacion() }}
+                                        </span>
+                                    </div>
+                                    <p class="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
+                                        {{ $practicas->lecciones_count }} lecciones - {{ $practicas->tareas_count }} tareas - {{ $practicas->quizzes_count }} quizzes
+                                        @unless ($secciones['practicas']['visibleParaEstudiantes'])
+                                            - los estudiantes no ven este bloque hasta que tenga contenido publicado
+                                        @endunless
+                                    </p>
+                                </div>
+                                @if ($this->puedeGestionar)
+                                    <div class="flex flex-wrap gap-1">
+                                        <x-gestion.boton tamano="sm" icono="documento" :href="route('lecciones.index', $practicas)">Lecciones</x-gestion.boton>
+                                        @if ($editable)
+                                            <x-gestion.boton variante="fantasma" tamano="sm" icono="lapiz" wire:click="abrirEditarModulo({{ $practicas->id }})">Editar</x-gestion.boton>
+                                            <x-gestion.boton variante="fantasma-peligro" tamano="sm" icono="papelera" wire:click="eliminarModulo({{ $practicas->id }})"
+                                                wire:confirm="¿Quitar las prácticas de campo? Se eliminan sus lecciones, tareas y quizzes. Si tienen entregas o resultados de estudiantes no se eliminarán.">
+                                                Quitar
+                                            </x-gestion.boton>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
+                        </section>
+                    @endif
+
+                    <x-gestion.tarjeta titulo="Contenido por semanas"
+                        :descripcion="'El curso dura '.$curso->totalSemanas().' semanas'.($curso->semanas_duracion ? '' : ' (duración sugerida: el Supervisor aún no la definió)').'. Las semanas en borrador o programadas no son visibles para los estudiantes.'"
+                        :relleno="false">
+                        @if (! $secciones['practicas'] && $editable)
+                            <x-slot name="acciones">
+                                <x-gestion.boton variante="secundario" tamano="sm" icono="maletin" wire:click="prepararSeccion(null)">Agregar prácticas de campo</x-gestion.boton>
+                            </x-slot>
+                        @endif
+                        <ul class="divide-y {{ $esAdminVista ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
+                            @foreach ($secciones['semanas'] as $seccion)
+                                @php $modulo = $seccion['modulo']; @endphp
+                                <li wire:key="seccion-{{ $seccion['semana'] }}" class="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
+                                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold {{ $modulo ? $claseSemanaConContenido : $claseSemanaVacia }}">
+                                        {{ $seccion['semana'] }}
+                                    </span>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <h3 class="font-medium {{ $modulo ? 'text-stone-800 dark:text-stone-100' : 'text-stone-500 dark:text-stone-400' }}">
+                                                {{ $seccion['etiqueta'] }}@if ($modulo?->tema())<span class="font-normal text-stone-600 dark:text-stone-300">: {{ $modulo->tema() }}</span>@endif
+                                            </h3>
+                                            @if ($modulo)
+                                                <span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $modulo->esVisibleParaEstudiante() ? 'bg-exito-base/15 text-exito-oscuro' : $claseBadgeNeutra }}">
+                                                    {{ $modulo->etiquetaEstadoPublicacion() }}
+                                                </span>
+                                            @endif
+                                        </div>
+                                        <p class="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
+                                            @if ($seccion['rango'])
+                                                {{ $seccion['rango'][0]->translatedFormat('d M') }} – {{ $seccion['rango'][1]->translatedFormat('d M') }}
+                                                @if ($seccion['clases'] > 0) - {{ $seccion['clases'] }} {{ $seccion['clases'] === 1 ? 'clase' : 'clases' }} @endif
+                                                -
+                                            @endif
+                                            @if ($modulo)
+                                                {{ $modulo->lecciones_count }} lecciones - {{ $modulo->tareas_count }} tareas - {{ $modulo->quizzes_count }} quizzes
+                                            @else
+                                                Sin contenido
+                                            @endif
+                                        </p>
+                                    </div>
                                     @if ($this->puedeGestionar)
-                                        <div class="flex items-center gap-2">
-                                            <a href="{{ route('lecciones.index', $modulo) }}" wire:navigate
-                                                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-md bg-menta-oscuro text-white hover:bg-menta-oscuro/90 transition shadow-sm">
-                                                <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
-                                                Gestionar Lecciones y Materiales
-                                            </a>
-                                            <button wire:click="eliminarModulo({{ $modulo->id }})" wire:confirm="¿Eliminar esta unidad?"
-                                                class="px-2 py-1.5 text-xs text-terracota-oscuro hover:bg-terracota-oscuro/10 rounded-md transition">Eliminar</button>
+                                        <div class="flex flex-wrap gap-1">
+                                            @if ($modulo)
+                                                <x-gestion.boton tamano="sm" icono="documento" :href="route('lecciones.index', $modulo)">Lecciones</x-gestion.boton>
+                                                @if ($editable)
+                                                    <x-gestion.boton variante="fantasma" tamano="sm" icono="lapiz" wire:click="abrirEditarModulo({{ $modulo->id }})">Editar</x-gestion.boton>
+                                                    <x-gestion.boton variante="fantasma-peligro" tamano="sm" icono="papelera" wire:click="eliminarModulo({{ $modulo->id }})"
+                                                        wire:confirm="¿Vaciar {{ $seccion['etiqueta'] }}? Se eliminan sus lecciones, tareas y quizzes. Si tiene entregas o resultados de estudiantes no se eliminará.">
+                                                        Vaciar
+                                                    </x-gestion.boton>
+                                                @endif
+                                            @elseif ($editable)
+                                                <x-gestion.boton variante="secundario" tamano="sm" icono="mas" wire:click="prepararSeccion({{ $seccion['semana'] }})">Preparar semana</x-gestion.boton>
+                                            @endif
                                         </div>
                                     @endif
-                                </div>
-                                <div class="mt-2 text-xs text-stone-500">
-                                    Contiene {{ $modulo->lecciones()->count() }} lecciones/materiales en total.
-                                </div>
-                            </div>
-                        @empty
-                            <p class="text-sm text-stone-500 dark:text-stone-400">Este curso todavía no tiene unidades.</p>
-                        @endforelse
-
-                        @if ($this->puedeGestionar)
-                            <form wire:submit="agregarModulo" class="flex items-center gap-2">
-                                <input wire:model="nuevoModuloTitulo" type="text" placeholder="Título de la nueva unidad…"
-                                    class="flex-1 rounded-md border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base text-sm">
-                                <x-secondary-button type="submit">+ Unidad</x-secondary-button>
-                            </form>
-                            <x-input-error :messages="$errors->get('nuevoModuloTitulo')" />
+                                </li>
+                            @endforeach
+                        </ul>
+                        @if ($this->puedeAdministrar && ! $curso->estaFinalizado())
+                            <p class="border-t border-arena-medio px-4 py-3 text-xs text-stone-500 dark:border-stone-700 dark:text-stone-400">
+                                La cantidad de semanas se define en <a href="{{ route('cursos.editar', $curso) }}" wire:navigate class="font-medium text-menta-oscuro hover:underline dark:text-menta-base">Editar curso</a> (Duración en semanas).
+                            </p>
                         @endif
-                    </div>
+                    </x-gestion.tarjeta>
                 </div>
 
-                {{-- Columna derecha (1 col): Anuncios del Curso --}}
                 <div class="space-y-6">
-                    <div class="bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 p-5 space-y-4">
-                        <div class="flex items-center justify-between">
-                            <h2 class="text-base font-bold text-stone-800 dark:text-stone-100 flex items-center gap-2">
-                                <x-icono nombre="megafono" class="w-4 h-4 text-menta-oscuro dark:text-menta-base" />
-                                Anuncios del Curso
-                            </h2>
-                            <span class="text-xs font-medium px-2 py-0.5 rounded-full bg-arena-claro text-stone-600 dark:bg-stone-700 dark:text-stone-300">
-                                {{ $this->anuncios->count() }}
-                            </span>
-                        </div>
-
-                        @if ($this->puedeGestionar)
-                            <form wire:submit="publicarAnuncio" class="space-y-3 pt-2 border-t border-arena-medio dark:border-stone-700">
-                                <div>
-                                    <label class="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">Título del anuncio</label>
-                                    <input wire:model="nuevoAnuncioTitulo" type="text" placeholder="Ej: Recordatorio Entrega Práctica 1"
-                                        class="w-full text-xs rounded-lg border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base">
-                                    <x-input-error :messages="$errors->get('nuevoAnuncioTitulo')" class="mt-1" />
-                                </div>
-
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label class="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">Prioridad</label>
-                                        <select wire:model="nuevoAnuncioPrioridad"
-                                            class="w-full text-xs rounded-lg border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base">
+                    <x-gestion.tarjeta titulo="Anuncios del curso" descripcion="Avisos para los estudiantes matriculados. Cada anuncio les llega como notificación.">
+                        @if ($this->puedeGestionar && ! $curso->estaFinalizado())
+                            <form wire:submit="publicarAnuncio" class="space-y-3">
+                                <x-gestion.campo etiqueta="Título" nombre="nuevoAnuncioTitulo" requerido>
+                                    <x-gestion.control id="nuevoAnuncioTitulo" wire:model="nuevoAnuncioTitulo" placeholder="Recordatorio de la práctica 1" />
+                                </x-gestion.campo>
+                                <x-gestion.campo etiqueta="Mensaje" nombre="nuevoAnuncioTexto" requerido>
+                                    <x-gestion.control tipo="textarea" id="nuevoAnuncioTexto" wire:model="nuevoAnuncioTexto" />
+                                </x-gestion.campo>
+                                <div class="flex items-end gap-2">
+                                    <x-gestion.campo etiqueta="Prioridad" nombre="nuevoAnuncioPrioridad" class="flex-1">
+                                        <x-gestion.control tipo="select" id="nuevoAnuncioPrioridad" wire:model="nuevoAnuncioPrioridad">
                                             <option value="normal">Normal</option>
                                             <option value="importante">Importante</option>
                                             <option value="urgente">Urgente</option>
-                                        </select>
-                                    </div>
-                                    <div class="flex items-end">
-                                        <button type="submit"
-                                            class="w-full py-2 px-3 text-xs font-semibold rounded-lg bg-menta-oscuro text-white hover:bg-menta-oscuro/90 transition shadow-sm">
-                                            Publicar aviso
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label class="block text-xs font-medium text-stone-700 dark:text-stone-300 mb-1">Mensaje para los estudiantes</label>
-                                    <textarea wire:model="nuevoAnuncioTexto" rows="3" placeholder="Escribe el aviso para los alumnos inscritos..."
-                                        class="w-full text-xs rounded-lg border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base"></textarea>
-                                    <x-input-error :messages="$errors->get('nuevoAnuncioTexto')" class="mt-1" />
+                                        </x-gestion.control>
+                                    </x-gestion.campo>
+                                    <x-gestion.boton type="submit" icono="megafono">Publicar</x-gestion.boton>
                                 </div>
                             </form>
                         @endif
 
-                        <div class="space-y-3 pt-2">
+                        <div class="mt-4 space-y-3">
                             @forelse ($this->anuncios as $anuncio)
-                                <div class="p-3 rounded-lg border border-arena-medio dark:border-stone-700 bg-arena-claro/40 dark:bg-stone-900/60" wire:key="anuncio-doc-{{ $anuncio->id }}">
+                                <article class="rounded-lg border p-3 {{ $esAdminVista ? 'border-arena-medio bg-arena-claro/40 dark:border-stone-700 dark:bg-stone-900/60' : 'border-celeste bg-celeste/40 dark:border-azul-borde-oscuro dark:bg-azul-pagina-oscura' }}" wire:key="anuncio-doc-{{ $anuncio->id }}">
                                     <div class="flex items-start justify-between gap-2">
-                                        <h4 class="text-xs font-bold text-stone-800 dark:text-stone-100">{{ $anuncio->titulo }}</h4>
+                                        <h4 class="text-sm font-semibold {{ $esAdminVista ? 'text-stone-800 dark:text-stone-100' : 'text-texto dark:text-slate-100' }}">{{ $anuncio->titulo }}</h4>
                                         <div class="flex items-center gap-1.5">
-                                            @if ($anuncio->prioridad === 'urgente')
-                                                <span class="text-[10px] px-1.5 py-0.5 rounded font-bold bg-terracota-base/20 text-terracota-oscuro dark:text-terracota-claro">Urgente</span>
-                                            @elseif ($anuncio->prioridad === 'importante')
-                                                <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">Importante</span>
+                                            @if (in_array($anuncio->prioridad, ['urgente', 'importante'], true))
+                                                <span class="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">{{ ucfirst($anuncio->prioridad) }}</span>
                                             @endif
                                             @if ($this->puedeGestionar)
-                                                <button wire:click="eliminarAnuncio({{ $anuncio->id }})" wire:confirm="¿Eliminar este anuncio del curso?"
-                                                    class="text-slate-400 hover:text-terracota-oscuro text-xs" title="Eliminar">&times;</button>
+                                                <button type="button" wire:click="eliminarAnuncio({{ $anuncio->id }})" wire:confirm="¿Eliminar el anuncio {{ $anuncio->titulo }}?"
+                                                    class="text-slate-400 hover:text-red-600" aria-label="Eliminar anuncio {{ $anuncio->titulo }}">
+                                                    <x-icono nombre="papelera" class="h-4 w-4" />
+                                                </button>
                                             @endif
                                         </div>
                                     </div>
-                                    <p class="text-[11px] text-stone-500 dark:text-stone-400 mt-1 whitespace-pre-line">{{ $anuncio->contenido }}</p>
-                                    <span class="block text-[10px] text-stone-400 mt-2">{{ $anuncio->created_at->diffForHumans() }}</span>
-                                </div>
+                                    <p class="mt-1 whitespace-pre-line text-xs text-stone-600 dark:text-stone-300">{{ $anuncio->contenido }}</p>
+                                    <span class="mt-2 block text-[11px] text-stone-400">{{ $anuncio->created_at->diffForHumans() }} - {{ $anuncio->autor?->name }}</span>
+                                </article>
                             @empty
-                                <p class="text-xs text-stone-500 dark:text-stone-400 text-center py-3">No hay anuncios publicados en este curso.</p>
+                                <x-gestion.vacio icono="megafono" titulo="Sin anuncios" descripcion="Aún no se publicaron anuncios en este curso." />
                             @endforelse
                         </div>
-                    </div>
+                    </x-gestion.tarjeta>
                 </div>
             </div>
+
+            @if ($mostrarModalClonar)
+                <x-gestion.modal titulo="Clonar curso para un nuevo ciclo" cerrar="$set('mostrarModalClonar', false)"
+                    descripcion="Se copian módulos, lecciones, tareas, quizzes y el esquema de evaluación como borrador. No se copian estudiantes, notas, entregas ni resultados.">
+                    <x-gestion.campo etiqueta="Nombre del nuevo curso" nombre="clonNombre" requerido>
+                        <x-gestion.control id="clonNombre" wire:model="clonNombre" />
+                    </x-gestion.campo>
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <x-gestion.campo etiqueta="Código" nombre="clonCodigo" ayuda="Opcional. Letras, números y guiones.">
+                            <x-gestion.control id="clonCodigo" wire:model="clonCodigo" placeholder="MAT-101-2027" maxlength="30" class="uppercase" />
+                        </x-gestion.campo>
+                        <x-gestion.campo etiqueta="Profesor titular" nombre="clonProfesorId">
+                            <x-gestion.control tipo="select" id="clonProfesorId" wire:model="clonProfesorId">
+                                @foreach ($profesores as $prof)
+                                    <option value="{{ $prof->id }}">{{ $prof->name }}</option>
+                                @endforeach
+                            </x-gestion.control>
+                        </x-gestion.campo>
+                    </div>
+                    <x-slot name="pie">
+                        <x-gestion.boton variante="secundario" wire:click="$set('mostrarModalClonar', false)">Cancelar</x-gestion.boton>
+                        <x-gestion.boton icono="copiar" wire:click="clonarCurso" wire:loading.attr="disabled" wire:target="clonarCurso">Clonar curso</x-gestion.boton>
+                    </x-slot>
+                </x-gestion.modal>
+            @endif
+            @if ($mostrarModalModulo)
+                <x-gestion.modal titulo="Editar sección" cerrar="$set('mostrarModalModulo', false)">
+                    <x-gestion.campo etiqueta="Tema" nombre="moduloTitulo" ayuda="Opcional. Se muestra junto a la semana, por ejemplo Semana 3: La derivada.">
+                        <x-gestion.control id="moduloTitulo" wire:model="moduloTitulo" placeholder="Tema de la semana" />
+                    </x-gestion.campo>
+                    @if ($moduloSemana !== '')
+                        <x-gestion.campo etiqueta="Semana" nombre="moduloSemana" requerido ayuda="Mueve todo el contenido (lecciones, tareas y quizzes) a otra semana libre.">
+                            <x-gestion.control tipo="select" id="moduloSemana" wire:model="moduloSemana">
+                                @foreach (range(1, $curso->totalSemanas()) as $numeroSemana)
+                                    <option value="{{ $numeroSemana }}">Semana {{ $numeroSemana }}</option>
+                                @endforeach
+                            </x-gestion.control>
+                        </x-gestion.campo>
+                    @endif
+                    <x-gestion.campo etiqueta="Estado" nombre="moduloEstado" requerido ayuda="Borrador y Programado no son visibles para los estudiantes hasta su publicación.">
+                        <x-gestion.control tipo="select" id="moduloEstado" wire:model.live="moduloEstado">
+                            <option value="borrador">Borrador</option>
+                            <option value="publicado">Publicado</option>
+                            <option value="programado">Programado</option>
+                        </x-gestion.control>
+                    </x-gestion.campo>
+                    @if ($moduloEstado === 'programado')
+                        <x-gestion.campo etiqueta="Publicar automáticamente el" nombre="moduloPublicarEn" requerido>
+                            <x-gestion.control id="moduloPublicarEn" type="datetime-local" wire:model="moduloPublicarEn" />
+                        </x-gestion.campo>
+                    @endif
+                    <x-gestion.campo etiqueta="Se considera completado al" nombre="moduloCondicion" requerido ayuda="Los estudiantes ven el avance de la sección según esta condición.">
+                        <x-gestion.control tipo="select" id="moduloCondicion" wire:model="moduloCondicion">
+                            @foreach (\App\Models\Modulo::CONDICIONES as $valor => $etiqueta)
+                                <option value="{{ $valor }}">{{ $etiqueta }}</option>
+                            @endforeach
+                        </x-gestion.control>
+                    </x-gestion.campo>
+                    <x-slot name="pie">
+                        <x-gestion.boton variante="secundario" wire:click="$set('mostrarModalModulo', false)">Cancelar</x-gestion.boton>
+                        <x-gestion.boton wire:click="guardarModulo">Guardar</x-gestion.boton>
+                    </x-slot>
+                </x-gestion.modal>
+            @endif
         @else
             {{-- Rediseño visual del rol estudiante: pestañas por módulo (ver ARQUITECTURA.md). --}}
             
@@ -264,68 +383,136 @@
                     @endforeach
                 </div>
 
-                {{-- Unidades / Contenido --}}
-                <div x-show="pestaña === 'unidades'" class="space-y-3">
-                    @forelse ($modulos as $modulo)
+                {{-- Contenido: bloque propio de Prácticas de campo (solo si tiene contenido visible) y,
+                     debajo, Semana 1..N. Una semana sin contenido visible (RF-38) se muestra como
+                     "Aún no disponible"; la semana en curso se abre sola. --}}
+                <div x-show="pestaña === 'unidades'" class="space-y-6">
+                    @if ($secciones['practicas'])
                         @php
+                            $seccion = $secciones['practicas'];
+                            $modulo = $seccion['modulo'];
                             $prog = $this->progresoModulos[$modulo->id] ?? null;
-                            $pct = $prog && $prog['total'] > 0 ? (int) round(($prog['completadas'] / $prog['total']) * 100) : null;
+                            $pct = $prog && $prog['total'] > 0 ? (int) round(($prog['hechos'] / $prog['total']) * 100) : null;
                         @endphp
-                        <div x-data="{ expandido: false }" class="bg-white dark:bg-azul-superficie-oscura rounded-xl border border-celeste dark:border-azul-borde-oscuro shadow-sm dark:shadow-none p-4" wire:key="modulo-est-{{ $modulo->id }}">
-                            <div @click="expandido = !expandido" class="flex items-center gap-3 cursor-pointer select-none">
-                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-celeste/50 text-azul-oscuro dark:bg-azul-oscuro/30 dark:text-celeste transition-colors hover:bg-celeste">
-                                    <x-icono nombre="libro" class="h-5 w-5" />
+                        <section aria-labelledby="titulo-practicas" wire:key="practicas-est-{{ $modulo->id }}"
+                            x-data="{ expandido: false }"
+                            class="overflow-hidden rounded-xl border border-azul-fondo/25 border-l-4 border-l-azul-fondo bg-celeste/50 shadow-sm dark:border-azul-borde-oscuro dark:border-l-azul-fondo dark:bg-azul-oscuro/15 dark:shadow-none">
+                            <div @click="expandido = !expandido" class="flex cursor-pointer select-none items-center gap-4 p-4">
+                                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-azul-fondo text-white shadow-sm">
+                                    <x-icono nombre="maletin" class="h-6 w-6" />
                                 </span>
-                                <div class="flex-1 min-w-0">
-                                    <h3 class="font-medium text-texto dark:text-slate-100">{{ $modulo->titulo }}</h3>
+                                <div class="min-w-0 flex-1">
+                                    <p class="text-[11px] font-semibold uppercase tracking-wider text-azul-fondo dark:text-cielo">Fuera de la numeración semanal</p>
+                                    <h3 id="titulo-practicas" class="text-lg font-bold text-texto dark:text-slate-100">Prácticas de campo</h3>
+                                    @if ($modulo->tema() && $modulo->tema() !== 'Prácticas de campo')
+                                        <p class="text-sm text-slate-600 dark:text-slate-300">{{ $modulo->tema() }}</p>
+                                    @endif
                                     @if ($pct !== null)
-                                        <div class="flex items-center gap-2 mt-1">
-                                            <div class="h-1.5 flex-1 max-w-[140px] rounded-full bg-celeste/50 dark:bg-azul-borde-oscuro overflow-hidden">
-                                                <div class="h-full rounded-full bg-azul-oscuro dark:bg-azul-fondo" style="width: {{ $pct }}%"></div>
+                                        <div class="mt-1.5 flex items-center gap-2">
+                                            <div class="h-1.5 max-w-[160px] flex-1 overflow-hidden rounded-full bg-white/80 dark:bg-azul-borde-oscuro">
+                                                <div class="h-full rounded-full bg-azul-fondo" style="width: {{ $pct }}%"></div>
                                             </div>
-                                            <span class="text-xs text-slate-400">{{ $prog['completadas'] }}/{{ $prog['total'] }} tareas</span>
+                                            <span class="inline-flex items-center gap-1 text-xs {{ $prog['completado'] ? 'font-medium text-exito-oscuro dark:text-exito-base' : 'text-slate-500 dark:text-slate-400' }}" title="Se completa al: {{ $prog['condicion'] }}">
+                                                @if ($prog['completado'])<x-icono nombre="check-circulo" class="h-3.5 w-3.5" />@endif
+                                                {{ $prog['hechos'] }} de {{ $prog['total'] }} completados
+                                            </span>
                                         </div>
                                     @endif
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-xs text-slate-400">{{ count($modulo->leccionesVisibles) }} lecciones</span>
-                                    <svg class="h-5 w-5 text-slate-400 transition-transform duration-200" :class="expandido ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    <span class="hidden text-xs text-slate-500 sm:inline dark:text-slate-400">{{ $seccion['elementos'] }} {{ $seccion['elementos'] === 1 ? 'actividad' : 'actividades' }}</span>
+                                    <svg class="h-5 w-5 text-azul-fondo transition-transform duration-200" :class="expandido ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                                     </svg>
                                 </div>
                             </div>
+                            <div x-show="expandido" x-collapse class="space-y-2 border-t border-azul-fondo/15 bg-white/70 p-4 dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura/60">
+                                @include('livewire.cursos.partials.elementos-seccion', ['leccionesCompletadas' => $this->leccionesCompletadas])
+                            </div>
+                        </section>
+                    @endif
 
-                            <!-- Contenido de la Unidad (Lecciones) -->
-                            <div x-show="expandido" x-collapse class="mt-4 pt-4 border-t border-celeste dark:border-azul-borde-oscuro space-y-3">
-                                @forelse ($modulo->leccionesVisibles as $leccion)
-                                    <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
-                                        <h4 class="font-semibold text-sm text-texto dark:text-slate-200">{{ $leccion->titulo }}</h4>
-                                        @if($leccion->descripcion)
-                                            <p class="text-xs text-slate-500 mt-1">{{ $leccion->descripcion }}</p>
-                                        @endif
-                                        <div class="flex flex-wrap gap-2 mt-3">
-                                            @if($leccion->video_url)
-                                                <a href="{{ $leccion->video_url }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-azul-oscuro hover:bg-azul-oscuro/90 text-white rounded text-xs font-medium transition">
-                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                                    Ver Video
-                                                </a>
+                    <section aria-labelledby="titulo-semanas" class="space-y-3">
+                        @if ($secciones['practicas'])
+                            <h2 id="titulo-semanas" class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Semanas del curso</h2>
+                        @endif
+                        @foreach ($secciones['semanas'] as $seccion)
+                            @php
+                                $modulo = $seccion['modulo'];
+                                $enCurso = $seccion['rango'] && now()->between($seccion['rango'][0], $seccion['rango'][1]);
+                            @endphp
+                            @if (! $modulo)
+                                {{-- Semana sin contenido visible: no se revela su tema ni si hay algo en borrador. --}}
+                                <div wire:key="semana-vacia-{{ $seccion['semana'] }}"
+                                    class="flex items-center gap-3 rounded-xl border border-dashed border-celeste bg-white/60 px-4 py-3 dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura/50 {{ $enCurso ? 'ring-1 ring-azul-oscuro/30' : '' }}">
+                                    <span class="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg bg-slate-100 leading-none text-slate-400 dark:bg-slate-800">
+                                        <span class="text-[9px] font-semibold uppercase tracking-wide">Sem</span>
+                                        <span class="text-base font-bold">{{ $seccion['semana'] }}</span>
+                                    </span>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="flex flex-wrap items-center gap-x-2">
+                                            <h3 class="font-medium text-slate-500 dark:text-slate-400">{{ $seccion['etiqueta'] }}</h3>
+                                            @if ($enCurso)
+                                                <span class="rounded-full bg-azul-oscuro px-2 py-0.5 text-[10px] font-semibold text-white">Semana actual</span>
                                             @endif
-                                            @if($leccion->material_url)
-                                                <a href="{{ $leccion->material_url }}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 bg-white border border-azul-oscuro text-azul-oscuro hover:bg-celeste/20 rounded text-xs font-medium transition">
-                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                                                    Material Adjunto
-                                                </a>
+                                            @if ($seccion['rango'])
+                                                <span class="text-xs text-slate-400">{{ $seccion['rango'][0]->translatedFormat('d M') }} – {{ $seccion['rango'][1]->translatedFormat('d M') }}</span>
                                             @endif
                                         </div>
+                                        <p class="text-xs text-slate-400">Aún no disponible</p>
                                     </div>
-                                @empty
-                                    <p class="text-xs text-slate-500 italic">No hay lecciones disponibles en esta unidad todavía.</p>
-                                @endforelse
-                            </div>
-                        </div>
-                    @empty
-                        <p class="text-sm text-slate-500 dark:text-slate-400">Este curso todavía no tiene unidades.</p>
-                    @endforelse
+                                </div>
+                            @else
+                                @php
+                                    $prog = $this->progresoModulos[$modulo->id] ?? null;
+                                    $pct = $prog && $prog['total'] > 0 ? (int) round(($prog['hechos'] / $prog['total']) * 100) : null;
+                                @endphp
+                                <div x-data="{ expandido: @js($enCurso) }" wire:key="modulo-est-{{ $modulo->id }}"
+                                    class="rounded-xl border border-celeste bg-white p-4 shadow-sm dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura dark:shadow-none {{ $enCurso ? 'ring-1 ring-azul-oscuro/30 dark:ring-azul-fondo/40' : '' }}">
+                                    <div @click="expandido = !expandido" class="flex cursor-pointer select-none items-center gap-3">
+                                        <span class="flex h-11 w-11 shrink-0 flex-col items-center justify-center rounded-lg leading-none {{ $enCurso ? 'bg-azul-oscuro text-white' : 'bg-celeste/50 text-azul-oscuro dark:bg-azul-oscuro/30 dark:text-celeste' }}">
+                                            <span class="text-[9px] font-semibold uppercase tracking-wide opacity-80">Sem</span>
+                                            <span class="text-base font-bold">{{ $seccion['semana'] }}</span>
+                                        </span>
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                                <h3 class="font-semibold text-texto dark:text-slate-100">{{ $seccion['etiqueta'] }}</h3>
+                                                @if ($enCurso)
+                                                    <span class="rounded-full bg-azul-oscuro px-2 py-0.5 text-[10px] font-semibold text-white">Semana actual</span>
+                                                @endif
+                                                @if ($seccion['rango'])
+                                                    <span class="text-xs text-slate-400">{{ $seccion['rango'][0]->translatedFormat('d M') }} – {{ $seccion['rango'][1]->translatedFormat('d M') }}</span>
+                                                @endif
+                                            </div>
+                                            @if ($modulo->tema())
+                                                <p class="truncate text-sm text-slate-600 dark:text-slate-300">{{ $modulo->tema() }}</p>
+                                            @endif
+                                            @if ($pct !== null)
+                                                <div class="mt-1.5 flex items-center gap-2">
+                                                    <div class="h-1.5 max-w-[160px] flex-1 overflow-hidden rounded-full bg-celeste/60 dark:bg-azul-borde-oscuro">
+                                                        <div class="h-full rounded-full bg-azul-oscuro dark:bg-azul-fondo" style="width: {{ $pct }}%"></div>
+                                                    </div>
+                                                    <span class="inline-flex items-center gap-1 text-xs {{ $prog['completado'] ? 'font-medium text-exito-oscuro dark:text-exito-base' : 'text-slate-500 dark:text-slate-400' }}" title="Se completa al: {{ $prog['condicion'] }}">
+                                                        @if ($prog['completado'])<x-icono nombre="check-circulo" class="h-3.5 w-3.5" />@endif
+                                                        {{ $prog['hechos'] }} de {{ $prog['total'] }} completados
+                                                    </span>
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="hidden text-xs text-slate-400 sm:inline">{{ $seccion['elementos'] }} {{ $seccion['elementos'] === 1 ? 'elemento' : 'elementos' }}</span>
+                                            <svg class="h-5 w-5 text-slate-400 transition-transform duration-200" :class="expandido ? 'rotate-180' : ''" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div x-show="expandido" x-collapse class="mt-4 space-y-2 border-t border-celeste pt-4 dark:border-azul-borde-oscuro">
+                                        @include('livewire.cursos.partials.elementos-seccion', ['leccionesCompletadas' => $this->leccionesCompletadas])
+                                    </div>
+                                </div>
+                            @endif
+                        @endforeach
+                    </section>
                 </div>
 
                 {{-- Anuncios del Curso --}}
@@ -340,7 +527,7 @@
                                     <h3 class="font-bold text-texto dark:text-slate-100 text-base">{{ $anuncio->titulo }}</h3>
                                 </div>
                                 @if ($anuncio->prioridad === 'urgente')
-                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-terracota-base/20 text-terracota-oscuro dark:text-terracota-claro">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
                                         Urgente
                                     </span>
                                 @elseif ($anuncio->prioridad === 'importante')
@@ -356,7 +543,7 @@
                             <div class="text-xs text-slate-400 mb-3 flex items-center gap-1.5">
                                 <span>Por Prof. {{ $anuncio->autor?->name ?? 'Docente' }}</span>
                                 <span>•</span>
-                                <span>{{ $anuncio->created_at->diffForHumans() }} ({{ $anuncio->created_at->format('d/m/Y H:i') }})</span>
+                                <span>{{ $anuncio->created_at->diffForHumans() }} ({{ $anuncio->created_at->formatoFechaHora() }})</span>
                             </div>
                             <div class="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">
                                 {{ $anuncio->contenido }}
@@ -382,7 +569,7 @@
                             <span class="flex-1 min-w-0">
                                 <span class="block text-sm font-medium text-texto dark:text-slate-100 truncate">{{ $fila['tarea']->titulo }}</span>
                                 <span class="block text-xs text-slate-500 dark:text-slate-400">
-                                    Vence: {{ $fila['tarea']->fecha_limite?->translatedFormat('d M, H:i') ?? 'Sin fecha límite' }}
+                                    Vence: {{ $fila['tarea']->fecha_entrega?->translatedFormat('d M, H:i') ?? 'Sin fecha límite' }}
                                 </span>
                             </span>
                             <x-badge-estado :estado="$fila['estado']" />
@@ -422,7 +609,7 @@
                     @forelse ($this->companerosDelCurso as $companero)
                         @php $esUnoMismo = $companero->is(auth()->user()); @endphp
                         <div class="flex items-center gap-3 rounded-xl border border-celeste dark:border-azul-borde-oscuro bg-white dark:bg-azul-superficie-oscura p-3" wire:key="companero-{{ $companero->id }}">
-                            <img src="{{ $companero->avatar_url ?? 'https://ui-avatars.com/api/?name='.urlencode($companero->name).'&background=2F5A78&color=fff' }}"
+                            <img src="{{ $companero->fotoUrl('2F5A78') }}"
                                 class="h-9 w-9 shrink-0 rounded-full object-cover" alt="{{ $companero->name }}">
                             <span class="flex-1 min-w-0">
                                 <span class="block text-sm font-medium text-texto dark:text-slate-100 truncate">
@@ -454,7 +641,7 @@
                                 @foreach ($this->miGrupoDelCurso->estudiantes as $integrante)
                                     @php $esUnoMismo = $integrante->is(auth()->user()); @endphp
                                     <div class="flex items-center gap-3" wire:key="integrante-{{ $integrante->id }}">
-                                        <img src="{{ $integrante->avatar_url ?? 'https://ui-avatars.com/api/?name='.urlencode($integrante->name).'&background=2F5A78&color=fff' }}"
+                                        <img src="{{ $integrante->fotoUrl('2F5A78') }}"
                                             class="h-8 w-8 shrink-0 rounded-full object-cover" alt="{{ $integrante->name }}">
                                         <span class="text-sm text-texto dark:text-slate-100">
                                             {{ $integrante->name }} @if ($esUnoMismo) <span class="text-slate-400">(tú)</span> @endif

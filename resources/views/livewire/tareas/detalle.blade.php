@@ -1,32 +1,42 @@
 @php
-    // Paleta fría institucional (ver /DISEÑO FIGMA y ARQUITECTURA.md)
-    // aplicada al estudiante. El profesor/admin conserva la paleta cálida.
+    // $paletaFria SOLO determina qué bloque de contenido se renderiza
+    // (vista de estudiante vs. vista de profesor/supervisor) — no tocar su
+    // significado. $colorFrio es aparte, solo para color: Estudiante y
+    // Profesor comparten paleta azul; Supervisor conserva la cálida.
     $paletaFria = auth()->user()->hasRole('estudiante');
+    $esAdminVista = auth()->user()->hasRole('supervisor');
+    $colorFrio = ! $esAdminVista;
 @endphp
 
 <div class="py-8">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-        @if (session('estado'))
+        @if (session('estado') && $paletaFria)
             <div class="rounded-lg bg-exito-base/15 text-exito-oscuro px-4 py-3 text-sm font-medium">{{ session('estado') }}</div>
         @endif
 
-        <div class="bg-white rounded-xl border p-6 {{ $paletaFria ? 'dark:bg-azul-superficie-oscura border-celeste dark:border-azul-borde-oscuro shadow-sm dark:shadow-none' : 'dark:bg-stone-800 border-arena-medio dark:border-stone-700' }}">
+        <div class="bg-white rounded-xl border p-6 {{ $colorFrio ? 'dark:bg-azul-superficie-oscura border-celeste dark:border-azul-borde-oscuro shadow-sm dark:shadow-none' : 'dark:bg-stone-800 border-arena-medio dark:border-stone-700' }}">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <div>
                     <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">{{ $tarea->curso->nombre }}</span>
-                    <h1 class="text-2xl font-bold mt-1 {{ $paletaFria ? 'text-texto dark:text-slate-100' : 'text-stone-900 dark:text-stone-100' }}">{{ $tarea->titulo }}</h1>
+                    <h1 class="text-2xl font-bold mt-1 {{ $colorFrio ? 'text-texto dark:text-slate-100' : 'text-stone-900 dark:text-stone-100' }}">{{ $tarea->titulo }}</h1>
                 </div>
                 <div class="text-right">
                     <span class="text-xs text-slate-400 block">Vencimiento</span>
-                    <span class="text-sm font-medium {{ $paletaFria ? 'text-texto dark:text-slate-200' : 'text-stone-700 dark:text-stone-200' }}">
-                        {{ $tarea->fecha_limite?->translatedFormat('d M Y, H:i') ?? 'Sin fecha límite' }}
+                    <span class="text-sm font-medium {{ $colorFrio ? 'text-texto dark:text-slate-200' : 'text-stone-700 dark:text-stone-200' }}">
+                        {{ $tarea->fecha_entrega?->formatoFechaHora() ?? 'Sin fecha límite' }}
                     </span>
-                    <span class="text-xs text-slate-400 block mt-1">Peso: {{ $tarea->peso_nota }}%</span>
+                    <span class="text-xs text-slate-400 block mt-1">Peso: {{ (float) $tarea->peso_nota }} %</span>
                 </div>
             </div>
 
             @if ($tarea->descripcion)
-                <p class="mt-4 {{ $paletaFria ? 'text-slate-600 dark:text-slate-300' : 'text-stone-600 dark:text-stone-300' }}">{{ $tarea->descripcion }}</p>
+                <p class="mt-4 {{ $colorFrio ? 'text-slate-600 dark:text-slate-300' : 'text-stone-600 dark:text-stone-300' }}">{{ $tarea->descripcion }}</p>
+            @endif
+            @if ($tarea->instrucciones)
+                <p class="mt-4 whitespace-pre-line {{ $colorFrio ? 'text-slate-600 dark:text-slate-300' : 'text-stone-600 dark:text-stone-300' }}"><span class="font-semibold">Instrucciones:</span> {{ $tarea->instrucciones }}</p>
+            @endif
+            @if ($tarea->fecha_inicio)
+                <span class="text-xs text-slate-400 block mt-2">Disponible desde: {{ $tarea->fecha_inicio->formatoFechaHora() }} - Intentos: {{ $tarea->intentos_permitidos }}</span>
             @endif
         </div>
 
@@ -44,7 +54,7 @@
                     <div class="rounded-xl border border-exito-base/40 bg-exito-base/10 dark:bg-emerald-950/30 p-4 mb-5">
                         <div class="flex flex-wrap items-center justify-between gap-3">
                             <div class="flex items-center gap-2.5">
-                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-exito-oscuro text-white text-xs font-bold">✓</span>
+                                <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-exito-oscuro text-white text-xs font-bold"><x-icono nombre="check" class="h-4 w-4" /></span>
                                 <div>
                                     <h3 class="text-sm font-bold text-exito-oscuro dark:text-emerald-300">Confirmación de Entrega Oficial</h3>
                                     <p class="text-xs text-slate-600 dark:text-slate-300">
@@ -53,7 +63,7 @@
                                 </div>
                             </div>
                             <span class="text-xs font-medium text-slate-500 dark:text-slate-400 bg-white/60 dark:bg-black/20 px-2 py-1 rounded">
-                                Fecha: {{ $this->miEntrega->created_at->format('d/m/Y H:i:s') }}
+                                Fecha: {{ $this->miEntrega->created_at->formatoFechaHora(true) }}
                             </span>
                         </div>
                     </div>
@@ -62,14 +72,24 @@
                         <h2 class="font-semibold text-texto dark:text-slate-100">
                             {{ $tarea->esGrupal() ? 'Entrega de tu grupo' : 'Tu entrega' }}
                         </h2>
-                        <x-badge-estado :estado="$this->miEntrega->estado" />
+                        <x-badge-estado :estado="$this->miEstado" />
                     </div>
                     @if ($tarea->esGrupal() && $this->miGrupo)
-                        <p class="text-xs text-slate-400 mt-1">{{ $this->miGrupo->nombre }} — {{ $this->miGrupo->estudiantes->pluck('name')->implode(', ') }}</p>
+                        <p class="text-xs text-slate-400 mt-1">{{ $this->miGrupo->nombre }} - {{ $this->miGrupo->estudiantes->pluck('name')->implode(', ') }}</p>
                     @endif
-                    <a href="{{ $this->miEntrega->archivo_url }}" target="_blank" class="text-sm text-azul-oscuro dark:text-azul-fondo hover:underline flex items-center gap-1 mt-2">
+                    @if ($this->miEntrega->archivo_url)
+                    <a href="{{ \App\Services\Multimedia\SubidorArchivos::enlace($this->miEntrega->archivo_url) }}" target="_blank" rel="noopener noreferrer" class="text-sm text-azul-oscuro dark:text-azul-fondo hover:underline flex items-center gap-1 mt-2">
                         <x-icono nombre="material" class="h-4 w-4" /> Ver archivo entregado
                     </a>
+                    @endif
+                    @if ($this->miEntrega->enlace)
+                    <a href="{{ $this->miEntrega->enlace }}" target="_blank" rel="noopener noreferrer" class="text-sm text-azul-oscuro dark:text-azul-fondo hover:underline flex items-center gap-1 mt-2">
+                        <x-icono nombre="enlace" class="h-4 w-4" /> Ver enlace entregado
+                    </a>
+                    @endif
+                    @if ($this->miEntrega->respuesta_texto)
+                    <p class="text-sm text-slate-600 dark:text-slate-300 mt-2 whitespace-pre-line">{{ $this->miEntrega->respuesta_texto }}</p>
+                    @endif
                     @if ($this->miEntrega->comentario)
                         <p class="text-sm text-slate-500 dark:text-slate-400 mt-2">"{{ $this->miEntrega->comentario }}"</p>
                     @endif
@@ -80,8 +100,8 @@
                                 <p class="text-base font-bold text-texto dark:text-slate-100">
                                     Nota: <span class="text-azul-oscuro dark:text-cielo font-black text-lg">{{ $this->miEntrega->nota }}</span> / 20
                                 </p>
-                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $this->miEntrega->nota >= 10.5 ? 'bg-verde-fondo/60 text-verde-oscuro' : 'bg-terracota-base/20 text-terracota-oscuro' }}">
-                                    {{ $this->miEntrega->nota >= 10.5 ? 'Aprobado' : 'Desaprobado' }}
+                                <span class="text-xs font-semibold px-2 py-0.5 rounded-full {{ $this->miEntrega->nota >= $this->notaMinima ? 'bg-verde-fondo/60 text-verde-oscuro' : 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300' }}">
+                                    {{ $this->miEntrega->nota >= $this->notaMinima ? 'Aprobado' : 'Desaprobado' }}
                                 </span>
                             </div>
                             @if ($this->miEntrega->feedback)
@@ -90,6 +110,18 @@
                                     <p class="text-sm text-slate-700 dark:text-slate-200">{{ $this->miEntrega->feedback }}</p>
                                 </div>
                             @endif
+                        </div>
+                    @endif
+                    @if ($this->miEntrega->estado === 'devuelto' && $this->miEntrega->feedback)
+                        <div class="mt-2 bg-slate-50 dark:bg-slate-800/60 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
+                            <span class="text-xs font-semibold text-slate-500 dark:text-slate-400 block mb-0.5">Comentarios del docente:</span>
+                            <p class="text-sm text-slate-700 dark:text-slate-200">{{ $this->miEntrega->feedback }}</p>
+                        </div>
+                    @endif
+                    @if ($this->puedeReentregar)
+                        <div class="mt-4 pt-4 border-t border-celeste dark:border-azul-borde-oscuro">
+                            <h2 class="font-semibold text-texto dark:text-slate-100 mb-4">Volver a entregar (intento {{ $this->miEntrega->intentos_usados + 1 }})</h2>
+                            @include('livewire.tareas.partials.formulario-entrega')
                         </div>
                     @endif
                 @elseif ($tarea->esGrupal() && ! $this->miGrupo)
@@ -105,72 +137,123 @@
                     @else
                         <div class="mb-4"></div>
                     @endif
-                    <form wire:submit="entregar" class="space-y-4">
-                        <div>
-                            <input type="file" wire:model="archivo"
-                                class="block w-full text-sm text-slate-600 dark:text-slate-400 file:me-4 file:rounded-md file:border-0 file:bg-azul-oscuro file:px-3 file:py-1.5 file:text-white file:text-sm hover:file:bg-azul-oscuro/90">
-                            <span wire:loading wire:target="archivo" class="text-xs text-slate-400">Subiendo…</span>
-                            <x-input-error :messages="$errors->get('archivo')" class="mt-2" />
-                        </div>
-                        <div>
-                            <textarea wire:model="comentario" rows="2" placeholder="Comentario (opcional)…"
-                                class="block w-full rounded-md border-slate-300 dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura dark:text-slate-200 focus:border-azul-fondo focus:ring-azul-fondo"></textarea>
-                        </div>
-                        <x-primary-button>Entregar</x-primary-button>
-                    </form>
+                    @if (! $tarea->haIniciado())
+                        <p class="text-sm text-slate-500 dark:text-slate-400">La entrega se habilita el {{ $tarea->fecha_inicio->formatoFechaHora() }}.</p>
+                    @else
+                        @include('livewire.tareas.partials.formulario-entrega')
+                    @endif
                 @endif
             </div>
         @else
-            {{-- Vista de profesor/administrador: calificar entregas. En una tarea
-                 grupal, las entregas de un mismo grupo se muestran juntas y se
-                 califican en un solo formulario (la nota se propaga a todos). --}}
+            {{-- Vista de Profesor / Supervisor: revisar, calificar o devolver entregas (RF-49).
+                 En una tarea grupal, las entregas del mismo grupo se califican juntas. --}}
             @php
-                // Cada grupo colapsa a una sola tarjeta; una entrega individual
-                // (grupo_id null) sigue mostrándose como su propia tarjeta.
                 $entregasAgrupadas = $entregas->groupBy(fn ($e) => $e->grupo_id ?? 'individual-'.$e->id);
             @endphp
 
-            <div class="space-y-4">
-                <h2 class="font-semibold text-stone-800 dark:text-stone-100">Entregas ({{ $entregasAgrupadas->count() }})</h2>
+            <x-gestion.alertas />
 
-                @forelse ($entregasAgrupadas as $miembrosDelGrupo)
-                    @php $entrega = $miembrosDelGrupo->first(); @endphp
-                    <div class="bg-white dark:bg-stone-800 rounded-xl border border-arena-medio dark:border-stone-700 p-4" wire:key="entrega-{{ $entrega->id }}">
-                        <div class="flex items-center justify-between">
-                            <span class="font-medium text-stone-800 dark:text-stone-100">
-                                @if ($entrega->grupo_id)
-                                    {{ $entrega->grupo->nombre }}
-                                    <span class="font-normal text-stone-400 text-xs">({{ $miembrosDelGrupo->pluck('estudiante.name')->implode(', ') }})</span>
-                                @else
-                                    {{ $entrega->estudiante->name }}
-                                @endif
-                            </span>
-                            <x-badge-estado :estado="$entrega->estado" />
-                        </div>
-                        <a href="{{ $entrega->archivo_url }}" target="_blank" class="text-sm text-menta-oscuro dark:text-menta-base hover:underline block mt-1">
-                            📎 Ver archivo
-                        </a>
-                        @if ($entrega->comentario)
-                            <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">"{{ $entrega->comentario }}"</p>
-                        @endif
-
-                        <form wire:submit="calificar({{ $entrega->id }})" class="mt-3 flex flex-wrap items-start gap-3">
-                            <div>
-                                <input type="number" step="0.01" min="0" max="20" wire:model="notas.{{ $entrega->id }}" placeholder="Nota /20"
-                                    class="w-24 rounded-md border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base text-sm">
-                                <x-input-error :messages="$errors->get('notas.'.$entrega->id)" class="mt-1" />
-                            </div>
-                            <div class="flex-1 min-w-[200px]">
-                                <input type="text" wire:model="feedbacks.{{ $entrega->id }}" placeholder="Feedback…"
-                                    class="w-full rounded-md border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base text-sm">
-                            </div>
-                            <x-secondary-button type="submit">Calificar</x-secondary-button>
-                        </form>
-                    </div>
-                @empty
-                    <p class="text-sm text-stone-500 dark:text-stone-400">Nadie ha entregado esta tarea todavía.</p>
-                @endforelse
+            <div class="flex flex-wrap items-center gap-2">
+                @if ($this->puedeGestionar && ! $tarea->curso->estaFinalizado())
+                    <x-gestion.boton variante="secundario" tamano="sm" icono="lapiz" :href="route('cursos.tareas.editar', [$tarea->curso, $tarea])">Editar tarea</x-gestion.boton>
+                @endif
+                <span class="text-xs text-stone-500">{{ $tarea->etiquetaEstadoPublicacion() }}, {{ $tarea->esGrupal() ? 'grupal' : 'individual' }}, {{ $tarea->intentos_permitidos }} {{ $tarea->intentos_permitidos === 1 ? 'intento' : 'intentos' }}</span>
             </div>
+
+            @unless ($this->puedeCalificar)
+                <div class="flex items-start gap-3 rounded-xl border bg-white px-4 py-3 text-sm {{ $esAdminVista ? 'border-arena-medio text-stone-600 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-300' : 'border-celeste text-slate-600 dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura dark:text-slate-300' }}">
+                    <x-icono nombre="info" class="h-5 w-5 shrink-0 {{ $esAdminVista ? 'text-menta-oscuro' : 'text-azul-oscuro' }}" />
+                    <p>{{ $tarea->curso->estaFinalizado() ? 'El curso está archivado: las calificaciones ya no se pueden modificar.' : 'Solo el profesor del curso califica las entregas.' }}</p>
+                </div>
+            @endunless
+
+            <x-gestion.tarjeta titulo="Entregas ({{ $entregasAgrupadas->count() }})" :relleno="false">
+                @if ($entregasAgrupadas->isEmpty())
+                    <div class="p-4">
+                        <x-gestion.vacio icono="tarea" titulo="Nadie ha entregado esta tarea todavía" />
+                    </div>
+                @else
+                    <ul class="divide-y {{ $esAdminVista ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
+                        @foreach ($entregasAgrupadas as $miembrosDelGrupo)
+                            @php $entrega = $miembrosDelGrupo->first(); @endphp
+                            <li class="space-y-3 p-4" wire:key="entrega-{{ $entrega->id }}">
+                                <div class="flex flex-wrap items-start justify-between gap-2">
+                                    <div>
+                                        <p class="font-medium text-stone-800 dark:text-stone-100">
+                                            @if ($entrega->grupo_id)
+                                                {{ $entrega->grupo?->nombre }}
+                                                <span class="text-xs font-normal text-stone-500">({{ $miembrosDelGrupo->pluck('estudiante.name')->implode(', ') }})</span>
+                                            @else
+                                                {{ $entrega->estudiante?->name }}
+                                            @endif
+                                        </p>
+                                        <p class="text-xs text-stone-500">Entregado el {{ $entrega->updated_at?->formatoFechaHora() }} - intento {{ $entrega->intentos_usados }}</p>
+                                    </div>
+                                    <x-badge-estado :estado="$tarea->estadoPara($entrega)" />
+                                </div>
+
+                                <div class="space-y-1 text-sm">
+                                    @if ($entrega->archivo_url)
+                                        <a href="{{ \App\Services\Multimedia\SubidorArchivos::enlace($entrega->archivo_url) }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 {{ $esAdminVista ? 'text-menta-oscuro dark:text-menta-base' : 'text-azul-oscuro dark:text-azul-fondo' }} hover:underline">
+                                            <x-icono nombre="material" class="h-4 w-4" /> Ver archivo
+                                        </a>
+                                    @endif
+                                    @if ($entrega->enlace)
+                                        <a href="{{ $entrega->enlace }}" target="_blank" rel="noopener noreferrer" class="ml-3 inline-flex items-center gap-1 {{ $esAdminVista ? 'text-menta-oscuro dark:text-menta-base' : 'text-azul-oscuro dark:text-azul-fondo' }} hover:underline">
+                                            <x-icono nombre="enlace" class="h-4 w-4" /> Ver enlace
+                                        </a>
+                                    @endif
+                                    @if ($entrega->respuesta_texto)
+                                        <p class="whitespace-pre-line rounded-lg p-3 {{ $esAdminVista ? 'bg-arena-claro/50 text-stone-700 dark:bg-stone-900 dark:text-stone-300' : 'bg-celeste/50 text-slate-700 dark:bg-azul-pagina-oscura dark:text-slate-300' }}">{{ $entrega->respuesta_texto }}</p>
+                                    @endif
+                                    @if ($entrega->comentario)
+                                        <p class="text-stone-500 dark:text-stone-400">Comentario: "{{ $entrega->comentario }}"</p>
+                                    @endif
+                                </div>
+
+                                @if ($this->puedeCalificar)
+                                    <form wire:submit="calificar({{ $entrega->id }})" class="flex flex-col gap-2 sm:flex-row sm:items-start">
+                                        <div>
+                                            <label class="sr-only" for="nota-{{ $entrega->id }}">Nota sobre 20</label>
+                                            <x-gestion.control id="nota-{{ $entrega->id }}" type="number" step="0.01" min="0" max="20" class="sm:w-28"
+                                                wire:model="notas.{{ $entrega->id }}" placeholder="Nota /20" />
+                                            @error('notas.'.$entrega->id) <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                        </div>
+                                        <div class="flex-1">
+                                            <label class="sr-only" for="feedback-{{ $entrega->id }}">Comentario para el estudiante</label>
+                                            <x-gestion.control id="feedback-{{ $entrega->id }}" wire:model="feedbacks.{{ $entrega->id }}" placeholder="Comentario para el estudiante" />
+                                            @error('feedbacks.'.$entrega->id) <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                                        </div>
+                                        <div class="flex gap-2">
+                                            <x-gestion.boton type="submit" tamano="sm" icono="check">Calificar</x-gestion.boton>
+                                            @if ($entrega->estado !== 'calificado')
+                                                <x-gestion.boton variante="secundario" tamano="sm" icono="refrescar" wire:click="devolver({{ $entrega->id }})"
+                                                    wire:confirm="Se devolverá la entrega para que el estudiante la corrija y vuelva a entregar. ¿Continuar?">Devolver</x-gestion.boton>
+                                            @endif
+                                        </div>
+                                    </form>
+                                @elseif ($entrega->nota !== null)
+                                    <p class="text-sm text-stone-700 dark:text-stone-200">Nota: <strong>{{ $entrega->nota }}</strong> / 20 @if ($entrega->feedback) - {{ $entrega->feedback }} @endif</p>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+            </x-gestion.tarjeta>
+
+            <x-gestion.tarjeta titulo="Sin entregar ({{ $sinEntregar->count() }})" descripcion="{{ $tarea->estaVencida() ? 'El plazo venció: figuran como No entregado.' : 'El plazo sigue abierto: figuran como Pendiente.' }}">
+                @if ($sinEntregar->isEmpty())
+                    <p class="text-sm text-stone-500">Todos los estudiantes matriculados entregaron.</p>
+                @else
+                    <div class="flex flex-wrap gap-2">
+                        @foreach ($sinEntregar as $estudiante)
+                            <span class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs {{ $esAdminVista ? 'bg-arena-claro text-stone-700 dark:bg-stone-700 dark:text-stone-200' : 'bg-celeste text-slate-700 dark:bg-azul-borde-oscuro dark:text-slate-200' }}" wire:key="sin-{{ $estudiante->id }}">
+                                {{ $estudiante->name }} <x-badge-estado :estado="$tarea->estaVencida() ? 'no_entregado' : 'pendiente'" />
+                            </span>
+                        @endforeach
+                    </div>
+                @endif
+            </x-gestion.tarjeta>
         @endif
     </div>
 </div>

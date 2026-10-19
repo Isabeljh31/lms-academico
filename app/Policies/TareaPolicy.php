@@ -19,15 +19,33 @@ class TareaPolicy
         return Gate::forUser($usuario)->allows('gestionar', $tarea->curso);
     }
 
+    /** Consulta de solo lectura: Supervisor y Profesor del curso. */
+    public function supervisar(User $usuario, Tarea $tarea): bool
+    {
+        return Gate::forUser($usuario)->allows('supervisar', $tarea->curso);
+    }
+
+    /**
+     * El estudiante solo ve tareas publicadas (RF-38) de un curso visible en
+     * el que tiene matrícula activa. Una tarea grupal asignada a un grupo
+     * concreto solo la ven los integrantes de ese grupo (RF-76).
+     */
     public function ver(User $usuario, Tarea $tarea): bool
     {
-        if ($this->gestionar($usuario, $tarea)) {
+        if ($this->supervisar($usuario, $tarea)) {
             return true;
         }
 
-        return $tarea->visible
-            && $usuario->hasRole('estudiante')
-            && $tarea->curso->inscripciones()->where('estudiante_id', $usuario->id)->exists();
+        if (! $usuario->hasRole('estudiante') || ! $tarea->esVisibleParaEstudiante()) {
+            return false;
+        }
+
+        if (! Gate::forUser($usuario)->allows('ver', $tarea->curso)) {
+            return false;
+        }
+
+        return $tarea->grupo_asignado_id === null
+            || $tarea->grupoAsignado?->estudiantes()->whereKey($usuario->id)->exists();
     }
 
     /**

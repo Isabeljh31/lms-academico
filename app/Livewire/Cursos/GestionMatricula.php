@@ -2,22 +2,26 @@
 
 namespace App\Livewire\Cursos;
 
-use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
 use App\Models\Inscripcion;
 use App\Models\User;
-use App\Notifications\MatriculadoEnCurso;
+use App\Services\Matricula\GestorMatriculas;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 /**
- * ERS RF-26: Matrícula manual por Supervisor/Profesor.
- * ERS RF-29: Dar de baja con confirmación.
- * ERS RF-30: Preservar historial académico al dar de baja.
- * ERS RF-31: Confirmación explícita antes de baja.
- * ERS RF-33: Notificar al estudiante al matricularse.
+ * Matrícula de un curso.
+ * ERS RF-26: matrícula manual. RF-28: origen. RF-29 a RF-31: baja lógica con
+ * confirmación. RF-32: matrículas de API solo se desactivan localmente.
+ * RF-33: notificación al estudiante.
+ *
+ * Matriz de permisos (ERS § 5): matricula solo el Supervisor; dan de baja el
+ * Supervisor (todos los cursos) y el Profesor (sus cursos). Una matrícula que
+ * llegó por API solo la desactiva el Supervisor (RF-32), porque el sistema
+ * externo es la fuente de verdad. En un curso archivado no hay bajas (RNF-14).
  */
 #[Layout('layouts.app')]
 class GestionMatricula extends Component
@@ -26,23 +30,41 @@ class GestionMatricula extends Component
 
     public Curso $curso;
 
-    // Búsqueda para agregar estudiante
     public string $busquedaEstudiante = '';
+
     public ?int $estudianteSeleccionadoId = null;
 
-    // Modal de baja
     public bool $mostrarModalBaja = false;
+
+    #[Locked]
     public ?int $inscripcionBajaId = null;
+
     public string $motivoBaja = '';
 
-    // Filtros de la lista
     public string $filtroEstado = 'activo';
 
     public function mount(Curso $curso): void
     {
-        abort_unless(auth()->user()->hasAnyRole(['supervisor', 'profesor']), 403);
-        Gate::authorize('gestionar', $curso);
+        Gate::authorize('supervisar', $curso);
         $this->curso = $curso;
+    }
+
+    public function getPuedeMatricularProperty(): bool
+    {
+        return Gate::allows('matricular', $this->curso) && ! $this->curso->estaFinalizado();
+    }
+
+    /** Hay al menos una baja que este usuario puede hacer en el curso. */
+    public function getPuedeDarDeBajaProperty(): bool
+    {
+        return Gate::allows('darDeBaja', $this->curso) && ! $this->curso->estaFinalizado();
+    }
+
+    public function puedeDarDeBajaA(Inscripcion $inscripcion): bool
+    {
+        return $this->puedeDarDeBaja
+            && $inscripcion->estaActiva()
+            && (! $inscripcion->esDeApiExterna() || Gate::allows('administrar', $this->curso));
     }
 
     public function updatingBusquedaEstudiante(): void
@@ -50,161 +72,93 @@ class GestionMatricula extends Component
         $this->estudianteSeleccionadoId = null;
     }
 
-    public function updatingFiltroEstado(): void { $this->resetPage(); }
-
-    // ==========================================
-    // MATRÍCULA MANUAL (ERS RF-26)
-    // ==========================================
+    public function updatingFiltroEstado(): void
+    {
+        $this->resetPage();
+    }
 
     public function seleccionarEstudiante(int $id): void
     {
-        $this->estudianteSeleccionadoId = $id;
-        $user = User::find($id);
-        $this->busquedaEstudiante = $user?->name ?? '';
+        abort_unless($this->puedeMatricular, 403);
+
+        $estudiante = User::role('estudiante')->findOrFail($id);
+        $this->estudianteSeleccionadoId = $estudiante->id;
+        $this->busquedaEstudiante = $estudiante->name;
     }
 
-    public function matricularEstudiante(): void
+    public function matricularEstudiante(GestorMatriculas $gestor): void
     {
-        abort_unless(auth()->user()->hasAnyRole(['supervisor', 'profesor']), 403);
+        abort_unless($this->puedeMatricular, 403);
 
-        $this->validate([
-            'estudianteSeleccionadoId' => ['required', 'exists:users,id'],
-        ]);
-
-        $estudiante = User::findOrFail($this->estudianteSeleccionadoId);
-
-        // Verificar que no esté ya inscrito y activo
-        $inscripcionExistente = Inscripcion::where('curso_id', $this->curso->id)
-            ->where('estudiante_id', $estudiante->id)
-            ->first();
-
-        if ($inscripcionExistente) {
-            if ($inscripcionExistente->estaActiva()) {
-                $this->addError('estudianteSeleccionadoId', "{$estudiante->name} ya está inscrito y activo en este curso.");
-                return;
-            }
-            // Reactivar inscripción anterior (ERS RF-30: conserva historial)
-            $inscripcionExistente->update([
-                'estado'       => 'activo',
-                'activo_local' => true,
-                'fecha_baja'   => null,
-                'dado_de_baja_por' => null,
-            ]);
-            $inscripcion = $inscripcionExistente;
-        } else {
-            $inscripcion = Inscripcion::create([
-                'curso_id'          => $this->curso->id,
-                'estudiante_id'     => $estudiante->id,
-                'fecha_inscripcion' => now(),
-                'origen'            => 'manual',
-                'estado'            => 'activo',
-                'activo_local'      => true,
-            ]);
-        }
-
-        // ERS RF-33: notificar al estudiante
-        $estudiante->notify(new MatriculadoEnCurso($this->curso, 'manual'));
-
-        // ERS RF-96: auditoría
-        BitacoraAuditoria::registrarAccionAdmin(
-            ejecutor: auth()->user(),
-            tipoEvento: 'matricula_manual',
-            descripcion: "Matrícula manual: {$estudiante->name} ({$estudiante->email}) en \"{$this->curso->nombre}\"",
-            usuarioAfectado: $estudiante,
-            curso: $this->curso
+        $this->validate(
+            ['estudianteSeleccionadoId' => ['required', 'exists:users,id']],
+            ['estudianteSeleccionadoId.required' => 'Busca y selecciona un estudiante.']
         );
 
-        $this->reset(['busquedaEstudiante', 'estudianteSeleccionadoId']);
-        session()->flash('estado', "✅ {$estudiante->name} matriculado correctamente.");
-    }
+        $estudiante = User::findOrFail($this->estudianteSeleccionadoId);
+        $gestor->matricularManual($this->curso, $estudiante, auth()->user());
 
-    // ==========================================
-    // BAJA LÓGICA (ERS RF-29, RF-30, RF-31)
-    // ==========================================
+        $this->reset(['busquedaEstudiante', 'estudianteSeleccionadoId']);
+        session()->flash('estado', "{$estudiante->name} fue matriculado. Se le notificó dentro de la plataforma y por correo.");
+    }
 
     public function confirmarBaja(int $inscripcionId): void
     {
-        abort_unless(auth()->user()->hasAnyRole(['supervisor', 'profesor']), 403);
-        $this->inscripcionBajaId = $inscripcionId;
-        $this->motivoBaja        = '';
-        $this->mostrarModalBaja  = true;
+        $inscripcion = $this->curso->inscripciones()->findOrFail($inscripcionId);
+        abort_unless($this->puedeDarDeBajaA($inscripcion), 403);
+
+        $this->inscripcionBajaId = $inscripcion->id;
+        $this->motivoBaja = '';
+        $this->mostrarModalBaja = true;
     }
 
-    public function ejecutarBaja(): void
+    public function ejecutarBaja(GestorMatriculas $gestor): void
     {
-        abort_unless(auth()->user()->hasAnyRole(['supervisor', 'profesor']), 403);
+        $this->validate(['motivoBaja' => ['nullable', 'string', 'max:500']]);
 
-        $this->validate([
-            'motivoBaja' => ['nullable', 'string', 'max:500'],
-        ]);
-
-        $inscripcion = Inscripcion::with('estudiante', 'curso')->findOrFail($this->inscripcionBajaId);
-
-        // ERS RF-32: matrícula de API solo desactiva local, no elimina
-        if ($inscripcion->esDeApiExterna()) {
-            $inscripcion->desactivarAccesoLocal(auth()->user());
-        } else {
-            $inscripcion->darDeBaja(auth()->user());
-        }
-
-        $estudiante = $inscripcion->estudiante;
-
-        // ERS RF-96: auditoría de baja
-        BitacoraAuditoria::registrarAccionAdmin(
-            ejecutor: auth()->user(),
-            tipoEvento: 'baja_estudiante',
-            descripcion: "Baja de {$estudiante?->name} en \"{$this->curso->nombre}\""
-                . ($this->motivoBaja ? " — Motivo: {$this->motivoBaja}" : ''),
-            usuarioAfectado: $estudiante,
-            curso: $this->curso
-        );
+        $inscripcion = $this->curso->inscripciones()->with('estudiante', 'curso')->findOrFail($this->inscripcionBajaId);
+        abort_unless($this->puedeDarDeBajaA($inscripcion), 403);
+        $gestor->darDeBaja($inscripcion, auth()->user(), $this->motivoBaja ?: null);
 
         $this->mostrarModalBaja = false;
-        $this->inscripcionBajaId = null;
-        $this->motivoBaja = '';
-        session()->flash('estado', "⚠️ {$estudiante?->name} dado de baja del curso. El historial académico se conserva.");
+        $this->reset(['inscripcionBajaId', 'motivoBaja']);
+        session()->flash('estado', $inscripcion->esDeApiExterna()
+            ? "Se desactivó el acceso local de {$inscripcion->estudiante?->name}. La matrícula del sistema externo no se modificó."
+            : "{$inscripcion->estudiante?->name} fue dado de baja del curso. Su historial académico se conserva.");
     }
-
-    // ==========================================
-    // RENDER
-    // ==========================================
 
     public function render()
     {
-        // Estudiantes inscriptos (con filtro de estado)
         $inscripciones = $this->curso->inscripciones()
             ->with('estudiante', 'dadoDeBajaPor')
             ->when($this->filtroEstado === 'activo', fn ($q) => $q->where('activo_local', true)->where('estado', 'activo'))
-            ->when($this->filtroEstado === 'baja',   fn ($q) => $q->where('estado', 'inactivo'))
-            ->when($this->filtroEstado === 'api',    fn ($q) => $q->where('origen', 'api'))
-            ->orderBy('created_at', 'desc')
+            ->when($this->filtroEstado === 'baja', fn ($q) => $q->where(fn ($q) => $q->where('estado', 'inactivo')->orWhere('activo_local', false)))
+            ->when($this->filtroEstado === 'api', fn ($q) => $q->where('origen', 'api'))
+            ->orderByDesc('fecha_inscripcion')
             ->paginate(20);
 
-        // Búsqueda de estudiantes para agregar (no ya inscritos activos)
         $estudiantesBusqueda = collect();
-        if (strlen($this->busquedaEstudiante) >= 2) {
-            $yaInscritos = $this->curso->inscripcionesActivas()->pluck('estudiante_id');
+
+        if ($this->puedeMatricular && mb_strlen($this->busquedaEstudiante) >= 2 && ! $this->estudianteSeleccionadoId) {
             $estudiantesBusqueda = User::role('estudiante')
-                ->whereNotIn('id', $yaInscritos)
-                ->where(fn ($q) =>
-                    $q->where('name', 'like', "%{$this->busquedaEstudiante}%")
-                      ->orWhere('email', 'like', "%{$this->busquedaEstudiante}%")
-                )
                 ->where('activo', true)
+                ->whereNotIn('id', $this->curso->inscripcionesActivas()->select('estudiante_id'))
+                ->where(fn ($q) => $q
+                    ->where('name', 'like', "%{$this->busquedaEstudiante}%")
+                    ->orWhere('email', 'like', "%{$this->busquedaEstudiante}%")
+                )
+                ->orderBy('name')
                 ->limit(8)
                 ->get();
         }
 
-        $totalActivos = $this->curso->inscripcionesActivas()->count();
-        $totalBajas   = $this->curso->inscripciones()->where('estado', 'inactivo')->count();
-        $totalApi     = $this->curso->inscripciones()->where('origen', 'api')->count();
-
         return view('livewire.cursos.gestion-matricula', [
-            'inscripciones'       => $inscripciones,
+            'inscripciones' => $inscripciones,
             'estudiantesBusqueda' => $estudiantesBusqueda,
-            'totalActivos'        => $totalActivos,
-            'totalBajas'          => $totalBajas,
-            'totalApi'            => $totalApi,
-        ])->title("Gestión de Matrícula — {$this->curso->nombre}");
+            'totalActivos' => $this->curso->inscripcionesActivas()->count(),
+            'totalBajas' => $this->curso->inscripciones()->where(fn ($q) => $q->where('estado', 'inactivo')->orWhere('activo_local', false))->count(),
+            'totalApi' => $this->curso->inscripciones()->where('origen', 'api')->count(),
+            'inscripcionBaja' => $this->inscripcionBajaId ? $this->curso->inscripciones()->with('estudiante')->find($this->inscripcionBajaId) : null,
+        ])->title("Matrícula — {$this->curso->nombre}");
     }
 }

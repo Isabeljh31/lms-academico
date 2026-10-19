@@ -23,7 +23,7 @@
                 <div>
                     <p class="font-semibold text-texto dark:text-slate-100">Promedio general</p>
                     <p class="text-sm text-slate-500 dark:text-slate-400">
-                        Combina tareas y quizzes de tus {{ $filas->count() }} {{ $filas->count() === 1 ? 'curso' : 'cursos' }} inscritos.
+                        Promedio de tus notas finales ponderadas por rubros en tus {{ $filas->count() }} {{ $filas->count() === 1 ? 'curso' : 'cursos' }}. Las tareas y quizzes son de práctica y no se suman a la nota final.
                     </p>
                 </div>
             </div>
@@ -51,10 +51,6 @@
 
             <div class="space-y-3">
                 @foreach ($filas as $fila)
-                    @php
-                        $promedios = collect([$fila['promedio_tareas'], $fila['promedio_quizzes']])->filter(fn ($v) => $v !== null);
-                        $promedioGeneral = $promedios->isNotEmpty() ? round($promedios->avg(), 1) : null;
-                    @endphp
                     <div class="bg-white dark:bg-azul-superficie-oscura rounded-xl border border-celeste dark:border-azul-borde-oscuro shadow-sm dark:shadow-none overflow-hidden"
                         wire:key="curso-{{ $fila['curso']->id }}" x-data="{ abierto: false }">
                         {{-- Colapsada: promedio y boleta, siempre visibles --}}
@@ -63,14 +59,14 @@
                                 <x-icono nombre="flecha-abajo" class="h-4 w-4 shrink-0 text-slate-400 transition-transform" x-bind:class="abierto ? 'rotate-180' : ''" />
                                 <div class="min-w-0">
                                     <h2 class="font-semibold text-texto dark:text-slate-100 truncate">{{ $fila['curso']->nombre }}</h2>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ count($fila['tareas']) }} tareas · {{ count($fila['quizzes']) }} quizzes</p>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ count($fila['tareas']) }} tareas - {{ count($fila['quizzes']) }} quizzes - {{ $fila['avance'] }}% de avance</p>
                                 </div>
                             </div>
 
                             <div class="flex items-center gap-4 shrink-0">
                                 <div class="text-right">
-                                    <p class="text-xl font-bold text-texto dark:text-slate-100">{{ $promedioGeneral ?? '—' }}</p>
-                                    <p class="text-[10px] text-slate-500 dark:text-slate-400">promedio</p>
+                                    <p class="text-xl font-bold {{ $fila['condicion'] === 'desaprobado' ? 'text-red-600 dark:text-red-400' : 'text-texto dark:text-slate-100' }}">{{ $fila['nota_rubros'] ?? '—' }}</p>
+                                    <p class="text-[10px] text-slate-500 dark:text-slate-400">{{ $fila['condicion'] === 'en_curso' ? 'nota acumulada' : 'nota final' }}</p>
                                 </div>
                                 <a href="{{ route('reportes.boleta', $fila['curso']) }}" target="_blank" @click.stop
                                     class="inline-flex items-center gap-1 text-xs font-semibold text-azul-oscuro dark:text-azul-fondo hover:underline">

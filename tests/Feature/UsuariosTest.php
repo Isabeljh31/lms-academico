@@ -4,11 +4,16 @@ namespace Tests\Feature;
 
 use App\Enums\Rol;
 use App\Livewire\Usuarios\Index;
+use App\Mail\BienvenidaMail;
+use App\Models\Curso;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules\Password;
 use Livewire\Livewire;
-use Livewire\Volt\Volt;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
@@ -27,7 +32,7 @@ class UsuariosTest extends TestCase
 
     public function test_administrador_puede_ver_el_listado_de_usuarios(): void
     {
-        $admin = User::factory()->create()->assignRole(Rol::Administrador->value);
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
 
         $this->actingAs($admin)
             ->get(route('admin.usuarios.index'))
@@ -58,38 +63,288 @@ class UsuariosTest extends TestCase
             ->assertRedirect(route('login'));
     }
 
-    public function test_administrador_puede_cambiar_el_rol_de_otro_usuario(): void
+    public function test_corrige_el_rol_de_una_cuenta_sin_historial_y_lo_audita(): void
     {
-        $admin = User::factory()->create()->assignRole(Rol::Administrador->value);
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
         $usuario = User::factory()->create()->assignRole(Rol::Estudiante->value);
 
         Livewire::actingAs($admin)
             ->test(Index::class)
-            ->call('actualizarRol', $usuario->id, Rol::Profesor->value);
+            ->call('abrirEditar', $usuario->id)
+            ->set('editarRol', Rol::Profesor->value)
+            ->call('guardarEdicion')
+            ->assertHasNoErrors();
 
-        $this->assertTrue($usuario->fresh()->hasRole(Rol::Profesor->value));
-        $this->assertFalse($usuario->fresh()->hasRole(Rol::Estudiante->value));
+        $this->assertSame([Rol::Profesor->value], $usuario->fresh()->getRoleNames()->all());
+        $this->assertDatabaseHas('bitacoras_auditoria', [
+            'tipo_evento' => 'cambio_rol',
+            'usuario_afectado_id' => $usuario->id,
+            'ejecutado_por' => $admin->id,
+        ]);
     }
 
-    public function test_administrador_no_puede_cambiarse_el_rol_a_si_mismo_via_policy(): void
+    public function test_no_permite_corregir_el_rol_de_una_cuenta_con_historial_academico(): void
     {
-        $admin = User::factory()->create()->assignRole(Rol::Administrador->value);
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+        Curso::factory()->create(['profesor_id' => $profesor->id])->inscripciones()->create([
+            'estudiante_id' => $estudiante->id, 'fecha_inscripcion' => now(), 'origen' => 'manual', 'estado' => 'activo', 'activo_local' => true,
+        ]);
 
-        $this->assertFalse(Gate::forUser($admin)->allows('actualizarRol', $admin));
+        $componente = Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirEditar', $estudiante->id)
+            ->set('editarRol', Rol::Profesor->value)
+            ->call('guardarEdicion');
+
+        $this->assertSame(
+            'El rol ya no se puede cambiar: la cuenta tiene historial académico (cursos, matrículas, entregas o notas).',
+            $componente->errors()->first('editarRol'),
+        );
+        $this->assertSame([Rol::Estudiante->value], $estudiante->fresh()->getRoleNames()->all());
+        $this->assertDatabaseMissing('bitacoras_auditoria', ['tipo_evento' => 'cambio_rol']);
     }
 
-    public function test_registro_publico_asigna_rol_estudiante_por_defecto(): void
+    public function test_no_permite_convertir_una_cuenta_en_supervisor(): void
     {
-        $component = Volt::test('pages.auth.register')
-            ->set('name', 'Nuevo Estudiante')
-            ->set('email', 'nuevo@example.com')
-            ->set('password', 'password')
-            ->set('password_confirmation', 'password');
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $usuario = User::factory()->create()->assignRole(Rol::Estudiante->value);
 
-        $component->call('register');
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirEditar', $usuario->id)
+            ->set('editarRol', Rol::Supervisor->value)
+            ->call('guardarEdicion')
+            ->assertHasErrors('editarRol');
+
+        $this->assertSame([Rol::Estudiante->value], $usuario->fresh()->getRoleNames()->all());
+    }
+
+    public function test_el_supervisor_no_puede_corregir_su_propio_rol_ni_el_de_otro_supervisor(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $otroSupervisor = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        $this->assertFalse(Gate::forUser($admin)->allows('corregirRol', $admin));
+        $this->assertFalse(Gate::forUser($admin)->allows('corregirRol', $otroSupervisor));
+    }
+
+    public function test_un_profesor_no_puede_corregir_roles(): void
+    {
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+
+        $this->assertFalse(Gate::forUser($profesor)->allows('corregirRol', $estudiante));
+    }
+
+    /**
+     * Reemplaza a la prueba de registro público (ERS 2.4 lo prohíbe): el
+     * Supervisor crea la cuenta con rol estudiante por defecto, contraseña
+     * temporal y cambio obligatorio en el primer ingreso (RF-03, RF-05).
+     */
+    public function test_supervisor_crea_cuenta_de_estudiante_con_password_temporal(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', 'Nuevo')
+            ->set('nuevoApellidos', 'Estudiante')
+            ->set('nuevoDni', '45678123')
+            ->set('nuevoEmail', 'nuevo@example.com')
+            ->call('crearUsuario')
+            ->assertHasNoErrors();
 
         $usuario = User::where('email', 'nuevo@example.com')->firstOrFail();
 
+        $this->assertSame('Nuevo Estudiante', $usuario->name);
         $this->assertTrue($usuario->hasRole(Rol::Estudiante->value));
+        $this->assertTrue($usuario->primer_login);
+        Mail::assertSent(BienvenidaMail::class, fn ($mail) => $mail->hasTo('nuevo@example.com'));
+    }
+
+    public function test_rechaza_un_correo_que_ya_existe_aunque_se_escriba_con_mayusculas(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        User::factory()->create(['email' => 'ana.torres@lms.edu.pe']);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', 'Ana')
+            ->set('nuevoApellidos', 'Torres')
+            ->set('nuevoDni', '45678124')
+            ->set('nuevoEmail', 'Ana.Torres@LMS.edu.pe')
+            ->call('crearUsuario')
+            ->assertHasErrors(['nuevoEmail' => 'Ya existe una cuenta con este correo.']);
+
+        $this->assertSame(1, User::where('email', 'ana.torres@lms.edu.pe')->count());
+        Mail::assertNothingSent();
+    }
+
+    public function test_el_correo_de_una_cuenta_nueva_se_guarda_en_minusculas(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', 'Luis')
+            ->set('nuevoApellidos', 'Mendoza')
+            ->set('nuevoDni', '45678125')
+            ->set('nuevoEmail', 'Luis.Mendoza@LMS.edu.pe')
+            ->call('crearUsuario')
+            ->assertHasNoErrors();
+
+        $usuario = User::where('email', 'luis.mendoza@lms.edu.pe')->firstOrFail();
+
+        $this->assertSame('Luis Mendoza', $usuario->name);
+        Mail::assertSent(BienvenidaMail::class, fn ($mail) => $mail->hasTo('luis.mendoza@lms.edu.pe'));
+    }
+
+    public function test_la_contrasena_temporal_cumple_la_politica_de_contrasenas(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', 'Ana')
+            ->set('nuevoApellidos', 'Torres')
+            ->set('nuevoDni', '45678123')
+            ->set('nuevoEmail', 'ana@lms.edu.pe')
+            ->call('crearUsuario')
+            ->assertHasNoErrors();
+
+        $temporal = Mail::sent(BienvenidaMail::class)->first()->passwordTemporal;
+
+        $this->assertSame(12, strlen($temporal));
+        $this->assertTrue(Validator::make(['password' => $temporal], ['password' => Password::defaults()])->passes());
+        $this->assertTrue(Hash::check($temporal, User::where('email', 'ana@lms.edu.pe')->value('password')));
+    }
+
+    public function test_guarda_nombres_apellidos_y_dni_por_separado(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', '  María   José ')
+            ->set('nuevoApellidos', 'Pérez Salinas')
+            ->set('nuevoDni', '07123456')
+            ->set('nuevoEmail', 'maria.perez@lms.edu.pe')
+            ->call('crearUsuario')
+            ->assertHasNoErrors();
+
+        $usuario = User::where('email', 'maria.perez@lms.edu.pe')->firstOrFail();
+
+        $this->assertSame('María José', $usuario->nombres);
+        $this->assertSame('Pérez Salinas', $usuario->apellidos);
+        $this->assertSame('07123456', $usuario->dni);
+        $this->assertSame('María José Pérez Salinas', $usuario->name);
+    }
+
+    public function test_rechaza_nombres_con_numeros_o_simbolos_y_no_crea_la_cuenta(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        $componente = Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', '12345 <b>')
+            ->set('nuevoApellidos', 'Torres')
+            ->set('nuevoDni', '45678123')
+            ->set('nuevoEmail', 'raro@lms.edu.pe')
+            ->call('crearUsuario');
+
+        $this->assertSame(
+            "Los nombres solo pueden tener letras y espacios (también se permite guion y apóstrofe, como en Pérez-Salinas u O'Brien).",
+            $componente->errors()->first('nuevoNombres'),
+        );
+        $this->assertDatabaseMissing('users', ['email' => 'raro@lms.edu.pe']);
+        Mail::assertNothingSent();
+    }
+
+    public function test_el_formulario_vacio_indica_en_espanol_cada_campo_obligatorio(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->call('crearUsuario')
+            ->assertHasErrors([
+                'nuevoNombres' => 'El campo nombres es obligatorio.',
+                'nuevoApellidos' => 'El campo apellidos es obligatorio.',
+                'nuevoDni' => 'El campo DNI es obligatorio.',
+                'nuevoEmail' => 'El campo correo electrónico es obligatorio.',
+            ]);
+    }
+
+    public function test_rechaza_un_dni_que_no_tiene_8_digitos(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', 'Ana')
+            ->set('nuevoApellidos', 'Torres')
+            ->set('nuevoDni', '1234567')
+            ->set('nuevoEmail', 'ana@lms.edu.pe')
+            ->call('crearUsuario')
+            ->assertHasErrors(['nuevoDni' => 'El DNI debe tener exactamente 8 dígitos (solo números).']);
+
+        $this->assertDatabaseMissing('users', ['email' => 'ana@lms.edu.pe']);
+    }
+
+    public function test_rechaza_un_dni_que_ya_pertenece_a_otra_cuenta(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        User::factory()->create(['dni' => '45678123']);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', 'Ana')
+            ->set('nuevoApellidos', 'Torres')
+            ->set('nuevoDni', '45678123')
+            ->set('nuevoEmail', 'ana@lms.edu.pe')
+            ->call('crearUsuario')
+            ->assertHasErrors(['nuevoDni' => 'Ya existe una cuenta con este DNI.']);
+
+        $this->assertDatabaseMissing('users', ['email' => 'ana@lms.edu.pe']);
+    }
+
+    public function test_editar_solo_los_apellidos_actualiza_el_nombre_completo_y_lo_audita(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $usuario = User::factory()->create(['nombres' => 'Ana', 'apellidos' => 'Torez Vega', 'dni' => '45678123'])
+            ->assignRole(Rol::Estudiante->value);
+
+        Livewire::actingAs($admin)
+            ->test(Index::class)
+            ->call('abrirEditar', $usuario->id)
+            ->assertSet('editarNombres', 'Ana')
+            ->assertSet('editarApellidos', 'Torez Vega')
+            ->set('editarApellidos', 'Torres Vega')
+            ->call('guardarEdicion')
+            ->assertHasNoErrors();
+
+        $usuario->refresh();
+
+        $this->assertSame('Ana', $usuario->nombres);
+        $this->assertSame('Torres Vega', $usuario->apellidos);
+        $this->assertSame('Ana Torres Vega', $usuario->name);
+        $this->assertDatabaseHas('bitacoras_auditoria', ['tipo_evento' => 'edicion_datos_usuario', 'usuario_afectado_id' => $usuario->id]);
     }
 }

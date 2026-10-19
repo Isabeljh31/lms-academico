@@ -18,7 +18,7 @@ class NuevaTareaAsignada extends Notification
     {
         return [
             'titulo' => 'Nueva tarea',
-            'mensaje' => "Se publicó \"{$this->tarea->titulo}\" en {$this->tarea->curso->nombre}, vence el ".$this->tarea->fecha_entrega->format('d/m/Y').'.',
+            'mensaje' => "Se publicó \"{$this->tarea->titulo}\" en {$this->tarea->curso->nombre}, vence el ".$this->tarea->fecha_entrega->formatoFecha().'.',
             'url' => route('cursos.tareas.show', [$this->tarea->curso_id, $this->tarea->id]),
         ];
     }

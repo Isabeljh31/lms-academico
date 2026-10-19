@@ -14,8 +14,7 @@ new #[Layout('layouts.guest')] class extends Component
      */
     public function login(): void
     {
-        $this->validate();
-
+        // authenticate() normaliza el correo y luego valida el formulario.
         $this->form->authenticate();
 
         Session::regenerate();

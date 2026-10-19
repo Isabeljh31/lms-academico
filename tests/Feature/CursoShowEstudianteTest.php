@@ -35,16 +35,17 @@ class CursoShowEstudianteTest extends TestCase
     {
         $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
         $curso = Curso::factory()->create(['profesor_id' => $profesor->id]);
-        Modulo::factory()->create(['curso_id' => $curso->id, 'titulo' => 'Unidad de prueba']);
+        Modulo::factory()->create(['curso_id' => $curso->id, 'titulo' => 'Unidad de prueba'])
+            ->lecciones()->create(['titulo' => 'Lección publicada', 'estado' => 'publicado', 'orden' => 1]);
         $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
         $curso->inscripciones()->create(['estudiante_id' => $estudiante->id, 'fecha_inscripcion' => now()]);
 
         Livewire::actingAs($estudiante)
             ->test(Show::class, ['curso' => $curso])
             ->assertSee('Contenido')
-            ->assertSee('Materiales')
+            ->assertSee('Compañeros')
             ->assertSee('Unidad de prueba')
-            ->assertDontSee('Unidades / Módulos');
+            ->assertDontSee('Preparar semana');
     }
 
     public function test_profesor_dueño_sigue_viendo_el_listado_de_gestion_sin_pestañas(): void
@@ -55,21 +56,21 @@ class CursoShowEstudianteTest extends TestCase
 
         Livewire::actingAs($profesor)
             ->test(Show::class, ['curso' => $curso])
-            ->assertSee('Unidades / Módulos')
-            ->assertSee('+ Unidad')
-            ->assertDontSee('Contenido');
+            ->assertSee('Contenido por semanas')
+            ->assertSee('Preparar semana')
+            ->assertDontSee('Mi grupo');
     }
 
     public function test_administrador_sigue_viendo_el_listado_de_gestion_sin_pestañas(): void
     {
         $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
         $curso = Curso::factory()->create(['profesor_id' => $profesor->id]);
-        $admin = User::factory()->create()->assignRole(Rol::Administrador->value);
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
 
         Livewire::actingAs($admin)
             ->test(Show::class, ['curso' => $curso])
-            ->assertSee('Unidades / Módulos')
-            ->assertDontSee('Contenido');
+            ->assertSee('Contenido por semanas')
+            ->assertDontSee('Mi grupo');
     }
 
     public function test_la_unidad_muestra_su_progreso_de_tareas_para_el_estudiante(): void
@@ -90,6 +91,7 @@ class CursoShowEstudianteTest extends TestCase
 
         Livewire::actingAs($estudiante)
             ->test(Show::class, ['curso' => $curso])
-            ->assertSee('1/2 tareas');
+            // RF-67: el avance del módulo cuenta sus lecciones y actividades según la condición del Profesor.
+            ->assertSee('1 de 2 completados');
     }
 }

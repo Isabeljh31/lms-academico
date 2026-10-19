@@ -19,7 +19,9 @@ class AdminProfesoresTest extends TestCase
     use RefreshDatabase;
 
     protected User $admin;
+
     protected User $profesor;
+
     protected User $estudiante;
 
     protected function setUp(): void
@@ -30,7 +32,7 @@ class AdminProfesoresTest extends TestCase
             Role::firstOrCreate(['name' => $rol->value]);
         }
 
-        $this->admin = User::factory()->create(['name' => 'Admin Test'])->assignRole(Rol::Administrador->value);
+        $this->admin = User::factory()->create(['name' => 'Admin Test'])->assignRole(Rol::Supervisor->value);
         $this->profesor = User::factory()->create(['name' => 'Profesor Test'])->assignRole(Rol::Profesor->value);
         $this->estudiante = User::factory()->create(['name' => 'Estudiante Test'])->assignRole(Rol::Estudiante->value);
     }
@@ -40,7 +42,7 @@ class AdminProfesoresTest extends TestCase
         $this->actingAs($this->admin)
             ->get(route('admin.profesores.index'))
             ->assertOk()
-            ->assertSee('Gestión de Profesores y Carga Académica')
+            ->assertSee('Profesores y carga académica')
             ->assertSee($this->profesor->name);
     }
 
@@ -59,16 +61,20 @@ class AdminProfesoresTest extends TestCase
     {
         Livewire::actingAs($this->admin)
             ->test(ProfesoresIndex::class)
-            ->set('nuevoNombre', 'Dra. María Elena')
+            ->set('nuevoNombres', 'María Elena')
+            ->set('nuevoApellidos', 'Quispe Rojas')
+            ->set('nuevoDni', '41239876')
             ->set('nuevoEmail', 'maria.elena@lms.edu.pe')
-            ->set('nuevoPassword', 'secret1234')
             ->call('crearProfesor')
             ->assertHasNoErrors();
 
         $nuevo = User::where('email', 'maria.elena@lms.edu.pe')->first();
         $this->assertNotNull($nuevo);
-        $this->assertEquals('Dra. María Elena', $nuevo->name);
+        $this->assertSame('María Elena Quispe Rojas', $nuevo->name);
+        $this->assertSame('41239876', $nuevo->dni);
         $this->assertTrue($nuevo->hasRole(Rol::Profesor->value));
+        // ERS RF-03/RF-05: contraseña temporal generada y cambio obligatorio.
+        $this->assertTrue($nuevo->primer_login);
     }
 
     public function test_administrador_puede_reasignar_un_curso_a_un_profesor(): void
@@ -77,7 +83,7 @@ class AdminProfesoresTest extends TestCase
 
         Livewire::actingAs($this->admin)
             ->test(ProfesoresIndex::class)
-            ->set('profesorSeleccionadoId', $this->profesor->id)
+            ->call('abrirModalAsignar', $this->profesor->id)
             ->set('cursoAAsignarId', $curso->id)
             ->call('asignarCurso')
             ->assertHasNoErrors();
@@ -94,6 +100,21 @@ class AdminProfesoresTest extends TestCase
             ->call('desasignarCurso', $curso->id);
 
         $this->assertEquals($this->admin->id, $curso->fresh()->profesor_id);
+    }
+
+    public function test_al_desasignar_al_titular_el_profesor_adicional_pasa_a_titular(): void
+    {
+        $curso = Curso::factory()->create(['profesor_id' => $this->profesor->id]);
+        $coDocente = User::factory()->create();
+        $coDocente->assignRole(Rol::Profesor->value);
+        $curso->profesoresAdicionales()->attach($coDocente);
+
+        Livewire::actingAs($this->admin)
+            ->test(ProfesoresIndex::class)
+            ->call('desasignarCurso', $curso->id);
+
+        $this->assertEquals($coDocente->id, $curso->fresh()->profesor_id);
+        $this->assertCount(0, $curso->profesoresAdicionales()->get());
     }
 
     public function test_administrador_puede_publicar_un_comunicado_institucional(): void

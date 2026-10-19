@@ -3,104 +3,62 @@
 namespace App\Livewire\Reportes;
 
 use App\Models\Curso;
-use App\Models\NotaRubro;
+use App\Services\Evaluacion\CalculadoraNotas;
 use App\Services\Reportes\ProgresoAcademicoService;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
+/**
+ * Reportes (ERS 3.14).
+ * - Estudiante (RF-59, RF-60, RF-68): progreso, nota final por rubros y
+ *   notas de práctica de cada curso matriculado.
+ * - Profesor (RF-89): reporte de sus cursos. Supervisor: de todos los cursos.
+ */
 #[Layout('layouts.app')]
 class Dashboard extends Component
 {
-    public function render(ProgresoAcademicoService $servicio)
+    public function render(ProgresoAcademicoService $servicio, CalculadoraNotas $calculadora)
     {
         $usuario = auth()->user();
-        $notaMinima = config('app.nota_minima_aprobatoria', 10.5);
+        $notaMinima = $calculadora->notaMinima();
 
         if ($usuario->hasRole('estudiante')) {
-            // ERS RF-59: mostrar nota por rubros + nota ponderada final
-            $cursos = Curso::whereIn('id',
-                $usuario->inscripciones()->where('activo_local', true)->pluck('curso_id')
-            )->get();
+            $cursos = Curso::whereHas('inscripcionesActivas', fn ($q) => $q->where('estudiante_id', $usuario->id))
+                ->visiblesParaEstudiantes()
+                ->get();
 
-            $filas = $cursos->map(function (Curso $curso) use ($servicio, $usuario, $notaMinima) {
-                $legacy    = $servicio->progresoEstudiante($usuario, $curso);
-                $rubros    = $servicio->resumenRubros($usuario, $curso);
+            $filas = $cursos->map(function (Curso $curso) use ($servicio, $usuario) {
+                $rubros = $servicio->resumenRubros($usuario, $curso);
 
-                return array_merge($legacy, [
-                    'nota_rubros'    => $rubros['nota_final'],
-                    'aprobado'       => $rubros['nota_final'] !== null && $rubros['nota_final'] >= $notaMinima,
-                    'tiene_esquema'  => $rubros['esquema'] !== null && $rubros['rubros']->isNotEmpty(),
-                ]);
+                return [
+                    ...$servicio->progresoEstudiante($usuario, $curso),
+                    'nota_rubros' => $rubros['nota_final'],
+                    'condicion' => $rubros['condicion'],
+                    'aprobado' => $rubros['aprobado'],
+                    'tiene_esquema' => $rubros['rubros']->isNotEmpty(),
+                    'avance' => $servicio->avance($usuario, $curso),
+                ];
             });
 
-            // Promedio general por rubros (prioridad), si no hay esquema usa tareas
             $notasFinales = $filas->pluck('nota_rubros')->filter(fn ($v) => $v !== null);
-            $promedioGeneral = $notasFinales->isNotEmpty()
-                ? round($notasFinales->avg(), 1)
-                : null;
-
-            // Fallback: promedio legacy si no hay rubros
-            if ($promedioGeneral === null) {
-                $promediosPorCurso = $filas
-                    ->map(fn (array $fila) => collect([$fila['promedio_tareas'], $fila['promedio_quizzes']])
-                        ->filter(fn ($v) => $v !== null))
-                    ->filter(fn ($valores) => $valores->isNotEmpty())
-                    ->map(fn ($valores) => $valores->avg());
-                $promedioGeneral = $promediosPorCurso->isNotEmpty()
-                    ? round($promediosPorCurso->avg(), 1)
-                    : null;
-            }
 
             return view('livewire.reportes.dashboard-estudiante', [
-                'filas'           => $filas,
-                'promedioGeneral' => $promedioGeneral,
-                'notaMinima'      => $notaMinima,
-            ]);
+                'filas' => $filas,
+                // Solo la nota final ponderada por rubros: las notas de práctica no se mezclan (RF-48).
+                'promedioGeneral' => $notasFinales->isNotEmpty() ? round($notasFinales->avg(), 1) : null,
+                'notaMinima' => $notaMinima,
+            ])->title('Mi progreso — LearnUp');
         }
 
-        // Profesor / Supervisor
         $cursos = $usuario->hasRole('profesor')
-            ? $usuario->cursosComoProfesor()->get()
-            : Curso::all();
+            ? $usuario->cursosComoDocente()->orderBy('nombre')->get()
+            : Curso::orderBy('nombre')->get();
 
         $filas = $cursos->map(fn (Curso $curso) => $servicio->resumenCurso($curso));
 
-        // Para Supervisor: agregar métricas de aprobación por rubros
-        $metricasRubros = null;
-        if ($usuario->hasRole('supervisor')) {
-            $totalEstudiantes = 0;
-            $totalAprobados   = 0;
-            $cursosSinEsquema = 0;
-
-            foreach ($cursos as $curso) {
-                if (!$curso->esquemaEvaluacion?->rubros->isNotEmpty()) {
-                    $cursosSinEsquema++;
-                    continue;
-                }
-                $inscripcionesActivas = $curso->inscripcionesActivas()->pluck('estudiante_id');
-                foreach ($inscripcionesActivas as $estudianteId) {
-                    $notaFinal = $servicio->notaFinalPorRubros(
-                        \App\Models\User::find($estudianteId),
-                        $curso
-                    );
-                    if ($notaFinal !== null) {
-                        $totalEstudiantes++;
-                        if ($notaFinal >= $notaMinima) $totalAprobados++;
-                    }
-                }
-            }
-
-            $metricasRubros = [
-                'tasa_aprobacion'  => $totalEstudiantes > 0
-                    ? round(($totalAprobados / $totalEstudiantes) * 100) : 0,
-                'cursos_sin_esquema' => $cursosSinEsquema,
-                'cursos_total'     => $cursos->count(),
-            ];
-        }
-
         return view('livewire.reportes.dashboard-profesor', [
-            'filas'          => $filas,
-            'metricasRubros' => $metricasRubros,
-        ]);
+            'filas' => $filas,
+            'notaMinima' => $notaMinima,
+        ])->title('Reportes — LearnUp');
     }
 }

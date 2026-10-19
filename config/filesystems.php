@@ -60,6 +60,24 @@ return [
             'report' => false,
         ],
 
+        /*
+        | ERS RNF-06: Supabase Storage (compatible con S3) con un bucket privado.
+        | Los archivos se abren solo con enlaces temporales firmados.
+        | Credenciales: Supabase → Project Settings → Storage → S3 Connection.
+        */
+        'supabase' => [
+            'driver' => 's3',
+            'key' => env('SUPABASE_STORAGE_KEY'),
+            'secret' => env('SUPABASE_STORAGE_SECRET'),
+            'region' => env('SUPABASE_STORAGE_REGION'),
+            'bucket' => env('SUPABASE_STORAGE_BUCKET'),
+            'endpoint' => env('SUPABASE_STORAGE_ENDPOINT'),
+            'use_path_style_endpoint' => true,
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => true,
+        ],
+
     ],
 
     /*

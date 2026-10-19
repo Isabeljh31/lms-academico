@@ -1384,3 +1384,57 @@ Se creó `tests/Feature/AdminProfesoresTest.php` con 9 pruebas exhaustivas:
 9. `test_comunicados_activos_se_filtran_segun_rol`: validación del scope de segmentación por audiencia.
 
 **Estado de la suite general:** 108 tests pasando (262 aserciones), 0 fallando.
+
+## 11. Corrección de alineación con el ERS oficial: rol y registro público (2026-09-26)
+
+Al revisar el sistema contra el ERS oficial v1.0 (setiembre 2026), se
+detectaron dos discrepancias entre lo construido y el documento de
+requisitos vigente. Ninguna de las dos invalida el trabajo ya hecho — son
+correcciones de nomenclatura y de una regla de negocio, no un rediseño.
+
+### 11.1 El rol operativo debe llamarse "Supervisor", no "Administrador"
+
+El ERS (sección 2.3) define los tres roles del sistema como **Estudiante,
+Profesor y Supervisor**. "Administrador general" se lista explícitamente
+como un rol *futuro*, no implementado en esta versión, junto con Soporte,
+Moderador, Coordinador académico y Asistente administrativo.
+
+La decisión original de este documento (sección 1: "Rol `admin` →
+`administrador`") se tomó citando "el documento del proyecto (sección 3)"
+de una versión anterior al ERS que ahora es la fuente de verdad oficial.
+Esa versión anterior ya no aplica.
+
+**Corrección:** el rol `administrador` se renombra a `supervisor` en todo
+el sistema (enum, seeders, middleware, policies, rutas, vistas, tests y
+documentación), para que coincida exactamente con el ERS. Esto no es un
+cambio de permisos ni de comportamiento — el rol conserva exactamente las
+mismas capacidades que ya tenía (gestión de usuarios, cursos, esquema de
+evaluación, matrícula, dashboard institucional), solo cambia su nombre.
+
+### 11.2 El registro público de cuentas no debe existir
+
+El ERS excluye el registro público explícitamente en dos lugares:
+- Sección 1.2.2 (Fuera de alcance): "Registro público / autoservicio de
+  cuentas."
+- Sección 2.4 (Restricciones generales): "No existe registro público ni
+  autoservicio de cuentas: toda cuenta es creada por el Supervisor o
+  sincronizada por integración externa."
+
+El sistema actual tiene `register.blade.php` activo, asignando el rol
+`estudiante` por defecto a cualquiera que se registre sin invitación.
+
+**Corrección:** se desactiva la ruta/vista de registro público. La
+creación de cuentas queda exclusivamente en manos del Supervisor (individual
+o masiva, ya construido en el Módulo 1/2) o de la integración externa
+(Módulo 17/API), tal como exige el flujo 9.1 del ERS: alta de cuenta →
+contraseña temporal por correo → cambio obligatorio en el primer login.
+
+### Estado de esta corrección
+
+**Ejecutada (verificado el 2026-09-26).** En el código solo existen los roles
+`supervisor`, `profesor` y `estudiante` (`App\Enums\Rol`; middleware `role:supervisor`
+en rutas, policies y vistas) y no queda ninguna referencia a `administrador`. La ruta
+`/register` ya no existe (responde 404), la vista de registro se eliminó y la
+bienvenida no muestra el enlace. Pruebas: `tests/Feature/Seguridad/AccesoPorRolTest.php`
+y `tests/Feature/Seguridad/AutenticacionTest.php`. Detalle en `docs/CAMBIOS.md` y
+`docs/AUDITORIA.md`.

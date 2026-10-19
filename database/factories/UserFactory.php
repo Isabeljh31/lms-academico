@@ -25,12 +25,34 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
+            'name' => fake()->firstName().' '.fake()->lastName(),
+            // Se derivan de "name" para que un test pueda indicar solo el nombre completo.
+            'nombres' => fn (array $atributos) => preg_split('/\s+/u', trim($atributos['name']), 2)[0],
+            'apellidos' => fn (array $atributos) => preg_split('/\s+/u', trim($atributos['name']), 2)[1] ?? null,
+            'dni' => fake()->unique()->numerify('########'),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
             'remember_token' => Str::random(10),
+            'activo' => true,
+            'primer_login' => false,
         ];
+    }
+
+    /**
+     * Cuenta recién creada que aún debe cambiar su contraseña (ERS RF-05).
+     */
+    public function conPrimerLogin(): static
+    {
+        return $this->state(fn (array $attributes) => ['primer_login' => true]);
+    }
+
+    /**
+     * Cuenta desactivada por el Supervisor (ERS RF-15).
+     */
+    public function inactivo(): static
+    {
+        return $this->state(fn (array $attributes) => ['activo' => false]);
     }
 
     /**

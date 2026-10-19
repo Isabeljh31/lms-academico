@@ -17,8 +17,11 @@ class Entrega extends Model
         'estudiante_id',
         'grupo_id',
         'archivo_url',
+        'respuesta_texto',
+        'enlace',
         'comentario',
         'estado',
+        'intentos_usados',
         'nota',
         'feedback',
     ];

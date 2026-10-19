@@ -24,7 +24,9 @@ class RoleAndUserSeeder extends Seeder
         $admin = User::firstOrCreate(
             ['email' => 'admin@lms.edu.pe'],
             [
-                'name' => 'Supervisor General',
+                'nombres' => 'Supervisor',
+                'apellidos' => 'General',
+                'dni' => '10000001',
                 'password' => Hash::make('password123'),
                 'email_verified_at' => now(),
             ]
@@ -35,7 +37,9 @@ class RoleAndUserSeeder extends Seeder
         $profesor = User::firstOrCreate(
             ['email' => 'profesor@lms.edu.pe'],
             [
-                'name' => 'Prof. Juan Perez',
+                'nombres' => 'Juan',
+                'apellidos' => 'Pérez Salinas',
+                'dni' => '10000002',
                 'password' => Hash::make('password123'),
                 'email_verified_at' => now(),
             ]
@@ -46,7 +50,9 @@ class RoleAndUserSeeder extends Seeder
         $estudiante = User::firstOrCreate(
             ['email' => 'estudiante@lms.edu.pe'],
             [
-                'name' => 'Estudiante Demo',
+                'nombres' => 'Estudiante',
+                'apellidos' => 'Demo',
+                'dni' => '10000003',
                 'password' => Hash::make('password123'),
                 'email_verified_at' => now(),
             ]

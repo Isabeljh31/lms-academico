@@ -15,8 +15,10 @@ class ResultadoQuiz extends Model
     protected $fillable = [
         'quiz_id',
         'estudiante_id',
+        'intento',
         'respuestas',
         'puntaje',
+        'tiempo_usado_seg',
     ];
 
     protected function casts(): array

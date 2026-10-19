@@ -45,7 +45,7 @@ new class extends Component
         </h2>
 
         <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            Usa una contraseña larga y aleatoria para mantener tu cuenta segura.
+            Usa una contraseña segura que no utilices en otros sitios.
         </p>
     </header>
 
@@ -56,9 +56,10 @@ new class extends Component
             <x-input-error :messages="$errors->get('current_password')" class="mt-2" />
         </div>
 
-        <div>
+        <div x-data="{ clave: '' }">
             <x-input-label for="update_password_password" value="Nueva contraseña" />
-            <x-text-input wire:model="password" id="update_password_password" name="password" type="password" class="mt-1 block w-full" autocomplete="new-password" />
+            <x-text-input wire:model="password" id="update_password_password" name="password" type="password" x-on:input="clave = $event.target.value" class="mt-1 block w-full" autocomplete="new-password" />
+            <x-requisitos-password />
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 

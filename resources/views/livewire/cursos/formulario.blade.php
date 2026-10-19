@@ -1,120 +1,113 @@
 <div class="py-8">
-    <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-        <h1 class="text-2xl font-bold text-stone-900 dark:text-stone-100 mb-6">
-            {{ $curso ? 'Editar curso' : 'Nuevo curso' }}
-        </h1>
+    <div class="mx-auto max-w-3xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <form wire:submit="guardar" class="bg-white dark:bg-stone-800 rounded-xl border border-stone-200 dark:border-stone-700 p-6 space-y-6">
+        <x-gestion.encabezado :titulo="$curso ? 'Editar curso' : 'Nuevo curso'" icono="libro"
+            descripcion="Los campos con * son obligatorios. Un curso nuevo empieza como borrador hasta que tenga módulos." />
 
-            {{-- Nombre --}}
-            <div>
-                <x-input-label for="nombre" value="Nombre del curso *" />
-                <x-text-input wire:model="nombre" id="nombre" class="mt-1 block w-full" required autofocus />
-                <x-input-error :messages="$errors->get('nombre')" class="mt-2" />
+        @if ($this->esArchivado)
+            <div role="alert" class="flex items-start gap-3 rounded-xl border border-terracota-base/50 bg-arena-claro px-4 py-3 text-sm text-terracota-oscuro dark:bg-stone-800 dark:text-terracota-fondo">
+                <x-icono nombre="archivo" class="h-5 w-5 shrink-0" />
+                <p>Este curso está archivado (finalizado) y no admite cambios retroactivos. Solo puedes cambiar su estado para reabrirlo.</p>
             </div>
+        @endif
 
-            {{-- Profesor (solo Supervisor) --}}
-            @if(auth()->user()->hasRole('supervisor'))
-            <div>
-                <x-input-label for="profesor_id" value="Profesor titular asignado" />
-                <select wire:model="profesor_id" id="profesor_id"
-                    class="mt-1 block w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 px-3 py-2 text-sm focus:ring-terracota-base focus:border-terracota-base">
-                    <option value="">-- Seleccionar profesor titular --</option>
-                    @foreach($profesores as $prof)
-                    <option value="{{ $prof->id }}">{{ $prof->name }} ({{ $prof->email }})</option>
-                    @endforeach
-                </select>
-                <p class="mt-1 text-xs text-stone-500">Como supervisor, puedes asignar o reasignar el docente a cargo.</p>
-                <x-input-error :messages="$errors->get('profesor_id')" class="mt-2" />
-            </div>
-            @endif
+        <form wire:submit="guardar" class="space-y-6">
+            <x-gestion.tarjeta titulo="Datos generales">
+                <fieldset @disabled($this->esArchivado) class="space-y-4">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        <x-gestion.campo etiqueta="Nombre del curso" nombre="nombre" requerido class="sm:col-span-2">
+                            <x-gestion.control id="nombre" wire:model="nombre" autofocus />
+                        </x-gestion.campo>
+                        <x-gestion.campo etiqueta="Código" nombre="codigo" ayuda="Opcional. Letras, números y guiones (se guarda en mayúsculas). Lo usa la API de integración.">
+                            <x-gestion.control id="codigo" wire:model.blur="codigo" placeholder="MAT-101" maxlength="30" class="uppercase" />
+                        </x-gestion.campo>
+                    </div>
 
-            {{-- Descripción --}}
-            <div>
-                <x-input-label for="descripcion" value="Descripción" />
-                <textarea wire:model="descripcion" id="descripcion" rows="4"
-                    class="mt-1 block w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 px-3 py-2 text-sm focus:ring-terracota-base focus:border-terracota-base"></textarea>
-                <x-input-error :messages="$errors->get('descripcion')" class="mt-2" />
-            </div>
+                    <x-gestion.campo etiqueta="Profesor titular" nombre="profesor_id" requerido>
+                        <x-gestion.control tipo="select" id="profesor_id" wire:model.live="profesor_id">
+                            <option value="">Selecciona un profesor</option>
+                            @foreach ($profesores as $prof)
+                                <option value="{{ $prof->id }}">{{ $prof->name }} ({{ $prof->email }})</option>
+                            @endforeach
+                        </x-gestion.control>
+                    </x-gestion.campo>
 
-            {{-- Portada --}}
-            <div>
-                <x-input-label for="portada" value="Portada" />
-                @if($curso?->imagen_portada_url && !$portada)
-                    <img src="{{ $curso->imagen_portada_url }}" class="mt-2 h-24 rounded-lg object-cover">
-                @endif
-                @if($portada)
-                    <img src="{{ $portada->temporaryUrl() }}" class="mt-2 h-24 rounded-lg object-cover">
-                @endif
-                <input wire:model="portada" id="portada" type="file" accept="image/*"
-                    class="mt-2 block w-full text-sm text-stone-600 dark:text-stone-400
-                           file:mr-4 file:rounded-lg file:border-0 file:bg-terracota-base
-                           file:px-3 file:py-1.5 file:text-white file:text-sm hover:file:bg-terracota-oscuro">
-                <x-input-error :messages="$errors->get('portada')" class="mt-2" />
-            </div>
+                    <x-gestion.campo etiqueta="Profesores adicionales" nombre="profesoresAdicionales" ayuda="Opcional. Comparten con el titular la gestión del contenido, las actividades y las notas del curso.">
+                        @php $candidatos = $profesores->reject(fn ($prof) => (int) $prof->id === (int) $profesor_id); @endphp
+                        @if ($candidatos->isEmpty())
+                            <p class="text-sm text-stone-500 dark:text-stone-400">No hay otros profesores registrados.</p>
+                        @else
+                            <div class="grid max-h-48 grid-cols-1 gap-1 overflow-y-auto rounded-lg border border-arena-medio p-2 sm:grid-cols-2 dark:border-stone-600">
+                                @foreach ($candidatos as $prof)
+                                    <label wire:key="coprof-{{ $prof->id }}" class="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-stone-700 hover:bg-arena-claro dark:text-stone-200 dark:hover:bg-stone-700">
+                                        <input type="checkbox" value="{{ $prof->id }}" wire:model="profesoresAdicionales" class="rounded border-arena-medio text-menta-oscuro focus:ring-menta-base">
+                                        <span class="truncate">{{ $prof->name }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        @endif
+                    </x-gestion.campo>
 
-            {{-- Separador: configuración académica --}}
-            <div class="border-t border-stone-200 dark:border-stone-700 pt-6">
-                <h2 class="text-sm font-semibold text-stone-700 dark:text-stone-300 mb-4">
-                    Configuración académica
-                </h2>
+                    <x-gestion.campo etiqueta="Descripción" nombre="descripcion">
+                        <x-gestion.control tipo="textarea" id="descripcion" rows="4" wire:model="descripcion" />
+                    </x-gestion.campo>
 
-                {{-- ERS RF-22: Estado del curso --}}
-                <div class="mb-4">
-                    <x-input-label for="estado" value="Estado del curso *" />
-                    <select wire:model="estado" id="estado"
-                        class="mt-1 block w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 px-3 py-2 text-sm focus:ring-terracota-base focus:border-terracota-base">
-                        @foreach($estadosCurso as $valor => $etiqueta)
-                        <option value="{{ $valor }}">{{ $etiqueta }}</option>
-                        @endforeach
-                    </select>
-                    <x-input-error :messages="$errors->get('estado')" class="mt-2" />
+                    <x-gestion.campo etiqueta="Portada" nombre="portada" ayuda="Imagen PNG, JPG, GIF o WEBP de hasta 10 MB.">
+                        <div class="flex items-center gap-4">
+                            @if ($portada)
+                                <img src="{{ $portada->temporaryUrl() }}" alt="" class="h-16 w-24 rounded-lg object-cover">
+                            @elseif ($curso?->imagen_portada_url)
+                                <img src="{{ $curso->portadaUrl() }}" alt="" class="h-16 w-24 rounded-lg object-cover">
+                            @endif
+                            <input wire:model="portada" id="portada" type="file" accept="image/png,image/jpeg,image/gif,image/webp"
+                                class="block w-full text-sm text-stone-600 file:mr-4 file:rounded-lg file:border-0 file:bg-menta-oscuro file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white dark:text-stone-300">
+                        </div>
+                    </x-gestion.campo>
+                </fieldset>
+            </x-gestion.tarjeta>
+
+            <x-gestion.tarjeta titulo="Configuración académica">
+                <div class="space-y-4">
+                    <x-gestion.campo etiqueta="Estado del curso" nombre="estado" requerido>
+                        <x-gestion.control tipo="select" id="estado" wire:model="estado">
+                            @foreach ($estadosCurso as $valor => $etiqueta)
+                                <option value="{{ $valor }}">{{ $etiqueta }}</option>
+                            @endforeach
+                        </x-gestion.control>
+                    </x-gestion.campo>
+
+                    <fieldset @disabled($this->esArchivado) class="space-y-4">
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            <x-gestion.campo etiqueta="Fecha de inicio" nombre="fecha_inicio">
+                                <x-gestion.control id="fecha_inicio" type="date" wire:model="fecha_inicio" />
+                            </x-gestion.campo>
+                            <x-gestion.campo etiqueta="Fecha de fin" nombre="fecha_fin">
+                                <x-gestion.control id="fecha_fin" type="date" wire:model="fecha_fin" />
+                            </x-gestion.campo>
+                            <x-gestion.campo etiqueta="Duración (semanas)" nombre="semanas_duracion" requerido ayuda="El contenido del curso se organiza en esta cantidad de semanas (Semana 1, Semana 2...).">
+                                <x-gestion.control id="semanas_duracion" type="number" min="1" max="104" wire:model="semanas_duracion" placeholder="16" />
+                            </x-gestion.campo>
+                            <x-gestion.campo etiqueta="N.° de sesiones de clase" nombre="sesiones_clase_count" ayuda="Encuentros con asistencia; independientes de las semanas de contenido.">
+                                <x-gestion.control id="sesiones_clase_count" type="number" min="1" max="999" wire:model="sesiones_clase_count" placeholder="32" />
+                            </x-gestion.campo>
+                        </div>
+
+                        <label class="flex items-start gap-3 text-sm text-stone-700 dark:text-stone-300">
+                            <input type="checkbox" wire:model="usa_asistencia" class="mt-0.5 rounded border-arena-medio text-menta-oscuro focus:ring-menta-base">
+                            <span>
+                                Registrar asistencia en este curso
+                                <span class="block text-xs text-stone-500">Desmárcalo si el curso no requiere control de asistencia.</span>
+                            </span>
+                        </label>
+                    </fieldset>
                 </div>
+            </x-gestion.tarjeta>
 
-                {{-- ERS RF-19: Fechas --}}
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                    <div>
-                        <x-input-label for="fecha_inicio" value="Fecha de inicio" />
-                        <input wire:model="fecha_inicio" id="fecha_inicio" type="date"
-                            class="mt-1 block w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 px-3 py-2 text-sm focus:ring-terracota-base focus:border-terracota-base">
-                        <x-input-error :messages="$errors->get('fecha_inicio')" class="mt-2" />
-                    </div>
-                    <div>
-                        <x-input-label for="fecha_fin" value="Fecha de fin" />
-                        <input wire:model="fecha_fin" id="fecha_fin" type="date"
-                            class="mt-1 block w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 px-3 py-2 text-sm focus:ring-terracota-base focus:border-terracota-base">
-                        <x-input-error :messages="$errors->get('fecha_fin')" class="mt-2" />
-                    </div>
-                </div>
-
-                {{-- ERS RF-19: Semanas y sesiones --}}
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <x-input-label for="semanas_duracion" value="Duración (semanas)" />
-                        <input wire:model="semanas_duracion" id="semanas_duracion" type="number" min="1" max="104"
-                            placeholder="ej. 16"
-                            class="mt-1 block w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 px-3 py-2 text-sm focus:ring-terracota-base focus:border-terracota-base">
-                        <x-input-error :messages="$errors->get('semanas_duracion')" class="mt-2" />
-                    </div>
-                    <div>
-                        <x-input-label for="sesiones_clase_count" value="N.° de sesiones de clase" />
-                        <input wire:model="sesiones_clase_count" id="sesiones_clase_count" type="number" min="1" max="999"
-                            placeholder="ej. 32"
-                            class="mt-1 block w-full rounded-lg border border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 px-3 py-2 text-sm focus:ring-terracota-base focus:border-terracota-base">
-                        <x-input-error :messages="$errors->get('sesiones_clase_count')" class="mt-2" />
-                    </div>
-                </div>
-            </div>
-
-            {{-- Botones --}}
-            <div class="flex items-center justify-end gap-3 pt-2">
-                <a href="{{ route('cursos.index') }}" wire:navigate
-                    class="rounded-lg border border-stone-300 dark:border-stone-600 px-4 py-2 text-sm text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700 transition">
-                    Cancelar
-                </a>
-                <x-primary-button type="submit">
+            <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <x-gestion.boton variante="secundario" :href="$curso ? route('cursos.show', $curso) : route('cursos.index')">Cancelar</x-gestion.boton>
+                <x-gestion.boton type="submit" icono="check" wire:loading.attr="disabled" wire:target="guardar,portada">
                     {{ $curso ? 'Guardar cambios' : 'Crear curso' }}
-                </x-primary-button>
+                </x-gestion.boton>
             </div>
         </form>
     </div>

@@ -3,6 +3,7 @@
 namespace App\Services\Bot\Contracts;
 
 use App\Models\Curso;
+use App\Models\User;
 
 /**
  * Contrato común para los proveedores de IA del bot de sugerencias
@@ -16,5 +17,5 @@ interface ProveedorIA
     /**
      * @param  array<int, array{rol: string, contenido: string}>  $historial
      */
-    public function responder(string $pregunta, ?Curso $curso, array $historial = []): string;
+    public function responder(string $pregunta, ?Curso $curso, array $historial = [], ?User $usuario = null): string;
 }

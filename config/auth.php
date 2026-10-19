@@ -114,4 +114,17 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Bloqueo por intentos fallidos (ERS RF-06)
+    |--------------------------------------------------------------------------
+    | Tras "intentos" fallos consecutivos la cuenta queda bloqueada "minutos".
+    | El usuario puede recuperar su contraseña en cualquier momento.
+    */
+
+    'bloqueo_login' => [
+        'intentos' => (int) env('LOGIN_MAX_INTENTOS', 3),
+        'minutos' => (int) env('LOGIN_MINUTOS_BLOQUEO', 15),
+    ],
+
 ];

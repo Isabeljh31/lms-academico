@@ -7,8 +7,7 @@
         </div>
         <h2 class="text-xl font-bold text-stone-800 dark:text-stone-100">Establece tu contraseña</h2>
         <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">
-            Por seguridad, debes crear una contraseña personal antes de continuar. <br>
-            La contraseña debe tener al menos <strong>8 caracteres</strong>.
+            Por seguridad, debes crear una contraseña personal antes de continuar.
         </p>
     </div>
 
@@ -19,10 +18,11 @@
         </div>
     @endif
     <form wire:submit="guardar" class="space-y-4">
-        <div>
+        <div x-data="{ clave: '' }">
             <x-input-label for="password" value="Nueva contraseña" />
-            <x-text-input wire:model="password" id="password" type="password"
+            <x-text-input wire:model="password" id="password" type="password" x-on:input="clave = $event.target.value"
                 class="block mt-1 w-full" required autocomplete="new-password" />
+            <x-requisitos-password />
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 

@@ -3,7 +3,7 @@
 namespace App\Livewire\Tareas;
 
 use App\Models\Curso;
-use App\Models\User;
+use App\Models\Tarea;
 use App\Notifications\NuevaTareaAsignada;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
@@ -18,7 +18,6 @@ class Index extends Component
     public function mount(Curso $curso): void
     {
         Gate::authorize('ver', $curso);
-
         $this->curso = $curso;
     }
 
@@ -27,23 +26,30 @@ class Index extends Component
         return Gate::allows('gestionar', $this->curso);
     }
 
+    /** Vista de docente (Profesor del curso o Supervisor en solo lectura). */
+    public function getEsVistaDocenteProperty(): bool
+    {
+        return Gate::allows('supervisar', $this->curso);
+    }
+
     /**
-     * Publica u oculta la tarea. Al pasar de oculta a visible por primera
-     * vez, notifica a los inscritos (mismo aviso que si se hubiera creado
-     * ya visible) — así el profesor puede preparar tareas con anticipación
-     * y "activarlas" en medio de la clase sin tener que recrearlas.
+     * Publica u oculta la tarea (RF-37). Al pasar a visible por primera vez
+     * se notifica a los matriculados (RF-84).
      */
     public function alternarVisibilidad(int $tareaId): void
     {
         $tarea = $this->curso->tareas()->findOrFail($tareaId);
         Gate::authorize('gestionar', $tarea);
+        abort_if($this->curso->estaFinalizado(), 403, 'El curso está archivado.');
 
-        $eraVisible = $tarea->visible;
-        $tarea->update(['visible' => ! $tarea->visible]);
+        $eraVisible = $tarea->esVisibleParaEstudiante();
 
-        if ($tarea->visible && ! $eraVisible) {
-            $estudiantes = User::whereIn('id', $this->curso->inscripciones()->pluck('estudiante_id'))->get();
-            Notification::send($estudiantes, new NuevaTareaAsignada($tarea));
+        $tarea->update($tarea->visible
+            ? ['visible' => false]
+            : ['visible' => true, 'estado_contenido' => 'publicado', 'publicar_en' => null]);
+
+        if (! $eraVisible && $tarea->fresh()->esVisibleParaEstudiante()) {
+            Notification::send($this->estudiantesActivos(), new NuevaTareaAsignada($tarea));
         }
     }
 
@@ -51,23 +57,30 @@ class Index extends Component
     {
         $tarea = $this->curso->tareas()->findOrFail($tareaId);
         Gate::authorize('eliminar', $tarea);
+        abort_if($this->curso->estaFinalizado(), 403, 'El curso está archivado.');
 
         $tarea->delete();
+        session()->flash('estado', "Tarea \"{$tarea->titulo}\" eliminada.");
+    }
+
+    protected function estudiantesActivos()
+    {
+        return $this->curso->inscripcionesActivas()->with('estudiante')->get()->pluck('estudiante')->filter();
     }
 
     public function render()
     {
         $usuario = auth()->user();
+        $esGestor = $this->esVistaDocente;
 
         $tareas = $this->curso->tareas()
-            ->with(['modulo', 'entregas' => fn ($q) => $usuario->hasRole('estudiante')
-                ? $q->where('estudiante_id', $usuario->id)
-                : $q,
-            ])
-            ->when($usuario->hasRole('estudiante'), fn ($q) => $q->where('visible', true))
+            ->with(['modulo', 'grupoAsignado', 'entregas' => fn ($q) => $esGestor ? $q : $q->where('estudiante_id', $usuario->id)])
+            ->when(! $esGestor, fn ($q) => $q->visiblesParaEstudiante())
             ->orderBy('fecha_entrega')
-            ->get();
+            ->get()
+            ->when(! $esGestor, fn ($tareas) => $tareas->filter(fn (Tarea $tarea) => Gate::allows('ver', $tarea))->values());
 
-        return view('livewire.tareas.index', ['tareas' => $tareas]);
+        return view('livewire.tareas.index', ['tareas' => $tareas])
+            ->title("Tareas — {$this->curso->nombre}");
     }
 }

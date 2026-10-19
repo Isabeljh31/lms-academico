@@ -74,7 +74,8 @@ class ListadosEstudianteTest extends TestCase
             ->test(TareasIndex::class, ['curso' => $curso])
             ->assertSee('Tarea atrasada')
             ->assertSee('Tarea completa')
-            ->assertSee('Atrasado')
+            // ERS RF-43: una tarea vencida sin entrega figura como "No entregado".
+            ->assertSee('No entregado')
             ->assertSee('Entregado')
             ->assertDontSee('entregas'); // "N entregas" es solo de la vista de gestión.
     }

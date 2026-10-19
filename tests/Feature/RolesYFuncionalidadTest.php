@@ -2,15 +2,16 @@
 
 namespace Tests\Feature;
 
-use App\Models\User;
+use App\Livewire\Asistencia\Index as AsistenciaIndex;
+use App\Livewire\Auth\CambiarPasswordPrimerLogin;
+use App\Livewire\Cursos\Show as CursosShow;
+use App\Livewire\Mensajeria\Bandeja;
 use App\Models\Curso;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
+use Spatie\Permission\Models\Role;
 use Tests\TestCase;
-use App\Livewire\Auth\CambiarPasswordPrimerLogin;
-use App\Livewire\Mensajeria\Bandeja;
-use App\Livewire\Asistencia\Index as AsistenciaIndex;
-use App\Livewire\Cursos\Show as CursosShow;
 
 class RolesYFuncionalidadTest extends TestCase
 {
@@ -19,9 +20,9 @@ class RolesYFuncionalidadTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        \Spatie\Permission\Models\Role::create(['name' => 'supervisor']);
-        \Spatie\Permission\Models\Role::create(['name' => 'profesor']);
-        \Spatie\Permission\Models\Role::create(['name' => 'estudiante']);
+        Role::create(['name' => 'supervisor']);
+        Role::create(['name' => 'profesor']);
+        Role::create(['name' => 'estudiante']);
     }
 
     public function test_flujo_primer_login()
@@ -37,8 +38,8 @@ class RolesYFuncionalidadTest extends TestCase
         // Probar el componente
         Livewire::actingAs($user)
             ->test(CambiarPasswordPrimerLogin::class)
-            ->set('password', 'NuevaPass123')
-            ->set('password_confirmation', 'NuevaPass123')
+            ->set('password', 'NuevaPass-123')
+            ->set('password_confirmation', 'NuevaPass-123')
             ->call('guardar')
             ->assertRedirect(route('dashboard'));
 
@@ -57,11 +58,11 @@ class RolesYFuncionalidadTest extends TestCase
 
         // Puede ver panel de curso
         $this->actingAs($admin)->get(route('cursos.show', $curso))->assertStatus(200);
-        
+
         // Simular componente de mostrar curso
         Livewire::actingAs($admin)
             ->test(CursosShow::class, ['curso' => $curso])
-            ->set('mostrarModalClonar', true)
+            ->call('abrirClonar')
             ->set('clonNombre', 'Matematica Clon')
             ->set('clonCodigo', 'MAT2')
             ->call('clonarCurso');
@@ -77,29 +78,29 @@ class RolesYFuncionalidadTest extends TestCase
         $estudiante = User::factory()->create(['primer_login' => false]);
         $estudiante->assignRole('estudiante');
 
-        $curso = Curso::create(['nombre' => 'Lenguaje', 'codigo' => 'LEN1', 'descripcion' => 'B', 'profesor_id' => $profesor->id]);
-        $profesor->cursosComoProfesor()->attach($curso->id);
-        $estudiante->inscripciones()->create(['curso_id' => $curso->id, 'activo_local' => true]);
+        $curso = Curso::create(['nombre' => 'Lenguaje', 'codigo' => 'LEN1', 'descripcion' => 'B', 'profesor_id' => $profesor->id, 'estado' => 'publicado']);
+        $estudiante->inscripciones()->create(['curso_id' => $curso->id, 'activo_local' => true, 'fecha_inscripcion' => now()]);
+        $sesion = $curso->sesionesClase()->create(['titulo' => 'Clase 1', 'fecha' => now()->subHour(), 'numero_sesion' => 1]);
 
         // Probar Asistencia
         $this->actingAs($profesor)->get(route('asistencia.index', $curso))->assertStatus(200);
 
         Livewire::actingAs($profesor)
             ->test(AsistenciaIndex::class, ['curso' => $curso])
+            ->call('abrirPaseLista', $sesion->id)
             ->call('marcarTodos', 'presente')
             ->call('guardarAsistencia');
 
-        $this->assertDatabaseHas('registros_asistencia', [
-            'curso_id' => $curso->id,
+        $this->assertDatabaseHas('asistencias', [
+            'sesion_id' => $sesion->id,
             'estudiante_id' => $estudiante->id,
-            'estado' => 'presente'
+            'estado' => 'presente',
         ]);
 
         // Probar Mensajería (Profesor envia mensaje a Estudiante)
         Livewire::actingAs($profesor)
-            ->test(Bandeja::class)
+            ->test(Bandeja::class, ['curso' => $curso])
             ->set('vista', 'nuevo')
-            ->set('cursoContextoId', $curso->id)
             ->set('destinatarioId', $estudiante->id)
             ->set('asunto', 'Bienvenido al curso')
             ->set('cuerpo', 'Hola')
@@ -108,7 +109,7 @@ class RolesYFuncionalidadTest extends TestCase
         $this->assertDatabaseHas('mensajes', [
             'remitente_id' => $profesor->id,
             'destinatario_id' => $estudiante->id,
-            'asunto' => 'Bienvenido al curso'
+            'asunto' => 'Bienvenido al curso',
         ]);
     }
 }

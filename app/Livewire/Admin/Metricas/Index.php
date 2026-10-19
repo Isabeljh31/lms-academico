@@ -2,84 +2,89 @@
 
 namespace App\Livewire\Admin\Metricas;
 
-use App\Models\Curso;
+use App\Models\ConversacionBot;
+use App\Models\Inscripcion;
+use App\Models\Mensaje;
 use App\Models\User;
-use App\Models\Asistencia;
-use App\Services\Reportes\ProgresoAcademicoService;
+use App\Services\Asistencia\CalculadoraAsistencia;
+use App\Services\Evaluacion\CalculadoraNotas;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
+/**
+ * Analítica de riesgo de abandono y engagement (ERS 11.3, Fase 3).
+ *
+ * Un estudiante está en riesgo en un curso si su asistencia acumulada es
+ * menor a 50 % (en cursos que registran asistencia) o si su nota final
+ * ponderada está bajo la nota mínima aprobatoria. Nivel Alto: riesgo en
+ * más de un curso.
+ */
 #[Layout('layouts.app')]
 class Index extends Component
 {
+    public const ASISTENCIA_MINIMA = 50;
+
     public function mount(): void
     {
         abort_unless(auth()->user()->hasRole('supervisor'), 403);
     }
 
-    public function render(ProgresoAcademicoService $servicio)
+    public function render(CalculadoraAsistencia $asistencia, CalculadoraNotas $notas)
     {
-        // 1. Analítica de Riesgo de Abandono
-        $estudiantesEnRiesgo = collect();
-        $estudiantes = User::role('estudiante')->where('activo', true)->get();
+        $notaMinima = $notas->notaMinima();
 
-        foreach ($estudiantes as $estudiante) {
-            $inscripciones = $estudiante->inscripciones()->where('activo_local', true)->get();
-            if ($inscripciones->isEmpty()) continue;
+        $estudiantes = User::role('estudiante')
+            ->where('activo', true)
+            ->with(['inscripciones' => fn ($q) => $q->where('estado', 'activo')->where('activo_local', true)->with('curso.esquemaEvaluacion.rubros')])
+            ->get();
 
-            $cursosCriticos = 0;
+        $enRiesgo = $estudiantes->map(function (User $estudiante) use ($asistencia, $notas, $notaMinima) {
             $motivos = [];
+            $cursosCriticos = 0;
 
-            foreach ($inscripciones as $inscripcion) {
+            foreach ($estudiante->inscripciones as $inscripcion) {
                 $curso = $inscripcion->curso;
-                
-                // Riesgo por Asistencia
-                $sesionesTotales = $curso->sesionesClase()->count();
-                if ($sesionesTotales > 0) {
-                    $asistencias = Asistencia::where('estudiante_id', $estudiante->id)
-                        ->whereHas('sesion', fn($q) => $q->where('curso_id', $curso->id))
-                        ->whereIn('estado', ['presente', 'tardanza'])
-                        ->count();
-                    $pctAsistencia = ($asistencias / $sesionesTotales) * 100;
-                    if ($pctAsistencia < 50) {
-                        $cursosCriticos++;
-                        $motivos[] = "Baja asistencia en {$curso->nombre} (" . round($pctAsistencia) . "%)";
+                $critico = false;
+
+                // Un curso archivado es historial del periodo anterior: no es riesgo actual.
+                if (! $curso || $curso->estaFinalizado()) {
+                    continue;
+                }
+
+                if ($curso->usa_asistencia) {
+                    $porcentaje = $asistencia->porcentajeDe($estudiante, $curso);
+
+                    if ($porcentaje !== null && $porcentaje < self::ASISTENCIA_MINIMA) {
+                        $critico = true;
+                        $motivos[] = "Asistencia de {$porcentaje} % en {$curso->nombre}";
                     }
                 }
 
-                // Riesgo por Notas
-                $notaFinal = $servicio->notaFinalPorRubros($estudiante, $curso);
-                if ($notaFinal !== null && $notaFinal < 10) {
-                    $cursosCriticos++;
-                    $motivos[] = "Promedio bajo en {$curso->nombre} ({$notaFinal})";
+                $rendimiento = $notas->rendimientoDe($estudiante, $curso);
+
+                if ($rendimiento !== null && $rendimiento < $notaMinima) {
+                    $critico = true;
+                    $motivos[] = "Rendimiento de {$rendimiento} en {$curso->nombre}";
                 }
+
+                $cursosCriticos += $critico ? 1 : 0;
             }
 
-            if ($cursosCriticos > 0) {
-                $estudiantesEnRiesgo->push([
-                    'estudiante' => $estudiante,
-                    'nivel' => $cursosCriticos > 2 ? 'Alto' : 'Medio',
-                    'motivos' => array_unique($motivos)
-                ]);
-            }
-        }
+            return $cursosCriticos > 0
+                ? ['estudiante' => $estudiante, 'nivel' => $cursosCriticos > 1 ? 'Alto' : 'Medio', 'motivos' => $motivos]
+                : null;
+        })->filter()->sortBy(fn ($r) => $r['nivel'] === 'Alto' ? 0 : 1)->values();
 
-        // 2. Métricas de Engagement Global
-        $totalCursos = Curso::count();
         $totalEstudiantes = $estudiantes->count();
-        $inscripcionesActivas = \App\Models\Inscripcion::where('activo_local', true)->count();
-        $promedioInscripciones = $totalEstudiantes > 0 ? round($inscripcionesActivas / $totalEstudiantes, 1) : 0;
-        
-        $totalMensajes = \App\Models\Mensaje::count();
-        $totalInteraccionesIA = \App\Models\ConversacionBot::count(); // Cantidad de conversaciones iniciadas
+        $inscripcionesActivas = Inscripcion::where('estado', 'activo')->where('activo_local', true)->count();
 
         return view('livewire.admin.metricas.index', [
-            'estudiantesEnRiesgo' => $estudiantesEnRiesgo->sortByDesc('nivel'),
-            'totalCursos' => $totalCursos,
+            'estudiantesEnRiesgo' => $enRiesgo,
+            'notaMinima' => $notaMinima,
             'totalEstudiantes' => $totalEstudiantes,
-            'promedioInscripciones' => $promedioInscripciones,
-            'totalMensajes' => $totalMensajes,
-            'totalInteraccionesIA' => $totalInteraccionesIA,
-        ])->title('Métricas y Analítica - Supervisor');
+            'promedioInscripciones' => $totalEstudiantes > 0 ? round($inscripcionesActivas / $totalEstudiantes, 1) : 0,
+            'totalMensajes' => Mensaje::count(),
+            'totalInteraccionesIA' => ConversacionBot::count(),
+        ])->title('Riesgo de abandono — LearnUp');
     }
 }

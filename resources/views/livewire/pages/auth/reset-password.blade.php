@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -33,6 +34,8 @@ new #[Layout('layouts.guest')] class extends Component
      */
     public function resetPassword(): void
     {
+        $this->email = User::normalizarEmail($this->email);
+
         $this->validate([
             'token' => ['required'],
             'email' => ['required', 'string', 'email'],
@@ -45,9 +48,15 @@ new #[Layout('layouts.guest')] class extends Component
         $status = Password::reset(
             $this->only('email', 'password', 'password_confirmation', 'token'),
             function ($user) {
+                // ERS RF-06/RF-08: la recuperación es la vía para salir del bloqueo por
+                // intentos fallidos. RF-05: la contraseña temporal deja de existir porque el
+                // usuario acaba de elegir una propia.
                 $user->forceFill([
                     'password' => Hash::make($this->password),
                     'remember_token' => Str::random(60),
+                    'intentos_fallidos' => 0,
+                    'bloqueado_hasta' => null,
+                    'primer_login' => false,
                 ])->save();
 
                 event(new PasswordReset($user));
@@ -79,9 +88,10 @@ new #[Layout('layouts.guest')] class extends Component
         </div>
 
         <!-- Contraseña -->
-        <div class="mt-4">
-            <x-input-label for="password" value="Contraseña" />
-            <x-text-input wire:model="password" id="password" class="block mt-1 w-full" type="password" name="password" required autocomplete="new-password" />
+        <div class="mt-4" x-data="{ clave: '' }">
+            <x-input-label for="password" value="Nueva contraseña" />
+            <x-text-input wire:model="password" id="password" class="block mt-1 w-full" type="password" name="password" x-on:input="clave = $event.target.value" required autocomplete="new-password" />
+            <x-requisitos-password />
             <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
