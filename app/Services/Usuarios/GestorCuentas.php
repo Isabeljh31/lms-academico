@@ -9,9 +9,12 @@ use App\Models\User;
 use App\Rules\Dni;
 use App\Rules\NombrePersona;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
@@ -19,7 +22,7 @@ use Throwable;
  * que todas las vías (alta individual, importación masiva, directorio de
  * profesores y API de integración) cumplan las mismas reglas:
  *
- * - RF-03: contraseña temporal generada por el sistema.
+ * - RF-03: contraseña inicial igual al DNI; aleatoria si la integración no proporciona DNI.
  * - RF-04: correo de bienvenida con la contraseña temporal y el enlace.
  * - RF-05 / regla de negocio 2: cambio obligatorio en el primer ingreso.
  * - RF-96: la creación queda en la bitácora de auditoría.
@@ -67,7 +70,8 @@ class GestorCuentas
     public function crear(string $nombres, string $apellidos, string $email, string $rol, ?User $ejecutor, string $origen = 'manual', ?string $dni = null): array
     {
         $rol = Rol::from($rol)->value;
-        $passwordTemporal = $this->generarPasswordTemporal();
+        $dni = $dni === null ? null : trim($dni);
+        $passwordTemporal = filled($dni) ? $dni : $this->generarPasswordTemporal();
 
         $usuario = new User([
             'nombres' => $nombres,
@@ -98,11 +102,34 @@ class GestorCuentas
         ];
     }
 
+    public function eliminar(User $usuario): void
+    {
+        Gate::authorize('verListado', User::class);
+        abort_if($usuario->is(auth()->user()) || $usuario->hasRole(Rol::Supervisor->value), 403);
+
+        DB::transaction(function () use ($usuario) {
+            $usuario = User::query()->lockForUpdate()->findOrFail($usuario->id);
+
+            if ($usuario->tieneHistorialAcademico() || DB::table('propuestas_bot')->where('aprobado_por', $usuario->id)->exists()) {
+                throw ValidationException::withMessages([
+                    'eliminar' => 'Esta cuenta tiene historial académico o cursos asignados. Reasigna los cursos antes de eliminar un profesor; para conservar el historial, desactiva la cuenta.',
+                ]);
+            }
+
+            BitacoraAuditoria::registrarAccionAdmin(
+                ejecutor: auth()->user(),
+                tipoEvento: 'eliminacion_cuenta',
+                descripcion: "Cuenta eliminada: {$usuario->name} ({$usuario->email}), ID {$usuario->id}.",
+            );
+            DB::table('sessions')->where('user_id', $usuario->id)->delete();
+            DB::table('password_reset_tokens')->where('email', $usuario->email)->delete();
+            $usuario->delete();
+        });
+    }
+
     /**
-     * 12 caracteres que cumplen la política de contraseñas: al menos una
-     * mayúscula, una minúscula, un número y un símbolo. Se omiten caracteres
-     * que se confunden al copiarlos a mano (0/O, 1/l/I) y símbolos que suelen
-     * romper correos o enlaces.
+     * Genera 12 caracteres con mayúsculas, minúsculas, números y símbolos,
+     * evitando caracteres que se confunden al copiarlos a mano.
      */
     public function generarPasswordTemporal(): string
     {

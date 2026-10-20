@@ -6,10 +6,14 @@ use App\Enums\Rol;
 use App\Livewire\Admin\Comunicados\Index as ComunicadosIndex;
 use App\Livewire\Admin\Profesores\Index as ProfesoresIndex;
 use App\Livewire\Cursos\Formulario as CursoFormulario;
+use App\Mail\BienvenidaMail;
 use App\Models\Comunicado;
 use App\Models\Curso;
 use App\Models\User;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -44,6 +48,74 @@ class AdminProfesoresTest extends TestCase
             ->assertOk()
             ->assertSee('Profesores y carga académica')
             ->assertSee($this->profesor->name);
+    }
+
+    public function test_crea_profesor_con_dni_como_password(): void
+    {
+        Mail::fake();
+
+        Livewire::actingAs($this->admin)->test(ProfesoresIndex::class)
+            ->call('abrirCrear')->assertDontSee('autocomplete="new-password"', false)
+            ->set('nuevoNombres', 'Ana')->set('nuevoApellidos', 'Torres')
+            ->set('nuevoDni', '41239876')->set('nuevoEmail', 'ana@example.com')
+            ->call('crearProfesor')->assertHasNoErrors();
+
+        $usuario = User::where('email', 'ana@example.com')->firstOrFail();
+        $this->assertTrue(Hash::check('41239876', $usuario->password));
+        $this->assertTrue($usuario->hasRole(Rol::Profesor->value));
+        Mail::assertSent(BienvenidaMail::class);
+    }
+
+    public function test_edita_datos_del_profesor_y_conserva_password(): void
+    {
+        $anterior = $this->profesor->password;
+
+        Livewire::actingAs($this->admin)->test(ProfesoresIndex::class)
+            ->call('abrirEditar', $this->profesor->id)
+            ->assertDontSee('autocomplete="new-password"', false)
+            ->set('editarNombres', 'Nombre Nuevo')
+            ->call('guardarEdicion')->assertHasNoErrors();
+
+        $this->assertSame('Nombre Nuevo', $this->profesor->fresh()->nombres);
+        $this->assertSame($anterior, $this->profesor->fresh()->password);
+    }
+
+    public function test_desactiva_reactiva_y_elimina_profesor_sin_cursos(): void
+    {
+        $componente = Livewire::actingAs($this->admin)->test(ProfesoresIndex::class);
+        $componente->call('cambiarEstado', $this->profesor->id)->assertHasNoErrors();
+        $this->assertFalse($this->profesor->fresh()->activo);
+        $componente->call('cambiarEstado', $this->profesor->id)->assertHasNoErrors();
+        $this->assertTrue($this->profesor->fresh()->activo);
+        $componente->call('eliminarProfesor', $this->profesor->id)->assertHasNoErrors();
+        $this->assertModelMissing($this->profesor);
+    }
+
+    public function test_no_elimina_profesor_con_cursos(): void
+    {
+        $curso = Curso::factory()->create(['profesor_id' => $this->profesor->id]);
+
+        Livewire::actingAs($this->admin)->test(ProfesoresIndex::class)
+            ->call('eliminarProfesor', $this->profesor->id)->assertHasErrors('eliminar');
+
+        $this->assertModelExists($this->profesor);
+        $this->assertModelExists($curso);
+    }
+
+    public function test_directorio_no_permite_editar_estudiantes(): void
+    {
+        $this->expectException(ModelNotFoundException::class);
+
+        Livewire::actingAs($this->admin)->test(ProfesoresIndex::class)
+            ->call('abrirEditar', $this->estudiante->id);
+    }
+
+    public function test_directorio_no_permite_eliminar_estudiantes(): void
+    {
+        $this->expectException(ModelNotFoundException::class);
+
+        Livewire::actingAs($this->admin)->test(ProfesoresIndex::class)
+            ->call('eliminarProfesor', $this->estudiante->id);
     }
 
     public function test_profesor_y_estudiante_no_pueden_acceder_a_admin_profesores(): void
