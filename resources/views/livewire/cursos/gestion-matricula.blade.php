@@ -30,11 +30,11 @@
         </div>
 
         @if ($this->puedeMatricular)
-            <x-gestion.tarjeta titulo="Matricular estudiante" descripcion="Busca por nombre o correo. El estudiante recibirá una notificación y un correo.">
+            <x-gestion.tarjeta titulo="Matricular estudiante" descripcion="Escribe al menos 2 caracteres del nombre, correo o DNI para buscar. El estudiante recibirá una notificación y un correo.">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-start">
                     <div class="relative flex-1">
                         <label for="busquedaEstudiante" class="sr-only">Buscar estudiante</label>
-                        <x-gestion.control id="busquedaEstudiante" wire:model.live.debounce.350ms="busquedaEstudiante" placeholder="Nombre o correo del estudiante" autocomplete="off" />
+                        <x-gestion.control id="busquedaEstudiante" wire:model.live.debounce.350ms="busquedaEstudiante" placeholder="Nombre, correo o DNI del estudiante" autocomplete="off" />
                         @if ($estudiantesBusqueda->isNotEmpty())
                             <div class="absolute left-0 right-0 top-full z-20 mt-1 overflow-hidden rounded-xl border bg-white shadow-lg {{ $esAdminVista ? 'border-arena-medio dark:border-stone-600 dark:bg-stone-800' : 'border-celeste dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura' }}">
                                 @foreach ($estudiantesBusqueda as $est)
@@ -43,12 +43,12 @@
                                         <x-icono nombre="usuarios" class="h-4 w-4 shrink-0 text-stone-400" />
                                         <span class="min-w-0">
                                             <span class="block truncate text-sm font-medium text-stone-800 dark:text-stone-100">{{ $est->name }}</span>
-                                            <span class="block truncate text-xs text-stone-500">{{ $est->email }}</span>
+                                            <span class="block truncate text-xs text-stone-500">{{ $est->email }} · DNI {{ $est->dni ?? 'sin registrar' }}</span>
                                         </span>
                                     </button>
                                 @endforeach
                             </div>
-                        @elseif (mb_strlen($busquedaEstudiante) >= 2 && ! $estudianteSeleccionadoId)
+                        @elseif (mb_strlen(trim($busquedaEstudiante)) >= 2 && ! $estudianteSeleccionadoId)
                             <p class="mt-2 text-xs text-stone-500">Sin resultados: puede que ya esté matriculado, que su cuenta esté desactivada o que no tenga rol Estudiante.</p>
                         @endif
                         @error('estudianteSeleccionadoId')

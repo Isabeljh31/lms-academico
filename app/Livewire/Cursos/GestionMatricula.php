@@ -138,14 +138,16 @@ class GestionMatricula extends Component
             ->paginate(20);
 
         $estudiantesBusqueda = collect();
+        $busqueda = trim($this->busquedaEstudiante);
 
-        if ($this->puedeMatricular && mb_strlen($this->busquedaEstudiante) >= 2 && ! $this->estudianteSeleccionadoId) {
+        if ($this->puedeMatricular && mb_strlen($busqueda) >= 2 && ! $this->estudianteSeleccionadoId) {
             $estudiantesBusqueda = User::role('estudiante')
                 ->where('activo', true)
                 ->whereNotIn('id', $this->curso->inscripcionesActivas()->select('estudiante_id'))
                 ->where(fn ($q) => $q
-                    ->where('name', 'like', "%{$this->busquedaEstudiante}%")
-                    ->orWhere('email', 'like', "%{$this->busquedaEstudiante}%")
+                    ->whereLike('name', "%{$busqueda}%")
+                    ->orWhereLike('email', "%{$busqueda}%")
+                    ->orWhereLike('dni', "%{$busqueda}%")
                 )
                 ->orderBy('name')
                 ->limit(8)
