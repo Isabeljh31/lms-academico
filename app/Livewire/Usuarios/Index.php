@@ -176,7 +176,9 @@ class Index extends Component
         $this->editarDni = trim($this->editarDni);
 
         $this->validate(
-            GestorCuentas::reglasIdentidad('editarNombres', 'editarApellidos', 'editarDni', 'editarEmail', $this->usuarioEditarId),
+            [
+                ...GestorCuentas::reglasIdentidad('editarNombres', 'editarApellidos', 'editarDni', 'editarEmail', $this->usuarioEditarId),
+            ],
             [
                 ...GestorCuentas::mensajesIdentidad('editarDni', 'editarEmail'),
                 'editarDni.unique' => 'Ya existe otra cuenta con este DNI.',
@@ -267,6 +269,14 @@ class Index extends Component
         $this->mostrarModalDesactivar = false;
         $this->usuarioADesactivarId = null;
         session()->flash('estado', "Cuenta de {$usuario->name} desactivada. Su historial académico se conserva.");
+    }
+
+    public function eliminarCuenta(int $usuarioId, GestorCuentas $gestor): void
+    {
+        $gestor->eliminar(User::findOrFail($usuarioId));
+        $this->resetErrorBag();
+        $this->resetPage();
+        session()->flash('estado', 'Cuenta eliminada correctamente.');
     }
 
     public function activarCuenta(int $usuarioId): void

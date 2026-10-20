@@ -31,6 +31,7 @@
         @endif
 
         <x-gestion.alertas />
+        <x-input-error :messages="$errors->get('eliminar')" />
 
         <x-gestion.tarjeta>
             <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -127,6 +128,10 @@
                                         <div class="flex justify-end gap-1">
                                             <x-gestion.boton variante="fantasma" tamano="sm" icono="lapiz" wire:click="abrirEditar({{ $usuario->id }})">Editar</x-gestion.boton>
                                             @if ($usuario->isNot(auth()->user()))
+                                                @unless ($usuario->hasRole('supervisor'))
+                                                    <x-gestion.boton variante="fantasma-peligro" tamano="sm" wire:click="eliminarCuenta({{ $usuario->id }})"
+                                                        wire:confirm="¿Eliminar definitivamente a {{ $usuario->name }}? Esta acción no se puede deshacer. Las cuentas con historial académico deben desactivarse.">Eliminar</x-gestion.boton>
+                                                @endunless
                                                 @if ($usuario->activo)
                                                     <x-gestion.boton variante="fantasma-peligro" tamano="sm" icono="prohibido" wire:click="confirmarDesactivar({{ $usuario->id }})">Desactivar</x-gestion.boton>
                                                 @else
@@ -149,7 +154,7 @@
 
     @if ($mostrarModalCrear)
         <x-gestion.modal titulo="Nuevo usuario" cerrar="$set('mostrarModalCrear', false)"
-            descripcion="Se generará una contraseña temporal y se enviará un correo de bienvenida. El usuario deberá cambiarla en su primer inicio de sesión.">
+            descripcion="La contraseña predeterminada será el DNI del usuario. Se enviará un correo de bienvenida y el usuario deberá cambiarla al ingresar.">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <x-gestion.campo etiqueta="Nombres" nombre="nuevoNombres" requerido>
                     <x-gestion.control id="nuevoNombres" wire:model="nuevoNombres" placeholder="María José" maxlength="60" autocomplete="off" />
@@ -162,6 +167,7 @@
                 <x-gestion.campo etiqueta="DNI" nombre="nuevoDni" requerido ayuda="8 dígitos, solo números.">
                     <x-gestion.control id="nuevoDni" wire:model="nuevoDni" placeholder="12345678" inputmode="numeric" maxlength="8"
                         autocomplete="off" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 8)" />
+                <p class="mt-1 text-xs text-stone-500">Contraseña predeterminada: su DNI. Deberá cambiarla al iniciar sesión por primera vez.</p>
                 </x-gestion.campo>
                 <x-gestion.campo etiqueta="Correo electrónico" nombre="nuevoEmail" requerido>
                     <x-gestion.control id="nuevoEmail" type="email" wire:model="nuevoEmail" placeholder="correo@institucion.edu.pe" />

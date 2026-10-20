@@ -36,6 +36,19 @@ class Index extends Component
 
     public string $nuevoEmail = '';
 
+    public bool $mostrarModalEditar = false;
+
+    #[Locked]
+    public ?int $profesorEditarId = null;
+
+    public string $editarNombres = '';
+
+    public string $editarApellidos = '';
+
+    public string $editarDni = '';
+
+    public string $editarEmail = '';
+
     // Modal para reasignar / vincular curso
     public bool $mostrarModalAsignar = false;
 
@@ -66,7 +79,9 @@ class Index extends Component
         $this->nuevoDni = trim($this->nuevoDni);
 
         $this->validate(
-            GestorCuentas::reglasIdentidad('nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail'),
+            [
+                ...GestorCuentas::reglasIdentidad('nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail'),
+            ],
             GestorCuentas::mensajesIdentidad('nuevoDni', 'nuevoEmail'),
             ['nuevoNombres' => 'nombres', 'nuevoApellidos' => 'apellidos', 'nuevoDni' => 'DNI', 'nuevoEmail' => 'correo institucional'],
         );
@@ -82,6 +97,81 @@ class Index extends Component
 
         $this->reset(['nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail', 'mostrarModalCrear']);
         session()->flash('estado', "Profesor \"{$resultado['usuario']->name}\" registrado. Contraseña temporal: {$resultado['password_temporal']}");
+    }
+
+    public function abrirCrear(): void
+    {
+        abort_unless(auth()->user()->hasRole('supervisor'), 403);
+        $this->resetErrorBag();
+        $this->reset(['nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail']);
+        $this->mostrarModalCrear = true;
+    }
+
+    public function abrirEditar(int $id): void
+    {
+        abort_unless(auth()->user()->hasRole('supervisor'), 403);
+        $profesor = User::role(Rol::Profesor->value)->findOrFail($id);
+        $this->resetErrorBag();
+        $this->profesorEditarId = $profesor->id;
+        $this->editarNombres = (string) $profesor->nombres;
+        $this->editarApellidos = (string) $profesor->apellidos;
+        $this->editarDni = (string) $profesor->dni;
+        $this->editarEmail = $profesor->email;
+        $this->mostrarModalEditar = true;
+    }
+
+    public function guardarEdicion(): void
+    {
+        abort_unless(auth()->user()->hasRole('supervisor'), 403);
+        $profesor = User::role(Rol::Profesor->value)->findOrFail($this->profesorEditarId);
+        $this->editarEmail = User::normalizarEmail($this->editarEmail);
+        $this->editarDni = trim($this->editarDni);
+        $this->validate([
+            ...GestorCuentas::reglasIdentidad('editarNombres', 'editarApellidos', 'editarDni', 'editarEmail', $profesor->id),
+        ], GestorCuentas::mensajesIdentidad('editarDni', 'editarEmail'));
+
+        $campos = ['nombres', 'apellidos', 'dni', 'email'];
+        $anterior = $profesor->only($campos);
+        $profesor->update([
+            'nombres' => $this->editarNombres,
+            'apellidos' => $this->editarApellidos,
+            'dni' => $this->editarDni,
+            'email' => $this->editarEmail,
+        ]);
+        BitacoraAuditoria::registrarAccionAdmin(
+            ejecutor: auth()->user(),
+            tipoEvento: 'edicion_datos_usuario',
+            descripcion: "Datos editados de {$profesor->name}.",
+            usuarioAfectado: $profesor,
+            valorAnterior: $anterior,
+            valorNuevo: $profesor->only($campos),
+        );
+
+        $this->reset(['editarNombres', 'editarApellidos', 'editarDni', 'editarEmail', 'profesorEditarId', 'mostrarModalEditar']);
+        session()->flash('estado', 'Profesor actualizado correctamente.');
+    }
+
+    public function cambiarEstado(int $id): void
+    {
+        abort_unless(auth()->user()->hasRole('supervisor'), 403);
+        $profesor = User::role(Rol::Profesor->value)->findOrFail($id);
+        abort_if($profesor->is(auth()->user()), 403);
+        $profesor->update(['activo' => ! $profesor->activo]);
+        BitacoraAuditoria::registrarAccionAdmin(
+            ejecutor: auth()->user(),
+            tipoEvento: $profesor->activo ? 'reactivacion_cuenta' : 'desactivacion_cuenta',
+            descripcion: "Estado de cuenta actualizado: {$profesor->name}.",
+            usuarioAfectado: $profesor,
+        );
+        session()->flash('estado', $profesor->activo ? 'Profesor reactivado.' : 'Profesor desactivado.');
+    }
+
+    public function eliminarProfesor(int $id, GestorCuentas $gestor): void
+    {
+        $gestor->eliminar(User::role(Rol::Profesor->value)->findOrFail($id));
+        $this->resetErrorBag();
+        $this->resetPage();
+        session()->flash('estado', 'Profesor eliminado correctamente.');
     }
 
     public function abrirModalAsignar(int $profesorId): void

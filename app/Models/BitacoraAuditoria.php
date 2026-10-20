@@ -28,6 +28,7 @@ class BitacoraAuditoria extends Model
      * @var array<string, string>
      */
     public const TIPOS = [
+        'eliminacion_cuenta' => 'Eliminación de cuenta',
         'cambio_nota' => 'Cambio de nota',
         'creacion_cuenta' => 'Creación de cuenta',
         'edicion_datos_usuario' => 'Edición de cuenta',

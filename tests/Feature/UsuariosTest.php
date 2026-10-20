@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
+use App\Livewire\Auth\CambiarPasswordPrimerLogin;
 use App\Livewire\Usuarios\Index;
 use App\Mail\BienvenidaMail;
 use App\Models\Curso;
@@ -11,8 +12,6 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rules\Password;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -37,6 +36,81 @@ class UsuariosTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.usuarios.index'))
             ->assertOk();
+    }
+
+    public function test_crea_usuario_con_dni_como_password_y_lo_envia_por_correo(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->call('abrirCrear')
+            ->assertSee('Contraseña predeterminada: su DNI.')
+            ->assertDontSee('autocomplete="new-password"', false)
+            ->set('nuevoNombres', 'Ana')
+            ->set('nuevoApellidos', 'Torres')
+            ->set('nuevoDni', '41239876')
+            ->set('nuevoEmail', 'ana@example.com')
+            ->call('crearUsuario')->assertHasNoErrors();
+
+        $usuario = User::where('email', 'ana@example.com')->firstOrFail();
+        $this->assertTrue(Hash::check('41239876', $usuario->password));
+        $this->assertTrue($usuario->primer_login);
+        Mail::assertSent(BienvenidaMail::class, fn ($mail) => $mail->passwordTemporal === '41239876' && $mail->hasTo('ana@example.com'));
+
+        $this->actingAs($usuario)->get(route('cursos.index'))->assertRedirect(route('primer-login'));
+        Livewire::actingAs($usuario)->test(CambiarPasswordPrimerLogin::class)
+            ->set('password', 'ClavePersonal123!')
+            ->set('password_confirmation', 'ClavePersonal123!')
+            ->call('guardar')->assertHasNoErrors();
+
+        $this->assertFalse($usuario->fresh()->primer_login);
+        $this->assertTrue(Hash::check('ClavePersonal123!', $usuario->fresh()->password));
+        $this->assertFalse(Hash::check('41239876', $usuario->fresh()->password));
+    }
+
+    public function test_editar_dni_no_cambia_la_password_existente(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $usuario = User::factory()->create(['primer_login' => false])->assignRole(Rol::Estudiante->value);
+        $anterior = $usuario->password;
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->call('abrirEditar', $usuario->id)
+            ->assertDontSee('autocomplete="new-password"', false)
+            ->set('editarDni', '07123456')
+            ->call('guardarEdicion')->assertHasNoErrors();
+
+        $this->assertSame($anterior, $usuario->fresh()->password);
+        $this->assertFalse($usuario->fresh()->primer_login);
+    }
+
+    public function test_elimina_cuenta_sin_historial_y_conserva_auditoria(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $usuario = User::factory()->create()->assignRole(Rol::Estudiante->value);
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->call('eliminarCuenta', $usuario->id)->assertHasNoErrors();
+
+        $this->assertModelMissing($usuario);
+        $this->assertDatabaseHas('bitacoras_auditoria', ['tipo_evento' => 'eliminacion_cuenta', 'ejecutado_por' => $admin->id]);
+    }
+
+    public function test_no_elimina_cuenta_con_historial_ni_supervisor(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $curso = Curso::factory()->create(['profesor_id' => $profesor->id]);
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->call('eliminarCuenta', $profesor->id)->assertHasErrors('eliminar');
+        Livewire::actingAs($admin)->test(Index::class)
+            ->call('eliminarCuenta', $admin->id)->assertForbidden();
+
+        $this->assertModelExists($profesor);
+        $this->assertModelExists($curso);
+        $this->assertModelExists($admin);
     }
 
     public function test_profesor_no_puede_acceder_al_listado_de_usuarios(): void
@@ -207,7 +281,7 @@ class UsuariosTest extends TestCase
         Mail::assertSent(BienvenidaMail::class, fn ($mail) => $mail->hasTo('luis.mendoza@lms.edu.pe'));
     }
 
-    public function test_la_contrasena_temporal_cumple_la_politica_de_contrasenas(): void
+    public function test_la_contrasena_inicial_es_el_dni(): void
     {
         Mail::fake();
         $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
@@ -224,8 +298,7 @@ class UsuariosTest extends TestCase
 
         $temporal = Mail::sent(BienvenidaMail::class)->first()->passwordTemporal;
 
-        $this->assertSame(12, strlen($temporal));
-        $this->assertTrue(Validator::make(['password' => $temporal], ['password' => Password::defaults()])->passes());
+        $this->assertSame('45678123', $temporal);
         $this->assertTrue(Hash::check($temporal, User::where('email', 'ana@lms.edu.pe')->value('password')));
     }
 
@@ -249,6 +322,7 @@ class UsuariosTest extends TestCase
         $this->assertSame('María José', $usuario->nombres);
         $this->assertSame('Pérez Salinas', $usuario->apellidos);
         $this->assertSame('07123456', $usuario->dni);
+        $this->assertTrue(Hash::check('07123456', $usuario->password));
         $this->assertSame('María José Pérez Salinas', $usuario->name);
     }
 

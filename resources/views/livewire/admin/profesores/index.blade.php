@@ -3,10 +3,11 @@
 
         <x-gestion.encabezado titulo="Profesores y carga académica" icono="birrete"
             descripcion="Registra docentes, asigna cursos y supervisa el avance de sus calificaciones.">
-            <x-gestion.boton icono="usuario-mas" wire:click="$set('mostrarModalCrear', true)">Registrar profesor</x-gestion.boton>
+            <x-gestion.boton icono="usuario-mas" wire:click="abrirCrear">Registrar profesor</x-gestion.boton>
         </x-gestion.encabezado>
 
         <x-gestion.alertas />
+        <x-input-error :messages="$errors->get('eliminar')" />
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <x-gestion.indicador etiqueta="Docentes" :valor="$totalProfesores" icono="birrete" detalle="Profesores registrados" />
@@ -37,6 +38,14 @@
                             <div class="min-w-0">
                                 <h2 class="truncate text-base font-bold text-stone-900 dark:text-stone-100">{{ $prof->name }}</h2>
                                 <p class="truncate text-sm text-stone-500 dark:text-stone-400">{{ $prof->email }}</p>
+                                <p class="text-xs text-stone-500">{{ $prof->activo ? 'Activo' : 'Desactivado' }}</p>
+                                <div class="mt-2 flex flex-wrap gap-1">
+                                    <x-gestion.boton variante="fantasma" tamano="sm" wire:click="abrirEditar({{ $prof->id }})">Editar</x-gestion.boton>
+                                    <x-gestion.boton variante="fantasma" tamano="sm" wire:click="cambiarEstado({{ $prof->id }})"
+                                        wire:confirm="¿Cambiar el estado de la cuenta de {{ $prof->name }}?">{{ $prof->activo ? 'Desactivar' : 'Reactivar' }}</x-gestion.boton>
+                                    <x-gestion.boton variante="fantasma-peligro" tamano="sm" wire:click="eliminarProfesor({{ $prof->id }})"
+                                        wire:confirm="¿Eliminar definitivamente a {{ $prof->name }}? Esta acción no se puede deshacer. Debes reasignar sus cursos antes de eliminarlo.">Eliminar</x-gestion.boton>
+                                </div>
                                 <p class="mt-1 text-xs text-stone-500">{{ $fila['estudiantes_count'] }} estudiantes activos - {{ $fila['tareas_count'] }} tareas</p>
                             </div>
                         </div>
@@ -97,7 +106,7 @@
 
     @if ($mostrarModalCrear)
         <x-gestion.modal titulo="Registrar profesor" cerrar="$set('mostrarModalCrear', false)"
-            descripcion="Se generará una contraseña temporal y se enviará un correo de bienvenida.">
+            descripcion="La contraseña predeterminada será el DNI del usuario. Se enviará un correo de bienvenida.">
             <form wire:submit="crearProfesor" id="form-crear-profesor" class="space-y-4">
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <x-gestion.campo etiqueta="Nombres" nombre="nuevoNombres" requerido>
@@ -110,6 +119,7 @@
                 <x-gestion.campo etiqueta="DNI" nombre="nuevoDni" requerido ayuda="8 dígitos, solo números.">
                     <x-gestion.control id="nuevoDni" wire:model="nuevoDni" placeholder="12345678" inputmode="numeric" maxlength="8"
                         autocomplete="off" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 8)" />
+                <p class="mt-1 text-xs text-stone-500">Contraseña predeterminada: su DNI. Deberá cambiarla al iniciar sesión por primera vez.</p>
                 </x-gestion.campo>
                 <x-gestion.campo etiqueta="Correo institucional" nombre="nuevoEmail" requerido>
                     <x-gestion.control id="nuevoEmail" type="email" wire:model="nuevoEmail" placeholder="docente@institucion.edu.pe" />
@@ -118,6 +128,29 @@
             <x-slot name="pie">
                 <x-gestion.boton variante="secundario" wire:click="$set('mostrarModalCrear', false)">Cancelar</x-gestion.boton>
                 <x-gestion.boton type="submit" form="form-crear-profesor">Registrar</x-gestion.boton>
+            </x-slot>
+        </x-gestion.modal>
+    @endif
+
+    @if ($mostrarModalEditar)
+        <x-gestion.modal titulo="Editar profesor" cerrar="$set('mostrarModalEditar', false)">
+            <form wire:submit="guardarEdicion" id="form-editar-profesor" class="space-y-4">
+                <x-gestion.campo etiqueta="Nombres" nombre="editarNombres" requerido>
+                    <x-gestion.control id="editarNombres" wire:model="editarNombres" maxlength="60" />
+                </x-gestion.campo>
+                <x-gestion.campo etiqueta="Apellidos" nombre="editarApellidos" requerido>
+                    <x-gestion.control id="editarApellidos" wire:model="editarApellidos" maxlength="60" />
+                </x-gestion.campo>
+                <x-gestion.campo etiqueta="DNI" nombre="editarDni" requerido>
+                    <x-gestion.control id="editarDni" wire:model="editarDni" inputmode="numeric" maxlength="8" />
+                </x-gestion.campo>
+                <x-gestion.campo etiqueta="Correo institucional" nombre="editarEmail" requerido>
+                    <x-gestion.control id="editarEmail" type="email" wire:model="editarEmail" />
+                </x-gestion.campo>
+            </form>
+            <x-slot name="pie">
+                <x-gestion.boton variante="secundario" wire:click="$set('mostrarModalEditar', false)">Cancelar</x-gestion.boton>
+                <x-gestion.boton type="submit" form="form-editar-profesor" wire:loading.attr="disabled" wire:target="guardarEdicion">Guardar cambios</x-gestion.boton>
             </x-slot>
         </x-gestion.modal>
     @endif
