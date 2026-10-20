@@ -4,14 +4,18 @@ namespace Tests\Feature;
 
 use App\Enums\Rol;
 use App\Livewire\Auth\CambiarPasswordPrimerLogin;
+use App\Livewire\Cursos\GestionMatricula;
 use App\Livewire\Usuarios\Index;
 use App\Mail\BienvenidaMail;
 use App\Models\Curso;
+use App\Models\Inscripcion;
 use App\Models\User;
+use App\Notifications\MatriculadoEnCurso;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -36,6 +40,50 @@ class UsuariosTest extends TestCase
         $this->actingAs($admin)
             ->get(route('admin.usuarios.index'))
             ->assertOk();
+    }
+
+    public function test_estudiante_recien_creado_aparece_en_busqueda_de_curso_nuevo(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->set('nuevoNombres', 'Juan Carlos')
+            ->set('nuevoApellidos', 'Torres')
+            ->set('nuevoDni', '07123456')
+            ->set('nuevoEmail', 'juan.torres@example.com')
+            ->call('crearUsuario')->assertHasNoErrors();
+
+        $estudiante = User::where('email', 'juan.torres@example.com')->firstOrFail();
+        $curso = Curso::factory()->create(['profesor_id' => $admin->id]);
+        $componente = Livewire::actingAs($admin)->test(GestionMatricula::class, ['curso' => $curso]);
+        foreach (['juan', 'JUAN.TORRES@EXAMPLE.COM', ' 07123456 '] as $busqueda) {
+            $componente->set('busquedaEstudiante', $busqueda)
+                ->assertViewHas('estudiantesBusqueda', fn ($resultados) => $resultados->modelKeys() === [$estudiante->id]);
+        }
+
+        $componente->call('seleccionarEstudiante', $estudiante->id)
+            ->call('matricularEstudiante')->assertHasNoErrors();
+
+        $this->assertDatabaseHas('inscripciones', ['curso_id' => $curso->id, 'estudiante_id' => $estudiante->id, 'estado' => 'activo']);
+        Mail::assertSent(BienvenidaMail::class);
+        Notification::assertSentTo($estudiante, MatriculadoEnCurso::class);
+    }
+
+    public function test_busqueda_matricula_excluye_inactivos_profesores_y_ya_matriculados(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $curso = Curso::factory()->create(['profesor_id' => $admin->id]);
+        $disponible = User::factory()->create(['name' => 'Juan Disponible'])->assignRole(Rol::Estudiante->value);
+        User::factory()->create(['name' => 'Juan Inactivo', 'activo' => false])->assignRole(Rol::Estudiante->value);
+        User::factory()->create(['name' => 'Juan Profesor'])->assignRole(Rol::Profesor->value);
+        $matriculado = User::factory()->create(['name' => 'Juan Matriculado'])->assignRole(Rol::Estudiante->value);
+        Inscripcion::factory()->create(['curso_id' => $curso->id, 'estudiante_id' => $matriculado->id]);
+
+        Livewire::actingAs($admin)->test(GestionMatricula::class, ['curso' => $curso])
+            ->set('busquedaEstudiante', 'juan')
+            ->assertViewHas('estudiantesBusqueda', fn ($resultados) => $resultados->modelKeys() === [$disponible->id]);
     }
 
     public function test_crea_usuario_con_dni_como_password_y_lo_envia_por_correo(): void
