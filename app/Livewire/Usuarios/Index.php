@@ -100,6 +100,14 @@ class Index extends Component
         }
     }
 
+    /** Atajo de las tarjetas de resumen: filtra por rol y/o estado en un clic. */
+    public function filtrarRapido(string $rol = '', string $estado = ''): void
+    {
+        $this->filtroRol = $rol;
+        $this->filtroEstado = $estado;
+        $this->resetPage();
+    }
+
     // ==========================================
     // CREAR USUARIO (ERS RF-03, RF-04, RF-10)
     // ==========================================
@@ -323,6 +331,10 @@ class Index extends Component
             'cursos' => Curso::orderBy('nombre')->get(['id', 'nombre']),
             'usuarioADesactivar' => $this->usuarioADesactivarId ? User::find($this->usuarioADesactivarId) : null,
             'usuarioEditar' => $this->usuarioEditarId ? User::find($this->usuarioEditarId) : null,
+            'totalUsuarios' => User::query()->count(),
+            'totalEstudiantes' => User::role(Rol::Estudiante->value)->count(),
+            'totalProfesores' => User::role(Rol::Profesor->value)->count(),
+            'totalPrimerIngreso' => User::where('primer_login', true)->count(),
         ])->title('Usuarios — LearnUp');
     }
 }

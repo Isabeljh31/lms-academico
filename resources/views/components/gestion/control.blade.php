@@ -1,5 +1,6 @@
 @props([
     'tipo' => 'input',
+    'icono' => null,
 ])
 
 {{-- input / select / textarea con el estilo de las pantallas de Profesor y Supervisor. --}}
@@ -19,14 +20,29 @@
                 ? 'border-red-500 focus:border-red-500 focus:ring-red-500 dark:border-red-400'
                 : 'border-celeste focus:border-azul-oscuro focus:ring-azul-oscuro dark:border-azul-borde-oscuro');
 
+    if ($icono) {
+        $clases .= ' pl-9';
+    }
+
     $atributos = $attributes->merge(['class' => $clases]);
 
     if ($invalido) {
         $atributos = $atributos->merge(['aria-invalid' => 'true']);
     }
+
+    $colorIcono = $esAdmin ? 'text-stone-400 dark:text-stone-500' : 'text-slate-400 dark:text-slate-500';
 @endphp
 
-@if ($tipo === 'select')
+@if ($icono)
+    <div class="relative">
+        <x-icono :nombre="$icono" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 {{ $colorIcono }}" />
+        @if ($tipo === 'select')
+            <select {{ $atributos }}>{{ $slot }}</select>
+        @else
+            <input {{ $atributos->merge(['type' => 'text']) }}>
+        @endif
+    </div>
+@elseif ($tipo === 'select')
     <select {{ $atributos }}>{{ $slot }}</select>
 @elseif ($tipo === 'textarea')
     <textarea {{ $atributos->merge(['rows' => 3]) }}>{{ $slot }}</textarea>

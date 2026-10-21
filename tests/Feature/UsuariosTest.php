@@ -93,7 +93,7 @@ class UsuariosTest extends TestCase
 
         Livewire::actingAs($admin)->test(Index::class)
             ->call('abrirCrear')
-            ->assertSee('Contraseña predeterminada: su DNI.')
+            ->assertSee('Contraseña predeterminada: el DNI del usuario.')
             ->assertDontSee('autocomplete="new-password"', false)
             ->set('nuevoNombres', 'Ana')
             ->set('nuevoApellidos', 'Torres')

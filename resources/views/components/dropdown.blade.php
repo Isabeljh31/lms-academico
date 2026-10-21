@@ -1,4 +1,4 @@
-@props(['align' => 'right', 'width' => '48', 'contentClasses' => 'py-1 bg-white dark:bg-azul-superficie-oscura'])
+@props(['align' => 'right', 'width' => '48', 'contentClasses' => null])
 
 @php
 $alignmentClasses = match ($align) {
@@ -11,6 +11,10 @@ $width = match ($width) {
     '48' => 'w-48',
     default => $width,
 };
+
+$esAdmin = auth()->user()?->hasRole('supervisor') ?? false;
+$contentClasses ??= $esAdmin ? 'py-1 bg-white dark:bg-stone-800' : 'py-1 bg-white dark:bg-azul-superficie-oscura';
+$anillo = $esAdmin ? 'ring-arena-medio dark:ring-stone-700' : 'ring-celeste dark:ring-azul-borde-oscuro';
 @endphp
 
 <div class="relative" x-data="{ open: false }" @click.outside="open = false" @close.stop="open = false">
@@ -28,7 +32,7 @@ $width = match ($width) {
             class="absolute z-50 mt-2 {{ $width }} rounded-md shadow-lg {{ $alignmentClasses }}"
             style="display: none;"
             @click="open = false">
-        <div class="rounded-md ring-1 ring-celeste dark:ring-azul-borde-oscuro {{ $contentClasses }}">
+        <div class="rounded-md ring-1 {{ $anillo }} {{ $contentClasses }}">
             {{ $content }}
         </div>
     </div>
