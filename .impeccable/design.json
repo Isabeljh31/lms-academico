@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-23T00:00:00Z",
+  "title": "Design System: LearnUp",
+  "extensions": {
+    "colorMeta": {
+      "sage-deep": { "role": "primary", "displayName": "Deep Sage Teal", "canonical": "#3C7A75", "tonalRamp": ["#13302E", "#1E4A47", "#2A625E", "#3C7A75", "#5A978F", "#7FB3AE", "#A9CCC8", "#ECF8F8"] },
+      "terracotta-deep": { "role": "secondary", "displayName": "Burnt Terracotta", "canonical": "#B2604A", "tonalRamp": ["#3E1F15", "#5C2E20", "#824332", "#B2604A", "#CB8A72", "#DDA695", "#E6BEAE", "#F5E6DF"] },
+      "sand-light": { "role": "neutral", "displayName": "Sand Light", "canonical": "#EEE4E1", "tonalRamp": ["#2B2420", "#4A3F38", "#6E5F55", "#9A8779", "#C2AFA0", "#E7D8C9", "#EEE4E1", "#F8F3F0"] },
+      "scholar-blue": { "role": "primary", "displayName": "Scholar Persian Blue", "canonical": "#2541B2", "tonalRamp": ["#0B1433", "#121F57", "#1A2D84", "#2541B2", "#3E5BD1", "#6B82E0", "#A3B2ED", "#DDE3FA"] },
+      "ocean-deep": { "role": "secondary", "displayName": "Ocean Deep", "canonical": "#1768AC", "tonalRamp": ["#081F30", "#0E3250", "#124A75", "#1768AC", "#2A8AD6", "#5FACE6", "#9ECDF0", "#E0F7FD"] },
+      "celeste-pale": { "role": "neutral", "displayName": "Pale Celeste", "canonical": "#EBF0FB", "tonalRamp": ["#101A33", "#1A3242", "#2B4E68", "#5D7CA3", "#95ADC9", "#C6D4EC", "#EBF0FB", "#F7F9FE"] },
+      "dusty-lavender": { "role": "tertiary", "displayName": "Dusty Lavender", "canonical": "#5B4E8A", "tonalRamp": ["#1D1830", "#2E2650", "#443875", "#5B4E8A", "#7A6DA6", "#9D92C2", "#B8B0D8", "#E8E5F3"] },
+      "success-green": { "role": "neutral", "displayName": "Success Green", "canonical": "#3F6B4A", "tonalRamp": ["#132116", "#1F3526", "#2D4F38", "#3F6B4A", "#5C8C68", "#83AC8D", "#B8D8C8", "#E8F3EB"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#1F2937", "tonalRamp": ["#0B0F14", "#111827", "#1F2937", "#374151", "#6B7280", "#9CA3AF", "#D1D5DB", "#F3F4F6"] },
+      "cloud-white": { "role": "neutral", "displayName": "Cloud White", "canonical": "#F5F7FA", "tonalRamp": ["#171A1F", "#2E343D", "#555D68", "#88919B", "#B8BFC8", "#D8DEE5", "#F5F7FA", "#FDFDFE"] }
+    },
+    "typographyMeta": {
+      "title": { "displayName": "Title", "purpose": "Page headers paired with the role icon badge (x-gestion.encabezado)." },
+      "body": { "displayName": "Body", "purpose": "Default paragraph and form text." },
+      "label": { "displayName": "Label", "purpose": "Section eyebrows, status badges, table headers." }
+    },
+    "shadows": [
+      { "name": "resting", "value": "0 1px 2px rgba(0,0,0,0.05)", "purpose": "Default card/panel shadow at rest (Tailwind shadow-sm)." },
+      { "name": "hover-lift", "value": "0 4px 12px rgba(0,0,0,0.08)", "purpose": "Interactive cards on hover, paired with a -2px translateY nudge (Tailwind shadow-md)." },
+      { "name": "overlay", "value": "0 25px 50px -12px rgba(0,0,0,0.25)", "purpose": "Modals and the portada lightbox (Tailwind shadow-2xl)." }
+    ],
+    "motion": [
+      { "name": "press-feedback", "value": "transform 160ms ease-out; active: scale(0.97)", "purpose": "Every clickable element (buttons, chips, cards) gives instant press feedback." },
+      { "name": "hover-lift", "value": "transform 150ms ease-out, box-shadow 150ms ease-out", "purpose": "Interactive cards lift -2px and step up their shadow on hover." },
+      { "name": "overlay-enter", "value": "opacity/scale 200ms ease-out, leave 75ms ease-in", "purpose": "Modal and dropdown enter/exit transitions." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button (Supervisor)",
+      "kind": "button",
+      "refersTo": "button-primary-admin",
+      "description": "Admin-side primary action button: Deep Sage Teal fill, press feedback, hover lift.",
+      "html": "<button class=\"ds-btn-primary-admin\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M12 4.5v15m7.5-7.5h-15\"/></svg>Nuevo curso</button>",
+      "css": ".ds-btn-primary-admin { display: inline-flex; align-items: center; gap: 8px; background: #3C7A75; color: #ffffff; font-weight: 600; font-size: 14px; padding: 8px 16px; border-radius: 8px; border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: transform 160ms ease-out, box-shadow 150ms ease-out, background 150ms ease-out; cursor: pointer; } .ds-btn-primary-admin:hover { background: #336D68; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-2px); } .ds-btn-primary-admin:active { transform: scale(0.97); } .ds-btn-primary-admin:focus-visible { outline: 2px solid #7FB3AE; outline-offset: 2px; }"
+    },
+    {
+      "name": "Primary Button (Estudiante/Profesor)",
+      "kind": "button",
+      "refersTo": "button-primary-scholar",
+      "description": "Scholar-blue primary action button, same mechanics as the admin variant with the other role's accent.",
+      "html": "<button class=\"ds-btn-primary-scholar\">Guardar cambios</button>",
+      "css": ".ds-btn-primary-scholar { display: inline-flex; align-items: center; gap: 8px; background: #2541B2; color: #ffffff; font-weight: 600; font-size: 14px; padding: 8px 16px; border-radius: 8px; border: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: transform 160ms ease-out, box-shadow 150ms ease-out, background 150ms ease-out; cursor: pointer; } .ds-btn-primary-scholar:hover { background: #1F3796; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transform: translateY(-2px); } .ds-btn-primary-scholar:active { transform: scale(0.97); } .ds-btn-primary-scholar:focus-visible { outline: 2px solid #6B82E0; outline-offset: 2px; }"
+    },
+    {
+      "name": "Course Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Interactive card used for course listings: white surface, neutral border, lifts on hover.",
+      "html": "<a class=\"ds-card\" href=\"#\"><span class=\"ds-card-eyebrow\">MAT1-26-01</span><h3 class=\"ds-card-title\">Matemática 1</h3><p class=\"ds-card-meta\">Prof. Ana Rivas &middot; 16 sem.</p></a>",
+      "css": ".ds-card { display: block; background: #ffffff; border: 1px solid #E7D8C9; border-radius: 12px; padding: 16px; text-decoration: none; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: transform 150ms ease-out, box-shadow 150ms ease-out; } .ds-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); } .ds-card-eyebrow { display: block; font-family: monospace; font-size: 12px; color: #8891A0; margin-bottom: 4px; } .ds-card-title { margin: 0 0 4px; font-size: 16px; font-weight: 600; color: #1C1917; } .ds-card-meta { margin: 0; font-size: 14px; color: #78716C; }"
+    },
+    {
+      "name": "Modal",
+      "kind": "card",
+      "refersTo": "modal",
+      "description": "Dialog surface: rounded-2xl, shadow-2xl, dimmed backdrop, icon-badge header pattern.",
+      "html": "<div class=\"ds-modal-backdrop\"><div class=\"ds-modal\"><div class=\"ds-modal-header\"><span class=\"ds-modal-icon\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" d=\"M15 19v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1\"/><circle cx=\"9\" cy=\"7\" r=\"4\"/></svg></span><div><h2 class=\"ds-modal-title\">Nuevo usuario</h2><p class=\"ds-modal-desc\">Completa los datos para registrar una cuenta.</p></div></div></div></div>",
+      "css": ".ds-modal-backdrop { background: rgba(28,25,23,0.5); padding: 16px; display: flex; align-items: center; justify-content: center; } .ds-modal { background: #ffffff; border-radius: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); max-width: 480px; width: 100%; } .ds-modal-header { display: flex; align-items: flex-start; gap: 12px; padding: 20px; border-bottom: 1px solid #E7D8C9; } .ds-modal-icon { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 12px; background: #ECF8F8; color: #3C7A75; flex-shrink: 0; } .ds-modal-title { margin: 0; font-size: 18px; font-weight: 700; color: #1C1917; } .ds-modal-desc { margin: 4px 0 0; font-size: 12px; color: #78716C; }"
+    },
+    {
+      "name": "Text Input (with icon)",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Text field with an optional left icon, role-accent focus ring, error state.",
+      "html": "<div class=\"ds-input-wrap\"><svg class=\"ds-input-icon\" width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.5\"><circle cx=\"11\" cy=\"11\" r=\"7\"/><path stroke-linecap=\"round\" d=\"m21 21-4.3-4.3\"/></svg><input class=\"ds-input\" type=\"search\" placeholder=\"Buscar curso\"></div>",
+      "css": ".ds-input-wrap { position: relative; } .ds-input-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #A8A29E; pointer-events: none; } .ds-input { width: 100%; height: 42px; padding: 0 12px 0 36px; font-size: 14px; color: #1C1917; background: #ffffff; border: 1px solid #E7D8C9; border-radius: 8px; outline: none; transition: border-color 150ms ease-out, box-shadow 150ms ease-out; } .ds-input:focus { border-color: #7FB3AE; box-shadow: 0 0 0 3px rgba(127,179,174,0.25); } .ds-input.error { border-color: #DC2626; box-shadow: 0 0 0 3px rgba(220,38,38,0.15); }"
+    },
+    {
+      "name": "Role Pill",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Rounded-full badge used for role labels (Estudiante/Profesor) and status tags, tinted ~12% with the deep tone as text.",
+      "html": "<span class=\"ds-pill-estudiante\">Estudiante</span> <span class=\"ds-pill-profesor\">Profesor</span>",
+      "css": ".ds-pill-estudiante, .ds-pill-profesor { display: inline-flex; align-items: center; border-radius: 9999px; padding: 2px 10px; font-size: 12px; font-weight: 600; } .ds-pill-estudiante { background: rgba(37,65,178,0.1); color: #2541B2; } .ds-pill-profesor { background: rgba(91,78,138,0.15); color: #5B4E8A; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "El Registro Confiable",
+    "overview": "LearnUp reads like an institution's own record-keeping desk, not a generic SaaS admin panel. Every surface should feel like it belongs to a place where things are tracked precisely and nothing disappears quietly: the Supervisor's screens have the warm, grounded confidence of a registrar's office (sand, terracotta, deep sage), while the Estudiante and Profesor share a cooler, more scholarly blue -- two rooms in the same building, never two different products stitched together. The system is deliberately role-split rather than single-primary: Supervisor surfaces run on the sage/terracotta/sand palette, Estudiante and Profesor surfaces run on the scholar-blue/celeste palette. Components are tactile and confident: buttons give real press feedback, cards lift gently on hover, nothing animates just to animate. The explicit anti-reference is the generic 'made by AI' look -- oversaturated gradients, decorative emoji, interchangeable stock icons, surfaces that are too smooth to feel like they belong to a real institution.",
+    "keyCharacteristics": [
+      "Two deliberate accent worlds (warm for Supervisor, cool for Estudiante/Profesor), never mixed on the same screen.",
+      "Flat-by-default surfaces with a single soft shadow-sm, stepping up only on hover or in overlays.",
+      "Rounded-corner, border-first cards -- a 1px neutral border does the separating before any shadow.",
+      "Every interactive element gives tactile press/hover feedback; nothing is inert.",
+      "Icons are a single hand-picked Heroicons-outline set (1.5px stroke) -- never mixed families, never emoji."
+    ],
+    "rules": [
+      { "name": "The Role-Split Palette Rule", "body": "Supervisor screens never use Scholar Blue/Ocean Deep/Celeste; Estudiante and Profesor screens never use Sage/Terracotta/Sand. A shared component switches its whole token set by role, it never blends the two.", "section": "colors" },
+      { "name": "The One Warm Signal Rule", "body": "Terracotta (either side's secondary accent) is reserved for things the user must notice once and act on -- a temporary password, a pending first login, an archived state -- never for routine decoration.", "section": "colors" },
+      { "name": "The No-Caption-Smaller-Than-12px Rule", "body": "text-xs is the floor for anything read as a sentence (badges/eyebrows only); card detail lines use text-sm so they stay comfortable at a glance.", "section": "typography" },
+      { "name": "The Depth-Is-a-Response Rule", "body": "Nothing above shadow-sm appears at rest. A heavier shadow always means the element is reacting to you (hover) or floating above everything else (modal/overlay), never decoration.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep each screen entirely inside its role's palette -- check which esAdmin/role flag a shared component branches on before adding a color.",
+      "Do give every clickable element a press state (active:scale-[0.97]) and every hoverable card a lift, even on small/secondary buttons.",
+      "Do use plain hyphens (-) for any separator in UI copy -- never an em dash or middle dot.",
+      "Do reserve Terracotta/Ocean-Deep (the secondary accent) for things the user must notice once, not routine UI chrome."
+    ],
+    "donts": [
+      "Don't mix Sage/Terracotta/Sand with Scholar-Blue/Ocean-Deep/Celeste on the same screen, even in a shared component.",
+      "Don't add a shadow heavier than shadow-sm to anything at rest; depth is earned by hover or overlay status only.",
+      "Don't reach for gradients, emoji, or generic stock icon packs -- the explicit anti-reference is the 'looks AI-generated' look. Every icon comes from the project's single hand-picked Heroicons-outline set.",
+      "Don't drop below text-sm for anything meant to be read as a sentence; text-xs is for badges and eyebrows only."
+    ]
+  }
+}
