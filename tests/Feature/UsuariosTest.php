@@ -9,8 +9,10 @@ use App\Livewire\Usuarios\Index;
 use App\Mail\BienvenidaMail;
 use App\Models\Curso;
 use App\Models\Inscripcion;
+use App\Models\SesionClase;
 use App\Models\User;
 use App\Notifications\MatriculadoEnCurso;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
@@ -145,20 +147,30 @@ class UsuariosTest extends TestCase
         $this->assertDatabaseHas('bitacoras_auditoria', ['tipo_evento' => 'eliminacion_cuenta', 'ejecutado_por' => $admin->id]);
     }
 
-    public function test_no_elimina_cuenta_con_historial_ni_supervisor(): void
+    public function test_no_elimina_un_estudiante_con_historial_academico(): void
     {
         $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
         $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
         $curso = Curso::factory()->create(['profesor_id' => $profesor->id]);
+        Inscripcion::factory()->create(['curso_id' => $curso->id, 'estudiante_id' => $estudiante->id]);
 
         Livewire::actingAs($admin)->test(Index::class)
-            ->call('eliminarCuenta', $profesor->id)->assertHasErrors('eliminar');
-        Livewire::actingAs($admin)->test(Index::class)
-            ->call('eliminarCuenta', $admin->id)->assertForbidden();
+            ->call('eliminarCuenta', $estudiante->id)->assertHasErrors('eliminar');
+
+        $this->assertModelExists($estudiante);
+    }
+
+    public function test_el_directorio_de_estudiantes_no_permite_eliminar_a_un_profesor(): void
+    {
+        $this->expectException(ModelNotFoundException::class);
+
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+
+        Livewire::actingAs($admin)->test(Index::class)->call('eliminarCuenta', $profesor->id);
 
         $this->assertModelExists($profesor);
-        $this->assertModelExists($curso);
-        $this->assertModelExists($admin);
     }
 
     public function test_profesor_no_puede_acceder_al_listado_de_usuarios(): void
@@ -468,5 +480,137 @@ class UsuariosTest extends TestCase
         $this->assertSame('Torres Vega', $usuario->apellidos);
         $this->assertSame('Ana Torres Vega', $usuario->name);
         $this->assertDatabaseHas('bitacoras_auditoria', ['tipo_evento' => 'edicion_datos_usuario', 'usuario_afectado_id' => $usuario->id]);
+    }
+
+    public function test_crea_un_estudiante_con_datos_del_apoderado(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->set('nuevoNombres', 'Luis')
+            ->set('nuevoApellidos', 'Ramos')
+            ->set('nuevoDni', '45678130')
+            ->set('nuevoEmail', 'luis.ramos@example.com')
+            ->set('nuevoAnioNacimiento', 2014)
+            ->set('nuevoCelular', '987654321')
+            ->set('nuevoApoderadoNombre', 'Rosa Vela')
+            ->set('nuevoApoderadoCelular', '912345678')
+            ->call('crearUsuario')
+            ->assertHasNoErrors();
+
+        $estudiante = User::where('email', 'luis.ramos@example.com')->firstOrFail();
+        $this->assertTrue($estudiante->hasRole(Rol::Estudiante->value));
+        $this->assertEquals(2014, $estudiante->anio_nacimiento);
+        $this->assertSame('987654321', $estudiante->celular);
+        $this->assertSame('Rosa Vela', $estudiante->apoderado_nombre);
+        $this->assertSame('912345678', $estudiante->apoderado_celular);
+    }
+
+    public function test_los_datos_del_apoderado_son_opcionales_al_crear_un_estudiante(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->set('nuevoNombres', 'Diego')
+            ->set('nuevoApellidos', 'Flores')
+            ->set('nuevoDni', '45678131')
+            ->set('nuevoEmail', 'diego.flores@example.com')
+            ->call('crearUsuario')
+            ->assertHasNoErrors();
+
+        $estudiante = User::where('email', 'diego.flores@example.com')->firstOrFail();
+        $this->assertNull($estudiante->anio_nacimiento);
+        $this->assertNull($estudiante->apoderado_nombre);
+        $this->assertNull($estudiante->apoderado_celular);
+    }
+
+    public function test_el_registro_de_estudiante_no_exige_mayoria_de_edad(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $anioActual = (int) now()->format('Y');
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->set('nuevoNombres', 'Mia')
+            ->set('nuevoApellidos', 'Castro')
+            ->set('nuevoDni', '45678132')
+            ->set('nuevoEmail', 'mia.castro@example.com')
+            ->set('nuevoAnioNacimiento', $anioActual - 6)
+            ->call('crearUsuario')
+            ->assertHasNoErrors();
+
+        $estudiante = User::where('email', 'mia.castro@example.com')->firstOrFail();
+        $this->assertEquals($anioActual - 6, $estudiante->anio_nacimiento);
+    }
+
+    public function test_marca_riesgo_alto_cuando_hay_mas_de_un_curso_critico_por_asistencia(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $estudiante = User::factory()->create(['name' => 'Estudiante Ausente'])->assignRole(Rol::Estudiante->value);
+
+        foreach (range(1, 2) as $n) {
+            $curso = Curso::factory()->create(['profesor_id' => $profesor->id, 'usa_asistencia' => true, 'estado' => 'publicado']);
+            Inscripcion::factory()->create(['curso_id' => $curso->id, 'estudiante_id' => $estudiante->id]);
+            // Sesión pasada sin registro de asistencia: cuenta como ausente (0%).
+            SesionClase::create([
+                'curso_id' => $curso->id,
+                'titulo' => "Clase {$n}",
+                'fecha' => now()->subDay(),
+                'duracion_minutos' => 60,
+                'numero_sesion' => 1,
+            ]);
+        }
+
+        $html = Livewire::actingAs($admin)->test(Index::class)->html();
+
+        $this->assertStringContainsString('Riesgo alto', $html);
+    }
+
+    public function test_la_ficha_de_estudiante_distingue_curso_finalizado_de_dado_de_baja(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+
+        $cursoFinalizado = Curso::factory()->create(['profesor_id' => $profesor->id, 'nombre' => 'Curso finalizado', 'estado' => 'archivado']);
+        Inscripcion::factory()->create(['curso_id' => $cursoFinalizado->id, 'estudiante_id' => $estudiante->id]);
+
+        $cursoConBaja = Curso::factory()->create(['profesor_id' => $profesor->id, 'nombre' => 'Curso con baja', 'estado' => 'publicado']);
+        Inscripcion::factory()->deBaja()->create(['curso_id' => $cursoConBaja->id, 'estudiante_id' => $estudiante->id, 'dado_de_baja_por' => $admin->id]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.usuarios.show', $estudiante))
+            ->assertOk()
+            ->assertSee('Curso finalizado')
+            ->assertSee('Finalizado')
+            ->assertSee('Curso con baja')
+            ->assertSee('Dado de baja')
+            ->assertSee($admin->name);
+    }
+
+    public function test_la_ficha_de_estudiante_muestra_datos_del_apoderado(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+        $estudiante->update(['apoderado_nombre' => 'Rosa Vela', 'apoderado_celular' => '912345678']);
+
+        $this->actingAs($admin)
+            ->get(route('admin.usuarios.show', $estudiante))
+            ->assertOk()
+            ->assertSee('Rosa Vela')
+            ->assertSee('912345678');
+    }
+
+    public function test_el_directorio_de_estudiantes_no_permite_editar_a_un_profesor(): void
+    {
+        $this->expectException(ModelNotFoundException::class);
+
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+
+        Livewire::actingAs($admin)->test(Index::class)->call('abrirEditar', $profesor->id);
     }
 }

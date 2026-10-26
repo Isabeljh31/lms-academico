@@ -1,54 +1,11 @@
 <div class="py-8">
-    <div class="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
+    <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado titulo="Gestión de usuarios" icono="usuarios"
-            descripcion="Crea cuentas de Estudiante y Profesor, edita sus datos y controla el acceso.">
-            <x-gestion.boton variante="secundario" icono="subir" :href="route('usuarios.importar')">Importar usuarios</x-gestion.boton>
-            <x-gestion.boton icono="usuario-mas" wire:click="abrirCrear" id="btn-crear-usuario">Nuevo usuario</x-gestion.boton>
+        <x-gestion.encabezado titulo="Estudiantes" icono="usuarios"
+            descripcion="Registra estudiantes, revisa su avance por curso y detecta riesgo de abandono a tiempo.">
+            <x-gestion.boton variante="secundario" icono="subir" :href="route('usuarios.importar')">Importar estudiantes</x-gestion.boton>
+            <x-gestion.boton icono="usuario-mas" wire:click="abrirCrear" id="btn-crear-usuario">Nuevo estudiante</x-gestion.boton>
         </x-gestion.encabezado>
-
-        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <button type="button" wire:click="filtrarRapido" wire:loading.attr="disabled" wire:target="filtrarRapido"
-                class="flex items-center gap-3 rounded-xl border bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:bg-stone-800 {{ $filtroRol === '' && $filtroEstado === '' ? 'border-menta-base ring-2 ring-menta-base/25' : 'border-arena-medio dark:border-stone-700' }}">
-                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-menta-fondo text-menta-oscuro dark:bg-stone-700 dark:text-menta-base">
-                    <x-icono nombre="usuarios" class="h-4.5 w-4.5" />
-                </span>
-                <span class="min-w-0">
-                    <span class="block text-2xl font-bold leading-none text-stone-800 dark:text-stone-100">{{ $totalUsuarios }}</span>
-                    <span class="block mt-1 text-xs text-stone-500 dark:text-stone-400">Usuarios</span>
-                </span>
-            </button>
-            <button type="button" wire:click="filtrarRapido('estudiante')" wire:loading.attr="disabled" wire:target="filtrarRapido"
-                class="flex items-center gap-3 rounded-xl border bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:bg-stone-800 {{ $filtroRol === 'estudiante' ? 'border-azul-oscuro ring-2 ring-azul-oscuro/25' : 'border-arena-medio dark:border-stone-700' }}">
-                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-azul-oscuro/10 text-azul-oscuro dark:bg-azul-oscuro/20 dark:text-azul-fondo">
-                    <x-icono nombre="birrete" class="h-4.5 w-4.5" />
-                </span>
-                <span class="min-w-0">
-                    <span class="block text-2xl font-bold leading-none text-stone-800 dark:text-stone-100">{{ $totalEstudiantes }}</span>
-                    <span class="block mt-1 text-xs text-stone-500 dark:text-stone-400">Estudiantes</span>
-                </span>
-            </button>
-            <button type="button" wire:click="filtrarRapido('profesor')" wire:loading.attr="disabled" wire:target="filtrarRapido"
-                class="flex items-center gap-3 rounded-xl border bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:bg-stone-800 {{ $filtroRol === 'profesor' ? 'border-lavanda-oscuro ring-2 ring-lavanda-oscuro/25' : 'border-arena-medio dark:border-stone-700' }}">
-                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-lavanda-fondo/40 text-lavanda-oscuro dark:bg-lavanda-oscuro/25 dark:text-lavanda-fondo">
-                    <x-icono nombre="maletin" class="h-4.5 w-4.5" />
-                </span>
-                <span class="min-w-0">
-                    <span class="block text-2xl font-bold leading-none text-stone-800 dark:text-stone-100">{{ $totalProfesores }}</span>
-                    <span class="block mt-1 text-xs text-stone-500 dark:text-stone-400">Profesores</span>
-                </span>
-            </button>
-            <button type="button" wire:click="filtrarRapido('', 'nuevo')" wire:loading.attr="disabled" wire:target="filtrarRapido"
-                class="flex items-center gap-3 rounded-xl border bg-white px-4 py-3 text-left transition hover:-translate-y-0.5 hover:shadow-md dark:bg-stone-800 {{ $filtroEstado === 'nuevo' ? 'border-terracota-base ring-2 ring-terracota-base/25' : 'border-arena-medio dark:border-stone-700' }}">
-                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-terracota-fondo/40 text-terracota-oscuro dark:bg-terracota-oscuro/25 dark:text-terracota-fondo">
-                    <x-icono nombre="llave" class="h-4.5 w-4.5" />
-                </span>
-                <span class="min-w-0">
-                    <span class="block text-2xl font-bold leading-none text-stone-800 dark:text-stone-100">{{ $totalPrimerIngreso }}</span>
-                    <span class="block mt-1 text-xs text-stone-500 dark:text-stone-400">Primer ingreso pendiente</span>
-                </span>
-            </button>
-        </div>
 
         @if (session('password_temporal'))
             <div role="alert" class="rounded-xl border border-terracota-base/50 bg-arena-claro p-4 dark:border-stone-600 dark:bg-stone-800">
@@ -64,9 +21,9 @@
                             @if (session('correo_enviado'))
                                 Se envió un correo de bienvenida con estas credenciales.
                             @else
-                                No se pudo enviar el correo de bienvenida: entrega esta contraseña al usuario.
+                                No se pudo enviar el correo de bienvenida: entrega esta contraseña al estudiante.
                             @endif
-                            No se volverá a mostrar. El usuario deberá cambiarla en su primer inicio de sesión.
+                            No se volverá a mostrar. El estudiante deberá cambiarla en su primer inicio de sesión.
                         </p>
                     </div>
                 </div>
@@ -76,154 +33,156 @@
         <x-gestion.alertas />
         <x-input-error :messages="$errors->get('eliminar')" />
 
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <x-gestion.indicador etiqueta="Estudiantes" :valor="$totalEstudiantes" icono="usuarios" detalle="Cuentas registradas" />
+            <x-gestion.indicador etiqueta="Matrículas activas" :valor="$matriculasActivas" icono="libro" tono="cafe" detalle="Inscripciones vigentes" />
+            <x-gestion.indicador etiqueta="En riesgo" :valor="$totalEnRiesgo" icono="alerta" tono="alerta" detalle="Asistencia o nota bajo el mínimo" />
+            <x-gestion.indicador etiqueta="Primer ingreso pendiente" :valor="$totalPrimerIngreso" icono="llave" tono="terracota" detalle="Aún no cambian su contraseña" />
+        </div>
+
         <x-gestion.tarjeta>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <x-gestion.campo etiqueta="Buscar" nombre="busqueda">
-                    <x-gestion.control id="busqueda" icono="lupa" type="search" wire:model.live.debounce.300ms="busqueda" placeholder="Nombre, correo o DNI" />
+            <div class="grid grid-cols-1 items-end gap-4 lg:grid-cols-[1fr_auto_auto]">
+                <x-gestion.campo etiqueta="Buscar" nombre="busqueda-estudiante">
+                    <div class="relative">
+                        <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-stone-400">
+                            <x-icono nombre="lupa" class="h-4 w-4" />
+                        </span>
+                        <x-gestion.control id="busqueda-estudiante" type="search" class="pl-9" wire:model.live.debounce.300ms="busqueda"
+                            placeholder="Nombre, correo, DNI o código" />
+                    </div>
                 </x-gestion.campo>
-                <x-gestion.campo etiqueta="Rol" nombre="filtroRol">
-                    <x-gestion.control tipo="select" id="filtroRol" wire:model.live="filtroRol">
-                        <option value="">Todos los roles</option>
-                        @foreach ($roles as $r)
-                            <option value="{{ $r->value }}">{{ $r->etiqueta() }}</option>
+                <x-gestion.campo etiqueta="Ordenar por" nombre="orden" class="lg:w-56">
+                    <x-gestion.control tipo="select" id="orden" wire:model.live="orden">
+                        <option value="nombre">Nombre (A-Z)</option>
+                        <option value="riesgo">Más en riesgo primero</option>
+                        <option value="reciente">Registro más reciente</option>
+                    </x-gestion.control>
+                </x-gestion.campo>
+                <div>
+                    <span class="mb-1 block text-sm font-medium text-stone-700 dark:text-stone-300">Estado</span>
+                    <div class="inline-flex rounded-lg border border-arena-medio bg-arena-claro/50 p-1 dark:border-stone-600 dark:bg-stone-900/40">
+                        @foreach ([['', 'Todos', $totalEstudiantes], ['activo', 'Activos', $totalEstudiantesActivos], ['inactivo', 'Inactivos', $totalEstudiantesInactivos]] as [$valor, $etiqueta, $cantidad])
+                            <button type="button" wire:click="$set('filtroEstado', '{{ $valor }}')"
+                                class="rounded-md px-3 py-1.5 text-sm font-semibold transition {{ $filtroEstado === $valor
+                                    ? 'bg-white text-menta-oscuro shadow-sm dark:bg-stone-700 dark:text-menta-base'
+                                    : 'text-stone-500 hover:text-stone-700 dark:text-stone-400 dark:hover:text-stone-200' }}">
+                                {{ $etiqueta }} {{ $cantidad }}
+                            </button>
                         @endforeach
-                    </x-gestion.control>
-                </x-gestion.campo>
-                <x-gestion.campo etiqueta="Estado" nombre="filtroEstado">
-                    <x-gestion.control tipo="select" id="filtroEstado" wire:model.live="filtroEstado">
-                        <option value="">Todos</option>
-                        <option value="activo">Activos</option>
-                        <option value="inactivo">Desactivados</option>
-                        <option value="nuevo">Primer ingreso pendiente</option>
-                    </x-gestion.control>
-                </x-gestion.campo>
-                <x-gestion.campo etiqueta="Curso" nombre="filtroCursoId">
-                    <x-gestion.control tipo="select" id="filtroCursoId" wire:model.live="filtroCursoId">
-                        <option value="">Todos los cursos</option>
-                        @foreach ($cursos as $curso)
-                            <option value="{{ $curso->id }}">{{ $curso->nombre }}</option>
-                        @endforeach
-                    </x-gestion.control>
-                </x-gestion.campo>
+                    </div>
+                </div>
             </div>
-            <p class="mt-3 text-xs text-stone-500 dark:text-stone-400">Mostrando {{ $usuarios->count() }} de {{ $usuarios->total() }}</p>
+            <p class="mt-3 text-sm text-stone-500 dark:text-stone-400">Mostrando {{ $paginacion->count() }} de {{ $paginacion->total() }} estudiantes</p>
         </x-gestion.tarjeta>
 
         <x-gestion.tarjeta :relleno="false">
-            @if ($usuarios->isEmpty())
+            @if ($estudiantesConMetricas->isEmpty())
                 <div class="p-4">
-                    <x-gestion.vacio icono="usuarios" titulo="No se encontraron usuarios"
-                        descripcion="Ajusta los filtros o crea una cuenta nueva." />
+                    <x-gestion.vacio icono="usuarios" titulo="No se encontraron estudiantes"
+                        descripcion="Registra un estudiante o ajusta la búsqueda." />
                 </div>
             @else
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-[640px] text-sm">
-                        <thead class="border-b border-arena-medio bg-arena-claro/50 dark:border-stone-700 dark:bg-stone-900/40">
-                            <tr class="text-left text-xs font-semibold uppercase tracking-wide text-stone-500 dark:text-stone-400">
-                                <th class="px-4 py-3">Usuario</th>
-                                <th class="px-4 py-3">Rol</th>
-                                <th class="px-4 py-3">Estado</th>
-                                <th class="px-4 py-3 text-right">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-arena-medio/60 dark:divide-stone-700">
-                            @foreach ($usuarios as $usuario)
-                                <tr wire:key="usuario-{{ $usuario->id }}" class="hover:bg-arena-claro/40 dark:hover:bg-stone-700/40 {{ $usuario->activo ? '' : 'opacity-70' }}">
-                                    <td class="px-4 py-3">
-                                        <div class="flex items-center gap-3">
-                                            <img src="{{ $usuario->fotoUrl() }}"
-                                                class="h-9 w-9 shrink-0 rounded-full object-cover" alt="">
-                                            <div class="min-w-0">
-                                                <p class="flex flex-wrap items-center gap-1.5 truncate font-medium text-stone-800 dark:text-stone-100">
-                                                    {{ $usuario->nombreFormal() }}
-                                                    @if ($usuario->primer_login)
-                                                        <span title="Aún no cambió su contraseña temporal"
-                                                            class="inline-flex shrink-0 items-center gap-1 rounded-full bg-terracota-fondo/40 px-2 py-0.5 text-xs font-medium text-terracota-oscuro dark:bg-stone-700 dark:text-terracota-fondo">
-                                                            <x-icono nombre="llave" class="h-3 w-3" /> Primer ingreso
-                                                        </span>
-                                                    @endif
-                                                </p>
-                                                <p class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 truncate text-xs text-stone-500 dark:text-stone-400">
-                                                    <span class="truncate">{{ $usuario->email }}</span>
-                                                    @if ($usuario->dni)
-                                                        <span>DNI {{ $usuario->dni }}</span>
-                                                    @else
-                                                        <span class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
-                                                            <x-icono nombre="alerta" class="h-3 w-3" /> DNI sin registrar
-                                                        </span>
-                                                    @endif
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        {{-- Cada cuenta tiene un único rol; solo se corrige desde "Editar" si aún no tiene historial. --}}
-                                        @php $rol = \App\Enums\Rol::tryFrom((string) $usuario->rolPrincipal()); @endphp
-                                        @if ($rol === \App\Enums\Rol::Profesor)
-                                            <span class="inline-flex rounded-full bg-lavanda-fondo/40 px-2.5 py-0.5 text-xs font-medium text-lavanda-oscuro dark:bg-lavanda-oscuro/25 dark:text-lavanda-fondo">{{ $rol->etiqueta() }}</span>
-                                        @elseif ($rol === \App\Enums\Rol::Estudiante)
-                                            <span class="inline-flex rounded-full bg-azul-oscuro/10 px-2.5 py-0.5 text-xs font-medium text-azul-oscuro dark:bg-azul-oscuro/20 dark:text-azul-fondo">{{ $rol->etiqueta() }}</span>
-                                        @else
-                                            <span class="inline-flex rounded-full bg-arena-claro px-2.5 py-0.5 text-xs font-medium text-stone-700 dark:bg-stone-700 dark:text-stone-200">{{ $rol?->etiqueta() ?? '-' }}</span>
-                                        @endif
-                                        @if ($usuario->is(auth()->user()))
-                                            <span class="text-xs text-stone-500">(tú)</span>
-                                        @endif
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        @if ($usuario->activo)
-                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-exito-base/15 px-2.5 py-0.5 text-xs font-medium text-exito-oscuro dark:text-green-300">
+                <div class="hidden items-center gap-4 border-b border-arena-medio bg-arena-claro/50 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-stone-500 dark:border-stone-700 dark:bg-stone-900/40 dark:text-stone-400 lg:flex">
+                    <span class="lg:min-w-0 lg:flex-1">Estudiante</span>
+                    <span class="lg:w-24 lg:shrink-0">Código</span>
+                    <span class="lg:w-20 lg:shrink-0">Cursos</span>
+                    <span class="lg:w-32 lg:shrink-0">Riesgo</span>
+                    <span class="lg:w-36 lg:shrink-0">Acceso</span>
+                    <span class="lg:w-[17rem] lg:shrink-0 lg:text-right">Acciones</span>
+                </div>
+
+                <div class="divide-y divide-arena-medio/60 dark:divide-stone-700">
+                    @foreach ($estudiantesConMetricas as $fila)
+                        @php $u = $fila['usuario']; @endphp
+                        <div wire:key="est-{{ $u->id }}" class="flex flex-col gap-3 px-4 py-4 lg:flex-row lg:items-center lg:gap-4">
+                            <div class="flex min-w-0 items-center gap-3 lg:min-w-0 lg:flex-1">
+                                <img src="{{ $u->fotoUrl() }}" alt="" class="h-11 w-11 shrink-0 rounded-full border-2 border-arena-medio object-cover">
+                                <div class="min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <a href="{{ route('admin.usuarios.show', $u) }}" wire:navigate class="truncate text-base font-bold text-stone-900 hover:underline dark:text-stone-100">{{ $u->nombreFormal() }}</a>
+                                        @if ($u->activo)
+                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-exito-base/15 px-2 py-0.5 text-xs font-medium text-exito-oscuro dark:text-green-300">
                                                 <span class="h-1.5 w-1.5 rounded-full bg-exito-base"></span> Activo
                                             </span>
                                         @else
-                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
+                                            <span class="inline-flex items-center gap-1.5 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
                                                 <span class="h-1.5 w-1.5 rounded-full bg-red-500"></span> Desactivado
                                             </span>
                                         @endif
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <div class="flex justify-end gap-1">
-                                            <x-gestion.boton variante="fantasma" tamano="sm" icono="lapiz" wire:click="abrirEditar({{ $usuario->id }})">Editar</x-gestion.boton>
-                                            @if ($usuario->isNot(auth()->user()))
-                                                <x-dropdown align="right" width="48">
-                                                    <x-slot name="trigger">
-                                                        <button type="button" aria-label="Más acciones para {{ $usuario->name }}"
-                                                            class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-stone-500 hover:bg-arena-claro hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-700">
-                                                            <x-icono nombre="puntos" class="h-4 w-4" />
-                                                        </button>
-                                                    </x-slot>
-                                                    <x-slot name="content">
-                                                        @if ($usuario->activo)
-                                                            <button type="button" wire:click="confirmarDesactivar({{ $usuario->id }})"
-                                                                class="flex w-full items-center gap-2 px-4 py-2 text-start text-sm text-stone-700 hover:bg-arena-claro dark:text-stone-200 dark:hover:bg-stone-700">
-                                                                <x-icono nombre="prohibido" class="h-4 w-4" /> Desactivar
-                                                            </button>
-                                                        @else
-                                                            <button type="button" wire:click="activarCuenta({{ $usuario->id }})"
-                                                                class="flex w-full items-center gap-2 px-4 py-2 text-start text-sm text-stone-700 hover:bg-arena-claro dark:text-stone-200 dark:hover:bg-stone-700">
-                                                                <x-icono nombre="refrescar" class="h-4 w-4" /> Reactivar
-                                                            </button>
-                                                        @endif
-                                                        @unless ($usuario->hasRole('supervisor'))
-                                                            <hr class="my-1 border-arena-medio dark:border-stone-700">
-                                                            <button type="button" wire:click="eliminarCuenta({{ $usuario->id }})"
-                                                                wire:confirm="¿Eliminar definitivamente a {{ $usuario->name }}? Esta acción no se puede deshacer. Las cuentas con historial académico deben desactivarse."
-                                                                class="flex w-full items-center gap-2 px-4 py-2 text-start text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-stone-700">
-                                                                <x-icono nombre="papelera" class="h-4 w-4" /> Eliminar
-                                                            </button>
-                                                        @endunless
-                                                    </x-slot>
-                                                </x-dropdown>
-                                            @endif
-                                        </div>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                                    </div>
+                                    <p class="truncate text-sm text-stone-500 dark:text-stone-400">{{ $u->email }}</p>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center gap-2 text-sm text-stone-500 dark:text-stone-400 lg:w-24 lg:shrink-0">
+                                <span class="font-mono lg:hidden">Código:</span>
+                                <span class="font-mono">{{ $u->codigo ?? '—' }}</span>
+                            </div>
+
+                            <div class="flex items-center gap-1.5 text-sm text-stone-600 dark:text-stone-300 lg:w-20 lg:shrink-0">
+                                <x-icono nombre="libro" class="h-3.5 w-3.5 shrink-0 text-stone-400" />
+                                {{ $fila['cursos_count'] }} {{ $fila['cursos_count'] === 1 ? 'curso' : 'cursos' }}
+                            </div>
+
+                            <div class="lg:w-32 lg:shrink-0">
+                                @if ($fila['riesgo_nivel'] === 'Alto')
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
+                                        <x-icono nombre="alerta" class="h-3.5 w-3.5" /> Riesgo alto
+                                    </span>
+                                @elseif ($fila['riesgo_nivel'] === 'Medio')
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-arena-claro px-2.5 py-1 text-xs font-medium text-terracota-oscuro dark:bg-stone-700 dark:text-terracota-fondo">
+                                        <x-icono nombre="alerta" class="h-3.5 w-3.5" /> Riesgo medio
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 rounded-full bg-exito-base/15 px-2.5 py-1 text-xs font-medium text-exito-oscuro dark:text-green-300">
+                                        <x-icono nombre="check-circulo" class="h-3.5 w-3.5" /> Sin riesgo
+                                    </span>
+                                @endif
+                            </div>
+
+                            <div class="lg:w-36 lg:shrink-0">
+                                @if ($u->primer_login)
+                                    <span title="Aún no cambió su contraseña temporal"
+                                        class="inline-flex shrink-0 items-center gap-1 rounded-full bg-terracota-fondo/40 px-2.5 py-1 text-xs font-medium text-terracota-oscuro dark:bg-stone-700 dark:text-terracota-fondo">
+                                        <x-icono nombre="llave" class="h-3.5 w-3.5" /> Primer ingreso
+                                    </span>
+                                @else
+                                    <span class="text-sm text-stone-400 dark:text-stone-500">—</span>
+                                @endif
+                            </div>
+
+                            <div class="flex flex-wrap items-center gap-1.5 lg:w-[17rem] lg:shrink-0 lg:justify-end">
+                                <x-gestion.boton variante="secundario" tamano="sm" icono="ojo" :href="route('admin.usuarios.show', $u)">Ver detalle</x-gestion.boton>
+                                <x-gestion.boton variante="fantasma" tamano="sm" icono="lapiz" wire:click="abrirEditar({{ $u->id }})">Editar</x-gestion.boton>
+                                @if ($u->isNot(auth()->user()))
+                                    <x-dropdown align="right" width="48">
+                                        <x-slot name="trigger">
+                                            <button type="button" aria-label="Más acciones para {{ $u->name }}"
+                                                class="inline-flex h-8 w-8 items-center justify-center rounded-lg text-stone-500 hover:bg-arena-claro hover:text-stone-700 dark:text-stone-400 dark:hover:bg-stone-700">
+                                                <x-icono nombre="puntos" class="h-4 w-4" />
+                                            </button>
+                                        </x-slot>
+                                        <x-slot name="content">
+                                            <button type="button" wire:click="confirmarCambiarEstado({{ $u->id }})"
+                                                class="flex w-full items-center gap-2 px-4 py-2 text-start text-sm text-stone-700 hover:bg-arena-claro dark:text-stone-200 dark:hover:bg-stone-700">
+                                                <x-icono :nombre="$u->activo ? 'prohibido' : 'refrescar'" class="h-4 w-4" />
+                                                {{ $u->activo ? 'Desactivar' : 'Reactivar' }}
+                                            </button>
+                                            <hr class="my-1 border-arena-medio dark:border-stone-700">
+                                            <button type="button" wire:click="confirmarEliminarCuenta({{ $u->id }})"
+                                                class="flex w-full items-center gap-2 px-4 py-2 text-start text-sm text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-stone-700">
+                                                <x-icono nombre="papelera" class="h-4 w-4" /> Eliminar
+                                            </button>
+                                        </x-slot>
+                                    </x-dropdown>
+                                @endif
+                            </div>
+                        </div>
+                    @endforeach
                 </div>
+
                 <div class="border-t border-arena-medio px-4 py-3 dark:border-stone-700">
-                    {{ $usuarios->links() }}
+                    {{ $paginacion->links() }}
                 </div>
             @endif
         </x-gestion.tarjeta>
@@ -246,8 +205,8 @@
     </script>
 
     @if ($mostrarModalCrear)
-        <x-gestion.modal titulo="Nuevo usuario" icono="usuario-mas" cerrar="$set('mostrarModalCrear', false)"
-            descripcion="Completa los datos para registrar una cuenta en la plataforma.">
+        <x-gestion.modal titulo="Nuevo estudiante" icono="usuario-mas" cerrar="$set('mostrarModalCrear', false)"
+            descripcion="Completa los datos para registrar una cuenta de estudiante.">
             <p class="text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500">Datos personales</p>
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <x-gestion.campo etiqueta="Nombres" nombre="nuevoNombres" requerido>
@@ -273,83 +232,50 @@
                         oninput="validarFormularioNuevoUsuario()" />
                 </x-gestion.campo>
             </div>
-
-            <p class="pt-1 text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500">Acceso</p>
-            <x-gestion.campo etiqueta="Rol" nombre="nuevoRol" requerido>
-                <x-gestion.control tipo="select" id="nuevoRol" icono="usuarios" wire:model="nuevoRol">
-                    @foreach ($rolesCreables as $r)
-                        <option value="{{ $r->value }}">{{ $r->etiqueta() }}</option>
-                    @endforeach
-                </x-gestion.control>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <x-gestion.campo etiqueta="Año de nacimiento" nombre="nuevoAnioNacimiento" ayuda="Opcional.">
+                    <x-gestion.control id="nuevoAnioNacimiento" type="number" wire:model="nuevoAnioNacimiento" placeholder="2012" inputmode="numeric" maxlength="4" />
+                </x-gestion.campo>
+                <x-gestion.campo etiqueta="Celular" nombre="nuevoCelular" ayuda="Opcional. 9 dígitos.">
+                    <x-gestion.control id="nuevoCelular" wire:model="nuevoCelular" placeholder="987654321" inputmode="numeric" maxlength="9"
+                        autocomplete="off" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 9)" />
+                </x-gestion.campo>
+            </div>
+            <x-gestion.campo etiqueta="Correo personal" nombre="nuevoCorreoPersonal" ayuda="Opcional. Contacto de respaldo.">
+                <x-gestion.control id="nuevoCorreoPersonal" icono="sobre" type="email" wire:model="nuevoCorreoPersonal" placeholder="personal@correo.com" />
             </x-gestion.campo>
+
+            <p class="pt-1 text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500">Apoderado</p>
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <x-gestion.campo etiqueta="Nombre del apoderado" nombre="nuevoApoderadoNombre" ayuda="Opcional.">
+                    <x-gestion.control id="nuevoApoderadoNombre" icono="persona" wire:model="nuevoApoderadoNombre" placeholder="Rosa Vela" maxlength="120" autocomplete="off" />
+                </x-gestion.campo>
+                <x-gestion.campo etiqueta="Celular del apoderado" nombre="nuevoApoderadoCelular" ayuda="Opcional. 9 dígitos.">
+                    <x-gestion.control id="nuevoApoderadoCelular" wire:model="nuevoApoderadoCelular" placeholder="987654321" inputmode="numeric" maxlength="9"
+                        autocomplete="off" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 9)" />
+                </x-gestion.campo>
+            </div>
 
             <div class="flex items-start gap-3 rounded-xl border border-menta-base/30 bg-menta-fondo px-4 py-3 dark:border-menta-borde-oscuro dark:bg-menta-superficie-oscura">
                 <x-icono nombre="llave" class="h-5 w-5 shrink-0 text-menta-oscuro dark:text-menta-base" />
                 <p class="text-sm text-stone-700 dark:text-stone-200">
                     <span class="font-semibold">Contraseña predeterminada: el DNI del usuario.</span>
-                    Se enviará un correo de bienvenida y el usuario deberá cambiarla al ingresar por primera vez.
+                    Se enviará un correo de bienvenida y el estudiante deberá cambiarla al ingresar por primera vez.
                 </p>
             </div>
 
             <x-slot name="pie">
                 <x-gestion.boton variante="secundario" wire:click="$set('mostrarModalCrear', false)">Cancelar</x-gestion.boton>
-                <x-gestion.boton id="nuevoUsuarioBtnCrear" wire:click="crearUsuario" wire:loading.attr="disabled" wire:target="crearUsuario" disabled>Crear usuario</x-gestion.boton>
+                <x-gestion.boton id="nuevoUsuarioBtnCrear" wire:click="crearUsuario" wire:loading.attr="disabled" wire:target="crearUsuario" disabled>Crear estudiante</x-gestion.boton>
             </x-slot>
         </x-gestion.modal>
     @endif
 
     @if ($mostrarModalEditar)
-        <x-gestion.modal titulo="Editar usuario" cerrar="$set('mostrarModalEditar', false)">
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <x-gestion.campo etiqueta="Nombres" nombre="editarNombres" requerido>
-                    <x-gestion.control id="editarNombres" wire:model="editarNombres" maxlength="60" autocomplete="off" />
-                </x-gestion.campo>
-                <x-gestion.campo etiqueta="Apellidos" nombre="editarApellidos" requerido>
-                    <x-gestion.control id="editarApellidos" wire:model="editarApellidos" maxlength="60" autocomplete="off" />
-                </x-gestion.campo>
-            </div>
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <x-gestion.campo etiqueta="DNI" nombre="editarDni" requerido ayuda="8 dígitos, solo números.">
-                    <x-gestion.control id="editarDni" wire:model="editarDni" inputmode="numeric" maxlength="8"
-                        autocomplete="off" oninput="this.value = this.value.replace(/\D/g, '').slice(0, 8)" />
-                </x-gestion.campo>
-                <x-gestion.campo etiqueta="Correo electrónico" nombre="editarEmail" requerido>
-                    <x-gestion.control id="editarEmail" type="email" wire:model="editarEmail" />
-                </x-gestion.campo>
-            </div>
-            @if ($usuarioEditar && auth()->user()->can('corregirRol', $usuarioEditar))
-                <x-gestion.campo etiqueta="Rol" nombre="editarRol"
-                    ayuda="Puedes corregir el rol solo porque esta cuenta aún no tiene historial académico. Una vez que se use en un curso, el rol queda fijo.">
-                    <x-gestion.control tipo="select" id="editarRol" wire:model="editarRol">
-                        @foreach ($rolesCreables as $r)
-                            <option value="{{ $r->value }}">{{ $r->etiqueta() }}</option>
-                        @endforeach
-                    </x-gestion.control>
-                </x-gestion.campo>
-            @elseif ($usuarioEditar)
-                <div class="space-y-1">
-                    <p class="text-sm font-medium text-stone-700 dark:text-stone-300">Rol</p>
-                    <p class="text-sm text-stone-800 dark:text-stone-100">{{ \App\Enums\Rol::tryFrom((string) $usuarioEditar->rolPrincipal())?->etiqueta() ?? '-' }}</p>
-                    <p class="text-xs text-stone-500 dark:text-stone-400">Cada cuenta tiene un único rol. No se puede cambiar porque la cuenta ya tiene historial académico o es tu propia cuenta.</p>
-                </div>
-            @endif
-            <x-slot name="pie">
-                <x-gestion.boton variante="secundario" wire:click="$set('mostrarModalEditar', false)">Cancelar</x-gestion.boton>
-                <x-gestion.boton wire:click="guardarEdicion">Guardar cambios</x-gestion.boton>
-            </x-slot>
-        </x-gestion.modal>
+        @include('livewire.usuarios._modal-editar')
     @endif
 
-    @if ($mostrarModalDesactivar && $usuarioADesactivar)
-        <x-gestion.modal titulo="Desactivar cuenta" cerrar="$set('mostrarModalDesactivar', false)" ancho="max-w-md">
-            <p class="text-sm text-stone-600 dark:text-stone-300">
-                ¿Desactivar la cuenta de <strong class="text-stone-900 dark:text-stone-100">{{ $usuarioADesactivar->name }}</strong>?
-                No podrá iniciar sesión, pero su historial académico se conserva y la cuenta puede reactivarse.
-            </p>
-            <x-slot name="pie">
-                <x-gestion.boton variante="secundario" wire:click="$set('mostrarModalDesactivar', false)">Cancelar</x-gestion.boton>
-                <x-gestion.boton variante="peligro" icono="prohibido" wire:click="desactivarCuenta">Sí, desactivar</x-gestion.boton>
-            </x-slot>
-        </x-gestion.modal>
+    @if ($mostrarConfirmacion)
+        @include('livewire.usuarios._modal-confirmar')
     @endif
 </div>
