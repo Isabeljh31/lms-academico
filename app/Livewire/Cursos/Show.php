@@ -12,6 +12,7 @@ use App\Models\Modulo;
 use App\Models\User;
 use App\Notifications\NuevoComunicado;
 use App\Rules\TieneRol;
+use App\Services\Matricula\GestorMatriculas;
 use App\Services\Multimedia\SubidorArchivos;
 use App\Services\Reportes\ProgresoAcademicoService;
 use Illuminate\Http\UploadedFile;
@@ -76,6 +77,30 @@ class Show extends Component
 
     public string $nuevoAnuncioPrioridad = 'normal';
 
+    // "Información del curso": carpetas administrativas del Supervisor
+    public bool $mostrarModalCarpeta = false;
+
+    public string $nuevaCarpetaNombre = '';
+
+    public bool $mostrarModalRecurso = false;
+
+    #[Locked]
+    public ?int $carpetaRecursoId = null;
+
+    public string $nuevoRecursoNombre = '';
+
+    /** archivo | enlace */
+    public string $nuevoRecursoTipo = 'archivo';
+
+    public ?UploadedFile $nuevoRecursoArchivo = null;
+
+    public string $nuevoRecursoUrl = '';
+
+    // Matrícula rápida desde el resumen administrativo
+    public string $busquedaEstudianteRapida = '';
+
+    public ?int $estudianteSeleccionadoId = null;
+
     public function mount(Curso $curso): void
     {
         Gate::authorize('ver', $curso);
@@ -86,6 +111,11 @@ class Show extends Component
     public function getPuedeGestionarProperty(): bool
     {
         return Gate::allows('gestionar', $this->curso);
+    }
+
+    public function getPuedeMatricularRapidoProperty(): bool
+    {
+        return Gate::allows('matricular', $this->curso) && ! $this->curso->estaFinalizado() && ! $this->curso->cupoLleno();
     }
 
     /** Consulta de solo lectura de tareas, quizzes, notas, asistencia y grupos. */
@@ -155,6 +185,143 @@ class Show extends Component
         $this->curso->comunicados()->whereKey($anuncioId)->firstOrFail()->delete();
         $this->curso->unsetRelation('comunicados');
         session()->flash('estado', 'Anuncio eliminado.');
+    }
+
+    // ==========================================
+    // "INFORMACIÓN DEL CURSO": CARPETAS DEL SUPERVISOR
+    // ==========================================
+
+    public function abrirCrearCarpeta(): void
+    {
+        Gate::authorize('administrar', $this->curso);
+
+        $this->resetErrorBag();
+        $this->nuevaCarpetaNombre = '';
+        $this->mostrarModalCarpeta = true;
+    }
+
+    public function crearCarpeta(): void
+    {
+        Gate::authorize('administrar', $this->curso);
+
+        $this->validate(['nuevaCarpetaNombre' => ['required', 'string', 'max:100']], [
+            'nuevaCarpetaNombre.required' => 'Escribe un nombre para la carpeta.',
+        ]);
+
+        $siguienteOrden = (int) $this->curso->carpetas()->max('orden') + 1;
+        $this->curso->carpetas()->create(['nombre' => $this->nuevaCarpetaNombre, 'orden' => $siguienteOrden, 'recursos' => []]);
+
+        $this->mostrarModalCarpeta = false;
+        $this->curso->unsetRelation('carpetas');
+        session()->flash('estado', 'Carpeta creada.');
+    }
+
+    public function eliminarCarpeta(int $carpetaId, SubidorArchivos $subidor): void
+    {
+        Gate::authorize('administrar', $this->curso);
+
+        $carpeta = $this->curso->carpetas()->findOrFail($carpetaId);
+
+        foreach ($carpeta->recursos ?? [] as $recurso) {
+            $subidor->eliminar($recurso['url'] ?? null);
+        }
+
+        $carpeta->delete();
+        $this->curso->unsetRelation('carpetas');
+        session()->flash('estado', 'Carpeta eliminada.');
+    }
+
+    public function abrirAgregarRecurso(int $carpetaId): void
+    {
+        Gate::authorize('administrar', $this->curso);
+
+        $this->resetErrorBag();
+        $this->carpetaRecursoId = $this->curso->carpetas()->findOrFail($carpetaId)->id;
+        $this->nuevoRecursoNombre = '';
+        $this->nuevoRecursoTipo = 'archivo';
+        $this->nuevoRecursoArchivo = null;
+        $this->nuevoRecursoUrl = '';
+        $this->mostrarModalRecurso = true;
+    }
+
+    public function agregarRecurso(SubidorArchivos $subidor): void
+    {
+        Gate::authorize('administrar', $this->curso);
+
+        $this->validate([
+            'nuevoRecursoNombre' => ['required', 'string', 'max:150'],
+            'nuevoRecursoTipo' => ['required', 'in:archivo,enlace'],
+            'nuevoRecursoArchivo' => $this->nuevoRecursoTipo === 'archivo' ? SubidorArchivos::reglas() : ['nullable'],
+            'nuevoRecursoUrl' => $this->nuevoRecursoTipo === 'enlace' ? ['required', 'url', 'max:2048'] : ['nullable'],
+        ], [
+            'nuevoRecursoNombre.required' => 'Escribe un nombre para el recurso.',
+            'nuevoRecursoUrl.required' => 'Escribe el enlace.',
+            'nuevoRecursoUrl.url' => 'Escribe un enlace válido (debe empezar con http:// o https://).',
+            ...SubidorArchivos::mensajes('nuevoRecursoArchivo'),
+        ]);
+
+        $carpeta = $this->curso->carpetas()->findOrFail($this->carpetaRecursoId);
+
+        $valor = $this->nuevoRecursoTipo === 'archivo'
+            ? $subidor->subir($this->nuevoRecursoArchivo, 'cursos/informacion', 'nuevoRecursoArchivo')
+            : $this->nuevoRecursoUrl;
+
+        $carpeta->update(['recursos' => [...($carpeta->recursos ?? []), ['nombre' => $this->nuevoRecursoNombre, 'url' => $valor]]]);
+
+        $this->mostrarModalRecurso = false;
+        $this->curso->unsetRelation('carpetas');
+        session()->flash('estado', 'Recurso agregado.');
+    }
+
+    public function eliminarRecurso(int $carpetaId, int $indice, SubidorArchivos $subidor): void
+    {
+        Gate::authorize('administrar', $this->curso);
+
+        $carpeta = $this->curso->carpetas()->findOrFail($carpetaId);
+        $recursos = $carpeta->recursos ?? [];
+
+        if (isset($recursos[$indice])) {
+            $subidor->eliminar($recursos[$indice]['url'] ?? null);
+            unset($recursos[$indice]);
+            $carpeta->update(['recursos' => array_values($recursos)]);
+        }
+
+        $this->curso->unsetRelation('carpetas');
+        session()->flash('estado', 'Recurso eliminado.');
+    }
+
+    // ==========================================
+    // MATRÍCULA RÁPIDA (desde el resumen administrativo)
+    // ==========================================
+
+    public function updatingBusquedaEstudianteRapida(): void
+    {
+        $this->estudianteSeleccionadoId = null;
+    }
+
+    public function seleccionarEstudianteRapido(int $id): void
+    {
+        abort_unless($this->puedeMatricularRapido, 403);
+
+        $estudiante = User::role('estudiante')->findOrFail($id);
+        $this->estudianteSeleccionadoId = $estudiante->id;
+        $this->busquedaEstudianteRapida = $estudiante->name;
+    }
+
+    public function matricularRapido(GestorMatriculas $gestor): void
+    {
+        abort_unless($this->puedeMatricularRapido, 403);
+
+        $this->validate(
+            ['estudianteSeleccionadoId' => ['required', 'exists:users,id']],
+            ['estudianteSeleccionadoId.required' => 'Busca y selecciona un estudiante.'],
+        );
+
+        $estudiante = User::findOrFail($this->estudianteSeleccionadoId);
+        $gestor->matricularManual($this->curso, $estudiante, auth()->user());
+
+        $this->reset(['busquedaEstudianteRapida', 'estudianteSeleccionadoId']);
+        session()->flash('estado', "{$estudiante->name} fue matriculado. Se le notificó dentro de la plataforma y por correo.");
     }
 
     // ==========================================
@@ -464,9 +631,10 @@ class Show extends Component
         $this->redirectRoute('cursos.editar', $nuevoCurso->id, navigate: true);
     }
 
-    public function render()
+    public function render(ProgresoAcademicoService $progreso)
     {
         $esEstudiante = auth()->user()->hasRole('estudiante');
+        $esSupervisor = auth()->user()->hasRole('supervisor');
 
         $modulos = $this->curso->modulos()
             ->when($esEstudiante, fn ($q) => $q->visiblesParaEstudiante()->with('leccionesVisibles'))
@@ -474,10 +642,31 @@ class Show extends Component
             ->orderBy('orden')
             ->get();
 
+        $estudiantesBusquedaRapida = collect();
+        $busquedaRapida = trim($this->busquedaEstudianteRapida);
+
+        if ($this->puedeMatricularRapido && mb_strlen($busquedaRapida) >= 2 && ! $this->estudianteSeleccionadoId) {
+            $estudiantesBusquedaRapida = User::role('estudiante')
+                ->where('activo', true)
+                ->whereNotIn('id', $this->curso->inscripcionesActivas()->select('estudiante_id'))
+                ->where(fn ($q) => $q
+                    ->whereLike('name', "%{$busquedaRapida}%")
+                    ->orWhereLike('email', "%{$busquedaRapida}%")
+                    ->orWhereLike('dni', "%{$busquedaRapida}%")
+                )
+                ->orderBy('name')
+                ->limit(8)
+                ->get();
+        }
+
         return view('livewire.cursos.show', [
             'modulos' => $modulos,
             'secciones' => $esEstudiante ? $this->seccionesDelEstudiante($modulos) : $this->seccionesDeGestion($modulos),
             'profesores' => $this->puedeAdministrar ? User::role('profesor')->where('activo', true)->orderBy('name')->get() : collect(),
+            'resumenAdmin' => $esSupervisor ? $progreso->resumenCurso($this->curso) : null,
+            'rubrosEvaluacion' => $esSupervisor ? $this->curso->esquemaEvaluacion()->with('rubros')->first()?->rubros : null,
+            'carpetas' => $this->curso->carpetas,
+            'estudiantesBusquedaRapida' => $estudiantesBusquedaRapida,
         ])->title("{$this->curso->nombre} — LearnUp");
     }
 

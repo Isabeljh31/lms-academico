@@ -3,15 +3,17 @@
 namespace App\Livewire\Admin\Profesores;
 
 use App\Enums\Rol;
-use App\Models\BitacoraAuditoria;
+use App\Livewire\Admin\Profesores\Concerns\GestionaProfesor;
 use App\Models\Curso;
 use App\Models\Entrega;
-use App\Models\Inscripcion;
 use App\Models\User;
+use App\Services\Multimedia\SubidorArchivos;
 use App\Services\Usuarios\GestorCuentas;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Str;
 use Livewire\Attributes\Layout;
-use Livewire\Attributes\Locked;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 /**
@@ -21,9 +23,17 @@ use Livewire\WithPagination;
 #[Layout('layouts.app')]
 class Index extends Component
 {
-    use WithPagination;
+    use GestionaProfesor, WithFileUploads, WithPagination;
 
     public string $busqueda = '';
+
+    // nombre | atrasos | cursos | reciente
+    public string $orden = 'nombre';
+
+    // '' (todos) | activo | inactivo
+    public string $filtroEstado = '';
+
+    public bool $mostrarCursosSinProfesor = false;
 
     // Modal de creación de nuevo docente
     public bool $mostrarModalCrear = false;
@@ -36,26 +46,21 @@ class Index extends Component
 
     public string $nuevoEmail = '';
 
-    public bool $mostrarModalEditar = false;
+    public string $nuevaEspecialidad = '';
 
-    #[Locked]
-    public ?int $profesorEditarId = null;
+    public string $nuevoCelular = '';
 
-    public string $editarNombres = '';
+    public string $nuevoAnioNacimiento = '';
 
-    public string $editarApellidos = '';
+    public string $nuevoCorreoPersonal = '';
 
-    public string $editarDni = '';
+    public string $nuevoGradoAcademico = '';
 
-    public string $editarEmail = '';
+    public string $nuevaColegiatura = '';
 
-    // Modal para reasignar / vincular curso
-    public bool $mostrarModalAsignar = false;
+    public string $nuevaFechaInicioLabores = '';
 
-    #[Locked]
-    public ?int $profesorSeleccionadoId = null;
-
-    public ?int $cursoAAsignarId = null;
+    public $nuevoCv = null;
 
     public function mount(): void
     {
@@ -67,23 +72,54 @@ class Index extends Component
         $this->resetPage();
     }
 
+    public function updatingFiltroEstado(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingOrden(): void
+    {
+        $this->resetPage();
+    }
+
+    public function toggleCursosSinProfesor(): void
+    {
+        $this->mostrarCursosSinProfesor = ! $this->mostrarCursosSinProfesor;
+    }
+
     /**
      * ERS RF-03/RF-04/RF-10: el alta de profesores sigue las mismas reglas que
      * cualquier cuenta (contraseña temporal, correo de bienvenida, auditoría).
      */
-    public function crearProfesor(GestorCuentas $gestor): void
+    public function crearProfesor(GestorCuentas $gestor, SubidorArchivos $subidor): void
     {
         abort_unless(auth()->user()->hasRole('supervisor'), 403);
 
         $this->nuevoEmail = User::normalizarEmail($this->nuevoEmail);
         $this->nuevoDni = trim($this->nuevoDni);
+        $anioActual = (int) now()->format('Y');
 
         $this->validate(
             [
                 ...GestorCuentas::reglasIdentidad('nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail'),
+                'nuevaEspecialidad' => ['nullable', 'string', 'max:120'],
+                'nuevoCelular' => ['nullable', 'regex:/^9\d{8}$/'],
+                'nuevoAnioNacimiento' => ['required', 'integer', 'min:'.($anioActual - 100), 'max:'.($anioActual - 18)],
+                'nuevoCorreoPersonal' => ['nullable', 'email', 'max:255'],
+                'nuevoGradoAcademico' => ['nullable', 'string', 'max:120'],
+                'nuevaColegiatura' => ['nullable', 'string', 'max:60'],
+                'nuevaFechaInicioLabores' => ['nullable', 'date'],
+                'nuevoCv' => SubidorArchivos::reglas(['pdf', 'doc', 'docx'], requerido: false),
             ],
-            GestorCuentas::mensajesIdentidad('nuevoDni', 'nuevoEmail'),
-            ['nuevoNombres' => 'nombres', 'nuevoApellidos' => 'apellidos', 'nuevoDni' => 'DNI', 'nuevoEmail' => 'correo institucional'],
+            [
+                ...GestorCuentas::mensajesIdentidad('nuevoDni', 'nuevoEmail'),
+                'nuevoCelular.regex' => 'El celular debe tener 9 dígitos y empezar en 9.',
+                'nuevoAnioNacimiento.required' => 'Indica el año de nacimiento.',
+                'nuevoAnioNacimiento.min' => 'Revisa el año de nacimiento.',
+                'nuevoAnioNacimiento.max' => 'El profesor debe ser mayor de edad.',
+                ...SubidorArchivos::mensajes('nuevoCv'),
+            ],
+            ['nuevoNombres' => 'nombres', 'nuevoApellidos' => 'apellidos', 'nuevoDni' => 'DNI', 'nuevoEmail' => 'correo institucional', 'nuevaEspecialidad' => 'especialidad'],
         );
 
         $resultado = $gestor->crear(
@@ -95,7 +131,24 @@ class Index extends Component
             dni: $this->nuevoDni,
         );
 
-        $this->reset(['nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail', 'mostrarModalCrear']);
+        $cvPath = $this->nuevoCv ? $subidor->subir($this->nuevoCv, 'profesores/cv', 'nuevoCv', ['pdf', 'doc', 'docx']) : null;
+
+        $resultado['usuario']->update([
+            'especialidad' => $this->nuevaEspecialidad ?: null,
+            'celular' => $this->nuevoCelular ?: null,
+            'anio_nacimiento' => $this->nuevoAnioNacimiento ?: null,
+            'correo_personal' => $this->nuevoCorreoPersonal ?: null,
+            'grado_academico' => $this->nuevoGradoAcademico ?: null,
+            'colegiatura' => $this->nuevaColegiatura ?: null,
+            'fecha_inicio_labores' => $this->nuevaFechaInicioLabores ?: null,
+            'cv_path' => $cvPath,
+        ]);
+
+        $this->reset([
+            'nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail', 'nuevaEspecialidad',
+            'nuevoCelular', 'nuevoAnioNacimiento', 'nuevoCorreoPersonal', 'nuevoGradoAcademico',
+            'nuevaColegiatura', 'nuevaFechaInicioLabores', 'nuevoCv', 'mostrarModalCrear',
+        ]);
         session()->flash('estado', "Profesor \"{$resultado['usuario']->name}\" registrado. Contraseña temporal: {$resultado['password_temporal']}");
     }
 
@@ -103,188 +156,52 @@ class Index extends Component
     {
         abort_unless(auth()->user()->hasRole('supervisor'), 403);
         $this->resetErrorBag();
-        $this->reset(['nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail']);
+        $this->reset([
+            'nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail', 'nuevaEspecialidad',
+            'nuevoCelular', 'nuevoAnioNacimiento', 'nuevoCorreoPersonal', 'nuevoGradoAcademico',
+            'nuevaColegiatura', 'nuevaFechaInicioLabores', 'nuevoCv',
+        ]);
         $this->mostrarModalCrear = true;
     }
 
-    public function abrirEditar(int $id): void
+    /**
+     * Normaliza a minúsculas sin tildes para que la búsqueda no distinga
+     * mayúsculas ni acentos (ej. "matematicas" encuentra "Matemática").
+     */
+    private function normalizar(?string $valor): string
     {
-        abort_unless(auth()->user()->hasRole('supervisor'), 403);
-        $profesor = User::role(Rol::Profesor->value)->findOrFail($id);
-        $this->resetErrorBag();
-        $this->profesorEditarId = $profesor->id;
-        $this->editarNombres = (string) $profesor->nombres;
-        $this->editarApellidos = (string) $profesor->apellidos;
-        $this->editarDni = (string) $profesor->dni;
-        $this->editarEmail = $profesor->email;
-        $this->mostrarModalEditar = true;
-    }
-
-    public function guardarEdicion(): void
-    {
-        abort_unless(auth()->user()->hasRole('supervisor'), 403);
-        $profesor = User::role(Rol::Profesor->value)->findOrFail($this->profesorEditarId);
-        $this->editarEmail = User::normalizarEmail($this->editarEmail);
-        $this->editarDni = trim($this->editarDni);
-        $this->validate([
-            ...GestorCuentas::reglasIdentidad('editarNombres', 'editarApellidos', 'editarDni', 'editarEmail', $profesor->id),
-        ], GestorCuentas::mensajesIdentidad('editarDni', 'editarEmail'));
-
-        $campos = ['nombres', 'apellidos', 'dni', 'email'];
-        $anterior = $profesor->only($campos);
-        $profesor->update([
-            'nombres' => $this->editarNombres,
-            'apellidos' => $this->editarApellidos,
-            'dni' => $this->editarDni,
-            'email' => $this->editarEmail,
-        ]);
-        BitacoraAuditoria::registrarAccionAdmin(
-            ejecutor: auth()->user(),
-            tipoEvento: 'edicion_datos_usuario',
-            descripcion: "Datos editados de {$profesor->name}.",
-            usuarioAfectado: $profesor,
-            valorAnterior: $anterior,
-            valorNuevo: $profesor->only($campos),
-        );
-
-        $this->reset(['editarNombres', 'editarApellidos', 'editarDni', 'editarEmail', 'profesorEditarId', 'mostrarModalEditar']);
-        session()->flash('estado', 'Profesor actualizado correctamente.');
-    }
-
-    public function cambiarEstado(int $id): void
-    {
-        abort_unless(auth()->user()->hasRole('supervisor'), 403);
-        $profesor = User::role(Rol::Profesor->value)->findOrFail($id);
-        abort_if($profesor->is(auth()->user()), 403);
-        $profesor->update(['activo' => ! $profesor->activo]);
-        BitacoraAuditoria::registrarAccionAdmin(
-            ejecutor: auth()->user(),
-            tipoEvento: $profesor->activo ? 'reactivacion_cuenta' : 'desactivacion_cuenta',
-            descripcion: "Estado de cuenta actualizado: {$profesor->name}.",
-            usuarioAfectado: $profesor,
-        );
-        session()->flash('estado', $profesor->activo ? 'Profesor reactivado.' : 'Profesor desactivado.');
-    }
-
-    public function eliminarProfesor(int $id, GestorCuentas $gestor): void
-    {
-        $gestor->eliminar(User::role(Rol::Profesor->value)->findOrFail($id));
-        $this->resetErrorBag();
-        $this->resetPage();
-        session()->flash('estado', 'Profesor eliminado correctamente.');
-    }
-
-    public function abrirModalAsignar(int $profesorId): void
-    {
-        abort_unless(auth()->user()->hasRole('supervisor'), 403);
-
-        $this->profesorSeleccionadoId = User::role(Rol::Profesor->value)->findOrFail($profesorId)->id;
-        $this->cursoAAsignarId = null;
-        $this->resetErrorBag();
-        $this->mostrarModalAsignar = true;
+        return Str::of((string) $valor)->ascii()->lower()->toString();
     }
 
     /**
-     * ERS RF-23/RF-24: asignar o cambiar el profesor de un curso.
+     * Compara en ambos sentidos para tolerar plurales simples
+     * (ej. buscar "matematicas" encuentra el campo "Matemática").
      */
-    public function asignarCurso(): void
+    private function coincide(?string $campo, string $busqueda): bool
     {
-        abort_unless(auth()->user()->hasRole('supervisor'), 403);
+        $campo = $this->normalizar($campo);
 
-        $this->validate([
-            'cursoAAsignarId' => ['required', 'exists:cursos,id'],
-            'profesorSeleccionadoId' => ['required', 'exists:users,id'],
-        ], [
-            'cursoAAsignarId.required' => 'Selecciona un curso.',
-        ]);
-
-        $curso = Curso::findOrFail($this->cursoAAsignarId);
-        $profesor = User::role(Rol::Profesor->value)->findOrFail($this->profesorSeleccionadoId);
-
-        if ($curso->estaFinalizado()) {
-            $this->addError('cursoAAsignarId', 'El curso está archivado (finalizado) y no admite cambios.');
-
-            return;
-        }
-
-        $anterior = $curso->profesor?->name;
-        $curso->update(['profesor_id' => $profesor->id]);
-        // Si ya era profesor adicional, pasa a titular y deja de figurar como adicional.
-        $curso->profesoresAdicionales()->detach($profesor->id);
-
-        BitacoraAuditoria::registrarAccionAdmin(
-            ejecutor: auth()->user(),
-            tipoEvento: 'asignacion_profesor',
-            descripcion: "Profesor asignado al curso \"{$curso->nombre}\".",
-            usuarioAfectado: $profesor,
-            curso: $curso,
-            valorAnterior: $anterior,
-            valorNuevo: $profesor->name,
-        );
-
-        $this->mostrarModalAsignar = false;
-        $this->reset(['profesorSeleccionadoId', 'cursoAAsignarId']);
-        session()->flash('estado', "Curso \"{$curso->nombre}\" asignado a {$profesor->name}.");
-    }
-
-    /**
-     * Retira al profesor titular del curso. Si el curso tiene profesores
-     * adicionales (RF-23), el primero pasa a ser titular. Si no, el curso queda
-     * a nombre del Supervisor (profesor_id es obligatorio) hasta asignar otro
-     * profesor; mientras tanto nadie puede gestionar su contenido ni sus notas.
-     */
-    public function desasignarCurso(int $cursoId): void
-    {
-        abort_unless(auth()->user()->hasRole('supervisor'), 403);
-
-        $curso = Curso::findOrFail($cursoId);
-
-        if ($curso->estaFinalizado()) {
-            session()->flash('error', "El curso \"{$curso->nombre}\" está archivado y no admite cambios.");
-
-            return;
-        }
-
-        $anterior = $curso->profesor?->name;
-        $sucesor = $curso->profesoresAdicionales()->orderBy('curso_profesor.id')->first();
-
-        if ($sucesor) {
-            $curso->update(['profesor_id' => $sucesor->id]);
-            $curso->profesoresAdicionales()->detach($sucesor->id);
-        } else {
-            $curso->update(['profesor_id' => auth()->id()]);
-        }
-
-        $nuevoResponsable = $sucesor ?? auth()->user();
-
-        BitacoraAuditoria::registrarAccionAdmin(
-            ejecutor: auth()->user(),
-            tipoEvento: 'asignacion_profesor',
-            descripcion: $sucesor
-                ? "Profesor titular retirado del curso \"{$curso->nombre}\"; {$sucesor->name} pasa de profesor adicional a titular."
-                : "Profesor retirado del curso \"{$curso->nombre}\"; el curso queda a cargo del Supervisor hasta asignar otro profesor.",
-            curso: $curso,
-            valorAnterior: $anterior,
-            valorNuevo: $nuevoResponsable->name,
-        );
-
-        session()->flash('estado', $sucesor
-            ? "Docente desvinculado del curso \"{$curso->nombre}\". {$sucesor->name} queda como profesor titular."
-            : "Docente desvinculado del curso \"{$curso->nombre}\". Asigna otro profesor: mientras tanto nadie puede gestionar su contenido ni sus notas.");
+        return $campo !== '' && (str_contains($campo, $busqueda) || str_contains($busqueda, $campo));
     }
 
     public function render()
     {
-        $profesores = User::role(Rol::Profesor->value)
-            ->when($this->busqueda, fn ($q) => $q->where(fn ($q) => $q
-                ->where('name', 'like', "%{$this->busqueda}%")
-                ->orWhere('email', 'like', "%{$this->busqueda}%")
-            ))
-            ->with(['cursosComoProfesor.tareas.entregas'])
-            ->orderBy('name')
-            ->paginate(8);
+        $busqueda = $this->normalizar(trim($this->busqueda));
 
-        $profesoresConMetricas = $profesores->through(function (User $prof) {
+        $profesores = User::role(Rol::Profesor->value)
+            ->when($this->filtroEstado !== '', fn ($q) => $q->where('activo', $this->filtroEstado === 'activo'))
+            ->with(['cursosComoProfesor.tareas.entregas', 'cursosComoProfesor.inscripcionesActivas'])
+            ->get()
+            ->when($busqueda !== '', fn ($coll) => $coll->filter(fn (User $prof) => $this->coincide($prof->name, $busqueda)
+                || $this->coincide($prof->email, $busqueda)
+                || $this->coincide($prof->codigo, $busqueda)
+                || $this->coincide($prof->especialidad, $busqueda)
+            ));
+
+        $totalProfesores = User::role(Rol::Profesor->value)->count();
+        $totalProfesoresActivos = User::role(Rol::Profesor->value)->where('activo', true)->count();
+
+        $filas = $profesores->map(function (User $prof) {
             $cursos = $prof->cursosComoProfesor;
             $entregas = $cursos->flatMap->tareas->flatMap->entregas;
             $totalEntregas = $entregas->count();
@@ -293,10 +210,7 @@ class Index extends Component
             return [
                 'usuario' => $prof,
                 'cursos' => $cursos,
-                'estudiantes_count' => Inscripcion::whereIn('curso_id', $cursos->pluck('id'))
-                    ->where('estado', 'activo')
-                    ->distinct('estudiante_id')
-                    ->count('estudiante_id'),
+                'estudiantes_count' => $cursos->flatMap->inscripcionesActivas->pluck('estudiante_id')->unique()->count(),
                 'tareas_count' => $cursos->flatMap->tareas->count(),
                 'total_entregas' => $totalEntregas,
                 'calificadas' => $calificadas,
@@ -310,15 +224,42 @@ class Index extends Component
             ];
         });
 
+        $filas = (match ($this->orden) {
+            'atrasos' => $filas->sortByDesc('atrasos_calificacion'),
+            'cursos' => $filas->sortByDesc(fn (array $f) => $f['cursos']->count()),
+            'reciente' => $filas->sortByDesc(fn (array $f) => $f['usuario']->created_at),
+            default => $filas->sortBy(fn (array $f) => mb_strtolower($f['usuario']->name)),
+        })->values();
+
+        $porPagina = 8;
+        $pagina = $this->getPage();
+        $paginacion = new LengthAwarePaginator(
+            $filas->forPage($pagina, $porPagina)->values(),
+            $filas->count(),
+            $porPagina,
+            $pagina,
+            ['path' => request()->url(), 'pageName' => 'page', 'query' => request()->query()],
+        );
+
+        $cursosSinProfesor = Curso::whereDoesntHave('profesor', fn ($q) => $q->role(Rol::Profesor->value))
+            ->where('estado', '!=', 'archivado')
+            ->orderBy('nombre')
+            ->get();
+
         return view('livewire.admin.profesores.index', [
-            'profesoresConMetricas' => $profesoresConMetricas,
-            'paginacion' => $profesores,
-            'totalProfesores' => User::role(Rol::Profesor->value)->count(),
+            'profesoresConMetricas' => $paginacion,
+            'paginacion' => $paginacion,
+            'totalProfesores' => $totalProfesores,
+            'totalProfesoresActivos' => $totalProfesoresActivos,
+            'totalProfesoresInactivos' => $totalProfesores - $totalProfesoresActivos,
             'totalCursos' => Curso::count(),
-            'cursosSinProfesor' => Curso::whereDoesntHave('profesor', fn ($q) => $q->role(Rol::Profesor->value))->count(),
+            'cursosSinProfesorLista' => $cursosSinProfesor,
+            'cursosSinProfesor' => $cursosSinProfesor->count(),
             'entregasTotalesPendientes' => Entrega::where('estado', '!=', 'calificado')->count(),
             'cursosDisponibles' => Curso::where('estado', '!=', 'archivado')->orderBy('nombre')->get(),
             'profesorSeleccionado' => $this->profesorSeleccionadoId ? User::find($this->profesorSeleccionadoId) : null,
-        ])->title('Profesores — LearnUp');
+            'cursoSeleccionado' => $this->cursoAAsignarId ? Curso::find($this->cursoAAsignarId) : null,
+            'profesoresDisponibles' => User::role(Rol::Profesor->value)->where('activo', true)->orderBy('name')->get(),
+        ])->title('Profesores - LearnUp');
     }
 }

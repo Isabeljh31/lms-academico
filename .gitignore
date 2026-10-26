@@ -28,3 +28,6 @@ Homestead.yaml
 Thumbs.db
 /.vs
 .vs
+
+# Binario del skill Impeccable (se descarga solo, ~19 MB, especifico de Windows)
+.claude/skills/impeccable/scripts/bin/

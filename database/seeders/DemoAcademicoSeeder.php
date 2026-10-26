@@ -263,7 +263,6 @@ class DemoAcademicoSeeder extends Seeder
             'fecha_inicio' => $inicio->toDateString(),
             'fecha_fin' => $inicio->copy()->addWeeks(16)->toDateString(),
             'semanas_duracion' => 16,
-            'sesiones_clase_count' => 32,
             'usa_asistencia' => $datos['asistencia'],
         ]);
 

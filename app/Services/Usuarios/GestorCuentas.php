@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -64,6 +65,32 @@ class GestorCuentas
         ];
     }
 
+    /** Prefijo del código según el rol. */
+    protected const PREFIJOS_ROL = [
+        'estudiante' => 'E',
+        'profesor' => 'P',
+        'supervisor' => 'S',
+    ];
+
+    /**
+     * Código único de la cuenta: prefijo según el rol + año de creación (2
+     * dígitos) + secuencia, mismo patrón que el código de curso (p. ej.
+     * "P-26-001"). Solo se genera para cuentas nuevas; no se recalcula al editar.
+     */
+    public static function sugerirCodigo(string $rol): string
+    {
+        $prefijo = self::PREFIJOS_ROL[$rol] ?? strtoupper(substr($rol, 0, 1));
+        $anio = now()->format('y');
+
+        $siguiente = User::query()
+            ->where('codigo', 'like', "{$prefijo}-{$anio}-%")
+            ->pluck('codigo')
+            ->map(fn (string $codigo) => (int) Str::afterLast($codigo, '-'))
+            ->max() ?? 0;
+
+        return sprintf('%s-%s-%03d', $prefijo, $anio, $siguiente + 1);
+    }
+
     /**
      * @return array{usuario: User, password_temporal: string, correo_enviado: bool}
      */
@@ -77,6 +104,7 @@ class GestorCuentas
             'nombres' => $nombres,
             'apellidos' => $apellidos,
             'dni' => $dni,
+            'codigo' => self::sugerirCodigo($rol),
             'email' => $email,
             'password' => $passwordTemporal,
             'activo' => true,

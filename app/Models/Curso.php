@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Services\Multimedia\SubidorArchivos;
+use Carbon\CarbonPeriod;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,8 +12,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * Curso del ERS (equivale a "Oferta de Curso" en versiones previas del documento).
@@ -35,6 +38,11 @@ class Curso extends Model
     /** Duración típica de un ciclo académico, usada si el Supervisor aún no definió la del curso. */
     const SEMANAS_PREDETERMINADAS = 16;
 
+    /** Virtual es asíncrono (sin horario fijo); presencial y remoto sí tienen horario semanal. */
+    const MODALIDADES = ['presencial', 'virtual', 'remoto'];
+
+    const MODALIDADES_CON_HORARIO = ['presencial', 'remoto'];
+
     protected $fillable = [
         'nombre',
         'codigo',
@@ -47,7 +55,11 @@ class Curso extends Model
         'fecha_inicio',
         'fecha_fin',
         'semanas_duracion',
-        'sesiones_clase_count',
+        'cupo_maximo',
+        'modalidad',
+        // Lista de bloques {dia, hora_inicio, hora_fin, aula}: lunes y viernes
+        // pueden tener horas (y aula, si es presencial) distintas entre sí.
+        'horario_bloques',
         // ERS RF-73: asistencia opcional
         'usa_asistencia',
     ];
@@ -55,6 +67,7 @@ class Curso extends Model
     protected $attributes = [
         'estado' => 'borrador',
         'usa_asistencia' => true,
+        'modalidad' => 'presencial',
     ];
 
     protected function casts(): array
@@ -63,6 +76,7 @@ class Curso extends Model
             'fecha_inicio' => 'date',
             'fecha_fin' => 'date',
             'usa_asistencia' => 'boolean',
+            'horario_bloques' => 'array',
         ];
     }
 
@@ -89,6 +103,121 @@ class Curso extends Model
         $codigo = mb_strtoupper(trim((string) $codigo));
 
         return $codigo === '' ? null : $codigo;
+    }
+
+    /** Nombre sin tildes, en minúsculas y sin espacios de más, para comparar "Matemática 1" con "matemática  1". */
+    public static function normalizarNombre(string $nombre): string
+    {
+        return (string) Str::of($nombre)->ascii()->lower()->squish();
+    }
+
+    /**
+     * Código sugerido para un curso nuevo: el prefijo se hereda de otro curso
+     * con el mismo nombre si ya existe (misma materia, nueva sección), o se
+     * arma desde el texto del nombre si es la primera vez. El año es el de
+     * creación (no el de inicio de clases, para no depender de una fecha que
+     * el Supervisor todavía puede cambiar) y la secuencia es automática.
+     */
+    public static function sugerirCodigo(string $nombre): ?string
+    {
+        $nombre = trim($nombre);
+
+        if ($nombre === '') {
+            return null;
+        }
+
+        $existente = self::buscarPorNombreNormalizado($nombre);
+        $prefijo = $existente ? Str::before((string) $existente->codigo, '-') : self::prefijoDesdeNombre($nombre);
+
+        if ($prefijo === '') {
+            return null;
+        }
+
+        $anio = now()->format('y');
+        $siguiente = self::query()
+            ->where('codigo', 'like', "{$prefijo}-{$anio}-%")
+            ->pluck('codigo')
+            ->map(fn (string $codigo) => (int) Str::afterLast($codigo, '-'))
+            ->max() ?? 0;
+
+        return sprintf('%s-%s-%02d', $prefijo, $anio, $siguiente + 1);
+    }
+
+    /** El curso con código más antiguo que tenga este mismo nombre (normalizado), para heredar su prefijo. */
+    public static function buscarPorNombreNormalizado(string $nombre): ?self
+    {
+        $buscado = self::normalizarNombre($nombre);
+
+        return self::query()->whereNotNull('codigo')->orderBy('id')->get(['id', 'nombre', 'codigo'])
+            ->first(fn (self $curso) => self::normalizarNombre($curso->nombre) === $buscado);
+    }
+
+    /** Primeras letras de la primera palabra del nombre + el primer número que aparezca (p. ej. "Matemática 1" -> "MAT1"). */
+    public static function prefijoDesdeNombre(string $nombre): string
+    {
+        $limpio = Str::of($nombre)->ascii()->upper()->replaceMatches('/[^A-Z0-9 ]+/', ' ')->squish();
+        $primeraPalabra = (string) $limpio->explode(' ')->first(fn (string $palabra) => $palabra !== '', '');
+        $base = Str::substr($primeraPalabra, 0, 3);
+
+        preg_match('/\d+/', (string) $limpio, $coincidencia);
+
+        return $base.($coincidencia[0] ?? '');
+    }
+
+    /**
+     * Si el prefijo de $codigo ya pertenece a OTRO curso con un nombre
+     * distinto, devuelve el nombre de esa materia (cada prefijo debe ser de
+     * una sola materia). Devuelve null si no hay conflicto.
+     */
+    public static function prefijoPerteneceAOtraMateria(string $codigo, string $nombreActual, ?int $ignorarCursoId = null): ?string
+    {
+        $prefijo = Str::before(self::normalizarCodigo($codigo) ?? '', '-');
+
+        if ($prefijo === '') {
+            return null;
+        }
+
+        $normalizado = self::normalizarNombre($nombreActual);
+
+        $otro = self::query()
+            ->where('codigo', 'like', "{$prefijo}-%")
+            ->when($ignorarCursoId, fn (Builder $q) => $q->whereKeyNot($ignorarCursoId))
+            ->get(['nombre'])
+            ->first(fn (self $curso) => self::normalizarNombre($curso->nombre) !== $normalizado);
+
+        return $otro?->nombre;
+    }
+
+    /**
+     * Nombre ya registrado más parecido a este (para sugerir "¿quisiste decir...?"
+     * en vez de crear sin querer una materia duplicada). Null si no hay nada
+     * parecido o si ya coincide exactamente con uno existente.
+     */
+    public static function nombreParecido(string $nombre): ?string
+    {
+        $nombre = trim($nombre);
+
+        if (mb_strlen($nombre) < 3) {
+            return null;
+        }
+
+        $normalizado = self::normalizarNombre($nombre);
+
+        foreach (self::query()->distinct()->pluck('nombre')->filter() as $candidato) {
+            $candidatoNormalizado = self::normalizarNombre($candidato);
+
+            if ($candidatoNormalizado === $normalizado) {
+                return null;
+            }
+
+            similar_text($normalizado, $candidatoNormalizado, $porcentaje);
+
+            if ($porcentaje >= 80) {
+                return $candidato;
+            }
+        }
+
+        return null;
     }
 
     // ==========================================
@@ -220,6 +349,12 @@ class Curso extends Model
         return $this->inscripciones()->where('estado', 'activo')->where('activo_local', true);
     }
 
+    /** true si ya se alcanzó el cupo máximo de estudiantes (null en cupo_maximo = sin límite). */
+    public function cupoLleno(): bool
+    {
+        return $this->cupo_maximo !== null && $this->inscripcionesActivas()->count() >= $this->cupo_maximo;
+    }
+
     public function tareas(): HasMany
     {
         return $this->hasMany(Tarea::class, 'curso_id');
@@ -240,6 +375,12 @@ class Curso extends Model
         return $this->hasMany(Comunicado::class, 'curso_id')->orderByDesc('created_at');
     }
 
+    /** "Información del curso" (RF administrativo): carpetas que arma el Supervisor. */
+    public function carpetas(): HasMany
+    {
+        return $this->hasMany(CarpetaCurso::class, 'curso_id')->orderBy('orden');
+    }
+
     /** ERS RF-54: Esquema de Evaluacion del curso. */
     public function esquemaEvaluacion(): HasOne
     {
@@ -249,6 +390,94 @@ class Curso extends Model
     public function sesionesClase(): HasMany
     {
         return $this->hasMany(SesionClase::class)->orderBy('fecha');
+    }
+
+    /**
+     * Genera una sesión de clase por cada bloque de horario (día, hora de
+     * inicio, hora de fin y, si es presencial, aula) entre fecha_inicio y
+     * fecha_fin. Lunes y viernes pueden tener horas y aulas distintas, cada
+     * bloque es independiente. Solo aplica en modalidad presencial o remoto
+     * (virtual es asíncrono, sin horario) y si el curso registra asistencia.
+     * Se usa una sola vez, al crear el curso; el Profesor puede editar o
+     * borrar sesiones puntuales después desde el módulo de Asistencia.
+     */
+    /**
+     * Resumen legible del horario semanal para pantallas de solo lectura
+     * (ej. "Lun 08:00-10:00 (Aula 204), Vie 14:00-16:00"), o null si el
+     * curso es virtual o aún no tiene bloques de horario.
+     */
+    public function horarioResumen(): ?string
+    {
+        if (! in_array($this->modalidad, self::MODALIDADES_CON_HORARIO, true) || blank($this->horario_bloques)) {
+            return null;
+        }
+
+        $dias = ['1' => 'Lun', '2' => 'Mar', '3' => 'Mié', '4' => 'Jue', '5' => 'Vie', '6' => 'Sáb', '7' => 'Dom'];
+
+        $bloques = collect($this->horario_bloques)
+            ->filter(fn (array $b) => filled($b['dia'] ?? null) && filled($b['hora_inicio'] ?? null) && filled($b['hora_fin'] ?? null))
+            ->map(function (array $b) use ($dias) {
+                $texto = ($dias[(string) $b['dia']] ?? '?')." {$b['hora_inicio']}-{$b['hora_fin']}";
+
+                return $this->modalidad === 'presencial' && filled($b['aula'] ?? null) ? "{$texto} ({$b['aula']})" : $texto;
+            });
+
+        return $bloques->isEmpty() ? null : $bloques->join(', ');
+    }
+
+    public function generarSesionesDesdeHorario(): int
+    {
+        if (! in_array($this->modalidad, self::MODALIDADES_CON_HORARIO, true)
+            || ! $this->usa_asistencia
+            || blank($this->horario_bloques)
+            || ! $this->fecha_inicio
+            || ! $this->fecha_fin) {
+            return 0;
+        }
+
+        $bloquesPorDia = collect($this->horario_bloques)
+            ->filter(fn (array $bloque) => filled($bloque['dia'] ?? null) && filled($bloque['hora_inicio'] ?? null) && filled($bloque['hora_fin'] ?? null))
+            ->keyBy(fn (array $bloque) => (int) $bloque['dia']);
+
+        if ($bloquesPorDia->isEmpty()) {
+            return 0;
+        }
+
+        $numero = 0;
+        $filas = [];
+
+        foreach (CarbonPeriod::create($this->fecha_inicio, $this->fecha_fin) as $fecha) {
+            $bloque = $bloquesPorDia->get($fecha->isoWeekday());
+
+            if (! $bloque) {
+                continue;
+            }
+
+            $horaInicio = Carbon::parse($bloque['hora_inicio']);
+            $duracionMinutos = $horaInicio->diffInMinutes(Carbon::parse($bloque['hora_fin']), false);
+
+            if ($duracionMinutos <= 0) {
+                continue;
+            }
+
+            $numero++;
+            $filas[] = [
+                'curso_id' => $this->id,
+                'titulo' => "Sesión {$numero}",
+                'descripcion' => filled($bloque['aula'] ?? null) ? "Aula: {$bloque['aula']}" : null,
+                'fecha' => $fecha->copy()->setTimeFromTimeString($horaInicio->format('H:i:s')),
+                'duracion_minutos' => $duracionMinutos,
+                'numero_sesion' => $numero,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+        }
+
+        if ($filas !== []) {
+            SesionClase::insert($filas);
+        }
+
+        return count($filas);
     }
 
     public function mensajes(): HasMany

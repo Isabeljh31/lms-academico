@@ -70,7 +70,7 @@ class RevisionPantallasTest extends TestCase
             'P mensajería' => ['profesor', 'cursos.mensajeria', ['curso'], 'Mensaje'],
             'P resumen bot' => ['profesor', 'bot.resumen', [], 'Resumen'],
             'S panel' => ['supervisor', 'dashboard', [], 'Tasa de finalización'],
-            'S usuarios' => ['supervisor', 'admin.usuarios.index', [], 'Gestión de usuarios'],
+            'S usuarios' => ['supervisor', 'admin.usuarios.index', [], 'Estudiantes'],
             'S importar' => ['supervisor', 'usuarios.importar', [], 'Formato del archivo'],
             'S profesores' => ['supervisor', 'admin.profesores.index', [], 'Profesores y carga académica'],
             'S cursos' => ['supervisor', 'cursos.index', [], 'Nuevo curso'],

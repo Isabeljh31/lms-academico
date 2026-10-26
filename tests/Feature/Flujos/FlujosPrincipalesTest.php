@@ -360,8 +360,8 @@ class FlujosPrincipalesTest extends TestCase
         $escenario = $this->escenario();
 
         Livewire::actingAs($escenario['supervisor'])->test(UsuariosIndex::class)
-            ->call('confirmarDesactivar', $escenario['estudiante']->id)
-            ->call('desactivarCuenta');
+            ->call('confirmarCambiarEstado', $escenario['estudiante']->id)
+            ->call('ejecutarConfirmacion');
 
         $this->assertFalse($escenario['estudiante']->fresh()->activo);
         $this->assertSame(1, $escenario['curso']->inscripciones()->count());
