@@ -51,7 +51,7 @@ class GestionMatricula extends Component
 
     public function getPuedeMatricularProperty(): bool
     {
-        return Gate::allows('matricular', $this->curso) && ! $this->curso->estaFinalizado();
+        return Gate::allows('matricular', $this->curso) && ! $this->curso->estaFinalizado() && ! $this->curso->cupoLleno();
     }
 
     /** Hay al menos una baja que este usuario puede hacer en el curso. */

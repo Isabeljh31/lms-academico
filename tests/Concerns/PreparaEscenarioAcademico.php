@@ -40,7 +40,9 @@ trait PreparaEscenarioAcademico
         $profesor = $this->usuarioConRol(Rol::Profesor->value);
         $estudiante = $this->usuarioConRol(Rol::Estudiante->value);
 
-        $curso = Curso::factory()->create(['profesor_id' => $profesor->id, 'nombre' => 'Curso de prueba']);
+        // modalidad "virtual" para que editar este curso de prueba por el formulario
+        // no exija aula/horario (solo obligatorios en presencial/remoto).
+        $curso = Curso::factory()->create(['profesor_id' => $profesor->id, 'nombre' => 'Curso de prueba', 'modalidad' => 'virtual']);
         $this->matricular($estudiante, $curso);
 
         $modulo = Modulo::factory()->create(['curso_id' => $curso->id]);

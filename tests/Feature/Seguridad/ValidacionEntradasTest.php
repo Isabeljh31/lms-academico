@@ -4,6 +4,7 @@ namespace Tests\Feature\Seguridad;
 
 use App\Enums\Rol;
 use App\Livewire\Admin\Comunicados\Index as Comunicados;
+use App\Livewire\Admin\Profesores\Index as ProfesoresIndex;
 use App\Livewire\Cursos\Index as CursosIndex;
 use App\Livewire\Usuarios\Index as UsuariosIndex;
 use App\Models\User;
@@ -55,6 +56,18 @@ class ValidacionEntradasTest extends TestCase
             ->assertDontSee(self::SCRIPT, false);
     }
 
+    public function test_escapa_el_nombre_del_profesor_en_la_ventana_de_confirmacion(): void
+    {
+        $this->crearRoles();
+        $supervisor = $this->usuarioConRol(Rol::Supervisor->value);
+        $profesor = $this->usuarioConRol(Rol::Profesor->value, ['name' => 'Ana '.self::SCRIPT]);
+
+        Livewire::actingAs($supervisor)->test(ProfesoresIndex::class)
+            ->call('confirmarEliminarProfesor', $profesor->id)
+            ->assertSee('&lt;script&gt;', false)
+            ->assertDontSee(self::SCRIPT, false);
+    }
+
     public function test_escapa_el_contenido_de_un_comunicado_institucional(): void
     {
         $this->crearRoles();
@@ -69,9 +82,16 @@ class ValidacionEntradasTest extends TestCase
 
     public function test_las_vistas_solo_imprimen_html_sin_escapar_en_puntos_revisados(): void
     {
-        // {!! !!} solo se permite en estos archivos, que no imprimen datos del usuario:
-        // - components/icono.blade.php: rutas SVG fijas del propio componente.
-        $permitidos = ['components/icono.blade.php'];
+        // {!! !!} solo se permite en estos archivos, cada uno revisado a mano:
+        // - components/icono.blade.php: rutas SVG fijas del propio componente, no imprime datos del usuario.
+        // - livewire/admin/profesores/_modal-confirmar.blade.php y livewire/usuarios/_modal-confirmar.blade.php:
+        //   el texto es fijo en PHP (GestionaProfesor / GestionaEstudiante); los únicos valores dinámicos
+        //   (nombre, curso) pasan por e() antes de envolverse en <strong>, así que llegan ya escapados.
+        $permitidos = [
+            'components/icono.blade.php',
+            'livewire/admin/profesores/_modal-confirmar.blade.php',
+            'livewire/usuarios/_modal-confirmar.blade.php',
+        ];
 
         $sinEscapar = collect(File::allFiles(resource_path('views')))
             ->filter(fn ($archivo) => str_contains($archivo->getContents(), '{!!'))

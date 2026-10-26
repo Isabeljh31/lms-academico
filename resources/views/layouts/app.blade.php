@@ -40,7 +40,7 @@
         ['ruta' => 'cursos.index', 'etiqueta' => 'Cursos', 'icono' => 'libro', 'visible' => true],
         ['ruta' => 'mensajeria.selector', 'etiqueta' => 'Mensajería', 'icono' => 'usuarios', 'visible' => $rol !== 'supervisor'],
         ['ruta' => 'docente.por-calificar', 'etiqueta' => 'Por Calificar', 'icono' => 'tarea', 'visible' => $rol === 'profesor'],
-        ['ruta' => 'admin.usuarios.index', 'etiqueta' => 'Usuarios', 'icono' => 'usuarios', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'admin.usuarios.index', 'etiqueta' => 'Estudiantes', 'icono' => 'usuarios', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'admin.profesores.index', 'etiqueta' => 'Profesores', 'icono' => 'birrete', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'admin.comunicados.index', 'etiqueta' => 'Comunicados', 'icono' => 'megafono', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'admin.metricas', 'etiqueta' => 'Dashboard institucional', 'icono' => 'grafico', 'visible' => $rol === 'supervisor'],

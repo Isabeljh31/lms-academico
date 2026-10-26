@@ -42,6 +42,17 @@ class User extends Authenticatable
         'nombres',
         'apellidos',
         'dni',
+        'codigo',
+        'especialidad',
+        'celular',
+        'anio_nacimiento',
+        'correo_personal',
+        'apoderado_nombre',
+        'apoderado_celular',
+        'grado_academico',
+        'colegiatura',
+        'fecha_inicio_labores',
+        'cv_path',
         'email',
         'password',
         'avatar_url',
@@ -59,7 +70,20 @@ class User extends Authenticatable
             'activo' => 'boolean',
             'primer_login' => 'boolean',
             'bloqueado_hasta' => 'datetime',
+            'fecha_inicio_labores' => 'date',
         ];
+    }
+
+    /** Edad calculada desde el año de nacimiento; null si no se registró. */
+    public function edad(): ?int
+    {
+        return $this->anio_nacimiento ? now()->year - $this->anio_nacimiento : null;
+    }
+
+    /** Enlace temporal para ver/descargar el CV subido, o null si no tiene. */
+    public function cvUrl(): ?string
+    {
+        return SubidorArchivos::enlace($this->cv_path);
     }
 
     /**
