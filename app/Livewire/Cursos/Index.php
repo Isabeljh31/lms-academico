@@ -60,6 +60,6 @@ class Index extends Component
             'cursos' => $cursos,
             'inscritos' => $inscritos,
             'puedeCrear' => Gate::allows('crear', Curso::class),
-        ])->title('Cursos — LearnUp');
+        ])->title('Cursos - LearnUp');
     }
 }

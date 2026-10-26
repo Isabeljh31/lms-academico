@@ -22,7 +22,7 @@
 @endphp
 
 <div class="py-8">
-    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
         @if($paletaFria)
         {{-- Encabezado --}}
@@ -39,29 +39,20 @@
             </div>
             @if($puedeCrear)
             <a href="{{ route('cursos.crear') }}" wire:navigate
-                class="inline-flex items-center gap-2 px-4 py-2 bg-menta-oscuro text-white text-sm font-semibold rounded-lg hover:bg-menta-oscuro/90 transition">
+                class="inline-flex items-center gap-2 px-4 py-2 bg-azul-oscuro text-white text-sm font-semibold rounded-lg hover:bg-azul-oscuro/90 transition">
                 + Nuevo curso
             </a>
             @endif
         </div>
 
+        <x-gestion.alertas />
+
         {{-- Filtros --}}
         <div class="flex flex-wrap gap-3 items-end">
-            <input wire:model.live.debounce.300ms="busqueda" type="search"
-                placeholder="Buscar curso…"
+            <label for="busqueda-curso" class="sr-only">Buscar curso</label>
+            <input id="busqueda-curso" wire:model.live.debounce.300ms="busqueda" type="search"
+                placeholder="Buscar curso"
                 class="w-full sm:w-72 rounded-lg text-sm border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base px-3 py-2">
-
-            @if(!$paletaFria)
-            {{-- Filtro de estado: solo supervisor/profesor ven esto --}}
-            <select wire:model.live="filtroEstado"
-                class="rounded-lg text-sm border-stone-300 dark:border-stone-600 dark:bg-stone-900 dark:text-stone-200 focus:border-menta-base focus:ring-menta-base px-3 py-2">
-                <option value="">Todos los estados</option>
-                <option value="publicado">Publicados</option>
-                <option value="borrador">Borradores</option>
-                <option value="despublicado">Ocultos</option>
-                <option value="archivado">Archivados</option>
-            </select>
-            @endif
         </div>
 
         @else
@@ -91,7 +82,8 @@
         @endif
 
         @if($cursos->isEmpty() && $paletaFria)
-            <p class="text-slate-500 dark:text-slate-400 py-8 text-center">No hay cursos que coincidan con tu búsqueda.</p>
+            <x-gestion.vacio icono="libro" :titulo="$busqueda ? 'Sin resultados' : 'Todavía no tienes cursos'"
+                :descripcion="$busqueda ? 'No hay cursos que coincidan con \"'.$busqueda.'\".' : 'El Supervisor te matriculará en tus cursos.'" />
 
         @elseif($cursos->isEmpty())
             <x-gestion.vacio icono="libro" titulo="No hay cursos para mostrar"
@@ -112,23 +104,26 @@
                     {{-- Badge estado --}}
                     @if($curso->estado !== 'publicado')
                     @php $badge = $badgeEstado($curso->estado); @endphp
-                    <span class="absolute top-2 right-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold {{ $badge['color'] }}">
+                    <span class="absolute top-2 right-2 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold {{ $badge['color'] }}">
                         {{ $badge['label'] }}
                     </span>
                     @endif
                 </div>
                 <div class="p-4">
                     <h2 class="font-semibold text-texto dark:text-slate-100 truncate">{{ $curso->nombre }}</h2>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Prof. {{ $curso->profesor?->name }}</p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Prof. {{ $curso->profesor?->name ?: 'sin asignar' }}</p>
                     {{-- Fechas ERS RF-19 --}}
                     @if($curso->fecha_inicio || $curso->fecha_fin)
-                    <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                        <x-icono nombre="calendario" class="inline h-3 w-3 -mt-0.5" /> {{ $curso->fecha_inicio?->formatoFecha() ?? '?' }} – {{ $curso->fecha_fin?->formatoFecha() ?? '?' }}
+                    <p class="text-sm text-slate-400 dark:text-slate-500 mt-1">
+                        <x-icono nombre="calendario" class="inline h-3.5 w-3.5 -mt-0.5" /> {{ $curso->fecha_inicio?->formatoFecha() ?? '?' }} - {{ $curso->fecha_fin?->formatoFecha() ?? '?' }}
                     </p>
                     @endif
-                    <div class="flex items-center justify-between mt-3 text-xs text-slate-500 dark:text-slate-400">
-                        <span>{{ $curso->modulos->count() }} unidades</span>
-                        <span>{{ $curso->inscripciones_count }} inscritos</span>
+                    @if($curso->modalidad)
+                    <p class="text-sm text-slate-400 dark:text-slate-500 mt-1">{{ ['presencial' => 'Presencial', 'remoto' => 'Remoto', 'virtual' => 'Virtual'][$curso->modalidad] ?? ucfirst($curso->modalidad) }}</p>
+                    @endif
+                    <div class="flex items-center justify-between mt-3 text-sm text-slate-500 dark:text-slate-400">
+                        <span>{{ $curso->modulos->count() }} módulos</span>
+                        <span>{{ $curso->inscripciones_activas_count }}{{ $curso->cupo_maximo ? '/'.$curso->cupo_maximo : '' }} inscritos</span>
                     </div>
                     @if($inscritos->has($curso->id))
                     <span class="mt-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-celeste text-azul-oscuro dark:bg-azul-oscuro/20 dark:text-celeste">
@@ -157,21 +152,24 @@
                 </div>
                 <div class="space-y-1 p-4">
                     <h2 class="truncate font-semibold text-stone-800 dark:text-stone-100">{{ $curso->nombre }}</h2>
-                    <p class="text-xs text-stone-500 dark:text-stone-400">
+                    <p class="text-sm text-stone-500 dark:text-stone-400">
                         @if($curso->codigo) <span class="font-mono">{{ $curso->codigo }}</span> - @endif
                         Prof. {{ $curso->docentes()->pluck('name')->join(', ') ?: 'sin asignar' }}
                     </p>
                     @if($curso->fecha_inicio || $curso->semanas_duracion)
-                    <p class="flex items-center gap-1 text-xs text-stone-500 dark:text-stone-400">
-                        <x-icono nombre="calendario" class="h-3.5 w-3.5" />
+                    <p class="flex items-center gap-1.5 text-sm text-stone-500 dark:text-stone-400">
+                        <x-icono nombre="calendario" class="h-4 w-4" />
                         @if($curso->fecha_inicio) {{ $curso->fecha_inicio->formatoFecha() }} @endif
-                        @if($curso->fecha_inicio && $curso->fecha_fin) – {{ $curso->fecha_fin->formatoFecha() }} @endif
+                        @if($curso->fecha_inicio && $curso->fecha_fin) - {{ $curso->fecha_fin->formatoFecha() }} @endif
                         @if($curso->semanas_duracion) - {{ $curso->semanas_duracion }} sem. @endif
                     </p>
                     @endif
-                    <div class="flex items-center justify-between pt-2 text-xs text-stone-500 dark:text-stone-400">
-                        <span class="inline-flex items-center gap-1"><x-icono nombre="libro" class="h-3.5 w-3.5" /> {{ $curso->modulos->count() }} módulos</span>
-                        <span class="inline-flex items-center gap-1"><x-icono nombre="usuarios" class="h-3.5 w-3.5" /> {{ $curso->inscripciones_activas_count }} matriculados</span>
+                    @if($curso->modalidad)
+                    <p class="text-sm text-stone-500 dark:text-stone-400">{{ ['presencial' => 'Presencial', 'remoto' => 'Remoto', 'virtual' => 'Virtual'][$curso->modalidad] ?? ucfirst($curso->modalidad) }}</p>
+                    @endif
+                    <div class="flex items-center justify-between pt-2 text-sm text-stone-500 dark:text-stone-400">
+                        <span class="inline-flex items-center gap-1.5"><x-icono nombre="libro" class="h-4 w-4" /> {{ $curso->modulos->count() }} módulos</span>
+                        <span class="inline-flex items-center gap-1.5"><x-icono nombre="usuarios" class="h-4 w-4" /> {{ $curso->inscripciones_activas_count }}{{ $curso->cupo_maximo ? '/'.$curso->cupo_maximo : '' }} matriculados</span>
                     </div>
                 </div>
             </a>

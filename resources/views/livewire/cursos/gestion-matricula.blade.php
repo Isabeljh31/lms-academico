@@ -16,6 +16,8 @@
                 <p>
                     @if ($curso->estaFinalizado())
                         El curso está archivado: la matrícula queda en modo consulta.
+                    @elseif ($curso->cupoLleno())
+                        El curso alcanzó su cupo máximo de {{ $curso->cupo_maximo }} estudiantes. Da de baja a alguien o aumenta el cupo desde "Editar curso" para matricular a más.
                     @else
                         Las matrículas las registra el Supervisor. Puedes dar de baja a estudiantes de tu curso; las matrículas que llegaron por integración externa solo las desactiva el Supervisor.
                     @endif
