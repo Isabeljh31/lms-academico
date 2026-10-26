@@ -2,12 +2,15 @@
 
 use App\Livewire\Admin\Comunicados\Index as ComunicadosIndex;
 use App\Livewire\Admin\Metricas\Index as AnaliticaRiesgo;
+use App\Livewire\Admin\Profesores\ImportarCsv as ProfesoresImportarCsv;
 use App\Livewire\Admin\Profesores\Index as ProfesoresIndex;
+use App\Livewire\Admin\Profesores\Show as ProfesoresShow;
 use App\Livewire\PanelAdmin\Auditoria;
 use App\Livewire\PanelAdmin\Configuracion;
 use App\Livewire\PanelAdmin\Integraciones;
 use App\Livewire\PanelAdmin\Metricas;
 use App\Livewire\Usuarios\Index;
+use App\Livewire\Usuarios\Show as UsuariosShow;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'role:supervisor'])
@@ -15,8 +18,11 @@ Route::middleware(['auth', 'verified', 'role:supervisor'])
     ->name('admin.')
     ->group(function () {
         Route::get('profesores', ProfesoresIndex::class)->name('profesores.index');
+        Route::get('profesores/importar', ProfesoresImportarCsv::class)->name('profesores.importar');
+        Route::get('profesores/{profesor}', ProfesoresShow::class)->name('profesores.show');
         Route::get('comunicados', ComunicadosIndex::class)->name('comunicados.index');
         Route::get('usuarios', Index::class)->name('usuarios.index');
+        Route::get('usuarios/{estudiante}', UsuariosShow::class)->name('usuarios.show');
         // ERS RF-90/RF-91: dashboard institucional y reportes administrativos
         Route::get('metricas', Metricas::class)->name('metricas');
         // ERS 11.3: analítica de riesgo de abandono (Fase 3)
