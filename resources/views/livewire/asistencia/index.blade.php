@@ -9,7 +9,9 @@
     $esAdminVista = auth()->user()->hasRole('supervisor');
 @endphp
 
-<div class="py-8">
+{{-- relative (solo profesor; la vista se comparte con Supervisor): contiene los radios sr-only (position: absolute)
+     de cada estudiante; sin esto se posicionaban respecto de <body> y estiraban la página. --}}
+<div @class(['py-8', 'relative' => auth()->user()->hasRole('profesor')])>
     <div class="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
 
         <x-gestion.encabezado titulo="Asistencia" icono="calendario" :descripcion="$curso->nombre.' - '.$totalSesiones.' sesiones registradas'">

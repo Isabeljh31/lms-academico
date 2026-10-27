@@ -8,7 +8,8 @@
     $conNota = $filas->pluck('promedio_final')->filter(fn ($v) => $v !== null);
 @endphp
 
-<div class="py-8">
+{{-- relative: contiene los sr-only (position: absolute) de la tabla para que no estiren la página. --}}
+<div class="relative py-8">
     <div class="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
 
         <x-gestion.encabezado titulo="Reportes de cursos" icono="grafico"

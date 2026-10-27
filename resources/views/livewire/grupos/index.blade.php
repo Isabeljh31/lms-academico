@@ -3,7 +3,9 @@
     $esAdminVista = auth()->user()->hasRole('supervisor');
 @endphp
 
-<div class="py-8">
+{{-- relative (solo profesor; la vista se comparte con Supervisor): contiene las etiquetas sr-only (position: absolute)
+     de cada grupo; sin esto se posicionaban respecto de <body> y estiraban la página. --}}
+<div @class(['py-8', 'relative' => auth()->user()->hasRole('profesor')])>
     <div class="mx-auto max-w-5xl space-y-6 px-4 sm:px-6 lg:px-8">
 
         <x-gestion.encabezado titulo="Grupos" icono="usuarios" :descripcion="$curso->nombre.', organiza a los estudiantes matriculados para los trabajos grupales.'" />
