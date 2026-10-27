@@ -66,3 +66,37 @@ queda en `docs/TRAZABILIDAD.md`, sección "Auditoría de procesos".
 - [x] Segunda auditoría terminada. Respaldo `../LearnUp_respaldo_procesos_fin`. Nada se subió a git.
 - [x] RF-108 completo: zona horaria y formato de fecha aplicados en toda la plataforma. RF del ERS v2: 106 Completo,
       0 Parcial, 2 No aplica. Suite 432/432. Respaldo `../LearnUp_respaldo_rf108_fin`. Nada se subió a git.
+
+## Profesor: formulario de lección por tipo y Debates (26/10/2026)
+
+Rama local `feat/profesor-lecciones-y-debates` (creada desde `integracion-jharol`), sin commit.
+
+- [x] Diagnóstico: esquema de Supabase coherente con los modelos (`lecciones`, `cursos`, `users`, `inscripciones`,
+      `curso_profesor`, `carpetas_curso`). La tabla se llama `carpetas_curso`, no `carpetas_cursos`.
+- [x] Formulario "Nueva lección" por tipo, "Foro de preguntas" solo para lecciones antiguas, desplegable propio
+      (`gestion/desplegable`). Corrige que una lección con archivo subido no se podía guardar al editarla (su ruta
+      interna se cargaba en el campo de enlace y fallaba la validación de URL).
+- [x] Debates del curso (Profesor, Estudiante matriculado, Supervisor en solo lectura).
+- [x] Suite 618/618 en SQLite en memoria (594 anteriores + 24 nuevas). Pint y `npm run build` sin errores.
+- [x] Migraciones `create_debates_table` y `create_debate_comentarios_table` aplicadas en Supabase tras comprobar que
+      eran las únicas pendientes y que `migrate --pretend` solo creaba tablas, índices y claves foráneas nuevas.
+      Verificadas con `migrate:status` (57 aplicadas) y `db:table`.
+- [x] Formulario de lección simplificado a Documento, Video y Enlace, con mapeo de tipos antiguos solo al leer
+      (sin tocar la base de datos). Palomita del desplegable corregida.
+- [x] Contenido de la semana en secciones fijas (Mensaje de inicio, Recursos de aprendizaje, Actividades
+      complementarias, Grabación de la clase). Sin migración: se usa `tipo_recurso`. Equivalencias de tipos antiguos
+      solo al leer; cada lección se actualiza al guardarla.
+- [x] Contenido de cada semana en la misma pantalla del curso: acordeón por semana con sus 4 secciones, formulario en
+      modal, semana abierta tras guardar, menú "⋯" con Editar y Vaciar, confirmación explícita al eliminar o vaciar.
+      La ruta antigua de lecciones redirige al curso.
+- [x] Pulido de "Contenido por semanas" (27/10/2026): secciones cerradas por defecto, una abierta por semana (se abre
+      la del elemento guardado), jerarquía visual de 3 niveles con la paleta azul existente, íconos de 44 px, Editar
+      único del Mensaje de inicio. 4 pruebas nuevas.
+- [x] Apartado "Actividades" del Profesor y carga masiva del banco de preguntas (27/10/2026): pestañas Actividades
+      (tareas y quizzes unificados) y Banco de preguntas; importación desde Excel/CSV con vista previa y reporte.
+      Migración aditiva `add_puntaje_to_banco_preguntas_table` aplicada en Supabase tras comprobar que era la única
+      pendiente y que `--pretend` solo mostraba el `ADD COLUMN` (verificada con `db:table`). 17 pruebas nuevas.
+- [x] Banco de preguntas por unidad (27/10/2026): columna nueva `banco_preguntas.unidad` (string(10) nullable, índice
+      `curso_id, unidad`; valores T1–T4 en `BancoPregunta::UNIDADES`). Migración aditiva
+      `add_unidad_to_banco_preguntas_table` aplicada en Supabase tras comprobar que era la única pendiente y que
+      `--pretend` solo mostraba `ADD COLUMN` y `CREATE INDEX`. Preguntas existentes sin backfill ("Sin unidad").
