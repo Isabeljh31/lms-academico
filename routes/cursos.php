@@ -6,6 +6,8 @@ use App\Livewire\Cursos\Formulario;
 use App\Livewire\Cursos\Index;
 use App\Livewire\Cursos\LibroCalificaciones;
 use App\Livewire\Cursos\Show;
+use App\Livewire\Debates\Index as DebatesIndex;
+use App\Livewire\Debates\Show as DebatesShow;
 use App\Livewire\Grupos\Index as GruposIndex;
 use App\Livewire\Mensajeria\Bandeja;
 use App\Livewire\Quizzes\BancoPreguntas;
@@ -65,5 +67,10 @@ Route::middleware(['auth', 'verified'])
         Route::get('/{curso}/lecciones/{leccion}/{recurso}', RecursoLeccionController::class)
             ->whereIn('recurso', ['video', 'material'])
             ->name('lecciones.recurso');
+        // Debates del curso (extensión fuera del ERS): los permisos están en DebatePolicy.
+        Route::get('/{curso}/debates', DebatesIndex::class)->name('debates.index');
+        Route::get('/{curso}/debates/{debate}', DebatesShow::class)
+            ->scopeBindings()
+            ->name('debates.show');
         Route::get('/{curso}', Show::class)->name('show');
     });

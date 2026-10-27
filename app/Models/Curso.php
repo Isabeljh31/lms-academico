@@ -381,6 +381,12 @@ class Curso extends Model
         return $this->hasMany(CarpetaCurso::class, 'curso_id')->orderBy('orden');
     }
 
+    /** Debates del curso (extensión fuera del ERS). */
+    public function debates(): HasMany
+    {
+        return $this->hasMany(Debate::class, 'curso_id');
+    }
+
     /** ERS RF-54: Esquema de Evaluacion del curso. */
     public function esquemaEvaluacion(): HasOne
     {
