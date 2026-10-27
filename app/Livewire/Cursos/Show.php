@@ -3,6 +3,7 @@
 namespace App\Livewire\Cursos;
 
 use App\Enums\Rol;
+use App\Livewire\Cursos\Concerns\GestionaContenidoSemanal;
 use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
 use App\Models\Grupo;
@@ -30,11 +31,13 @@ use Livewire\WithFileUploads;
  * Detalle de un curso.
  * - Estudiante: pestañas de contenido, anuncios, tareas, quizzes, compañeros y grupo.
  * - Profesor / Supervisor: contenido por semanas y prácticas de campo (RF-34, RF-37) y anuncios (RF-81).
+ * - Profesor del curso: gestiona el contenido de cada semana en la misma página (GestionaContenidoSemanal).
  * - Supervisor: clonación (RF-20, RF-21).
  */
 #[Layout('layouts.app')]
 class Show extends Component
 {
+    use GestionaContenidoSemanal;
     use WithFileUploads;
 
     public Curso $curso;
@@ -106,6 +109,13 @@ class Show extends Component
         Gate::authorize('ver', $curso);
 
         $this->curso = $curso;
+
+        if ($this->puedeGestionar) {
+            $this->inicializarSemanasAbiertas(
+                $curso->modulos()->withCount(['lecciones', 'tareas', 'quizzes'])->get(),
+                request()->filled('semana') ? request()->integer('semana') : null,
+            );
+        }
     }
 
     public function getPuedeGestionarProperty(): bool
@@ -639,6 +649,8 @@ class Show extends Component
         $modulos = $this->curso->modulos()
             ->when($esEstudiante, fn ($q) => $q->visiblesParaEstudiante()->with('leccionesVisibles'))
             ->when(! $esEstudiante, fn ($q) => $q->withCount(['lecciones', 'tareas', 'quizzes']))
+            // Profesor: el contenido de todas las semanas en una sola consulta (sin N+1) para el acordeón.
+            ->when($this->puedeGestionar, fn ($q) => $q->with(['lecciones' => fn ($lecciones) => $lecciones->withCount('completadas')]))
             ->orderBy('orden')
             ->get();
 
@@ -667,6 +679,7 @@ class Show extends Component
             'rubrosEvaluacion' => $esSupervisor ? $this->curso->esquemaEvaluacion()->with('rubros')->first()?->rubros : null,
             'carpetas' => $this->curso->carpetas,
             'estudiantesBusquedaRapida' => $estudiantesBusquedaRapida,
+            'totalEstudiantesActivos' => $this->puedeGestionar ? $this->curso->inscripcionesActivas()->count() : 0,
         ])->title("{$this->curso->nombre} — LearnUp");
     }
 

@@ -1,3 +1,4 @@
+{{-- Lista de semanas de solo consulta (Supervisor). El Profesor del curso usa _semanas-profesor (acordeón con su contenido). --}}
 <ul class="divide-y {{ $esAdminVista ? 'divide-arena-medio/60 dark:divide-stone-700' : 'divide-celeste/60 dark:divide-azul-borde-oscuro' }}">
     @foreach ($secciones['semanas'] as $seccion)
         @php $modulo = $seccion['modulo']; @endphp
@@ -29,22 +30,6 @@
                     @endif
                 </p>
             </div>
-            @if ($this->puedeGestionar)
-                <div class="flex flex-wrap gap-1">
-                    @if ($modulo)
-                        <x-gestion.boton tamano="sm" icono="documento" :href="route('lecciones.index', $modulo)">Lecciones</x-gestion.boton>
-                        @if ($editable)
-                            <x-gestion.boton variante="fantasma" tamano="sm" icono="lapiz" wire:click="abrirEditarModulo({{ $modulo->id }})">Editar</x-gestion.boton>
-                            <x-gestion.boton variante="fantasma-peligro" tamano="sm" icono="papelera" wire:click="eliminarModulo({{ $modulo->id }})"
-                                wire:confirm="¿Vaciar {{ $seccion['etiqueta'] }}? Se eliminan sus lecciones, tareas y quizzes. Si tiene entregas o resultados de estudiantes no se eliminará.">
-                                Vaciar
-                            </x-gestion.boton>
-                        @endif
-                    @elseif ($editable)
-                        <x-gestion.boton variante="secundario" tamano="sm" icono="mas" wire:click="prepararSeccion({{ $seccion['semana'] }})">Preparar semana</x-gestion.boton>
-                    @endif
-                </div>
-            @endif
         </li>
     @endforeach
 </ul>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\LeccionesSemanaController;
 use App\Livewire\Actions\Logout;
 use App\Livewire\Auth\CambiarPasswordPrimerLogin;
 use App\Livewire\Cursos\BoletaEstudiante;
@@ -69,8 +70,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->middleware('role:supervisor')
         ->name('usuarios.importar');
 
-    // ERS RF-35 a RF-38: lecciones de un módulo (gestión)
-    Route::get('modulos/{modulo}/lecciones', App\Livewire\Lecciones\Index::class)
+    // Compatibilidad: la antigua pantalla de lecciones de una semana lleva a la pantalla del curso,
+    // donde ahora se gestiona el contenido (ERS RF-35 a RF-38).
+    Route::get('modulos/{modulo}/lecciones', LeccionesSemanaController::class)
         ->middleware('role:profesor')
         ->name('lecciones.index');
 

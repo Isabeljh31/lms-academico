@@ -7,8 +7,8 @@ use App\Livewire\Asistencia\Index as AsistenciaIndex;
 use App\Livewire\Cursos\EsquemaEvaluacion;
 use App\Livewire\Cursos\GestionMatricula;
 use App\Livewire\Cursos\LibroCalificaciones;
+use App\Livewire\Cursos\Show as CursoShow;
 use App\Livewire\Docente\PorCalificar\Index as PorCalificar;
-use App\Livewire\Lecciones\Index as LeccionesIndex;
 use App\Livewire\Mensajeria\Bandeja;
 use App\Livewire\Tareas\Detalle;
 use App\Models\Curso;
@@ -132,11 +132,11 @@ class IdorTest extends TestCase
         $ajeno = $this->cursoAjeno();
         $leccionAjena = $ajeno['modulo']->lecciones()->create(['titulo' => 'Ajena', 'estado' => 'publicado', 'orden' => 1]);
 
-        foreach (['editar', 'eliminar'] as $accion) {
+        foreach (['editarLeccion', 'confirmarEliminarLeccion', 'eliminarLeccion', 'moverLeccion'] as $accion) {
             try {
                 Livewire::actingAs($escenario['profesor'])
-                    ->test(LeccionesIndex::class, ['modulo' => $escenario['modulo']])
-                    ->call($accion, $leccionAjena->id);
+                    ->test(CursoShow::class, ['curso' => $escenario['curso']])
+                    ->call($accion, $leccionAjena->id, 1);
             } catch (ModelNotFoundException) {
                 // Esperado.
             }
