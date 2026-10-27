@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
 use Livewire\Attributes\Layout;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
@@ -25,6 +26,10 @@ use Livewire\Component;
 class Formulario extends Component
 {
     public Curso $curso;
+
+    /** Se abrió desde la pantalla Actividades (?desde=actividades): al guardar o cancelar vuelve allí. */
+    #[Locked]
+    public bool $desdeActividades = false;
 
     public ?Tarea $tarea = null;
 
@@ -58,6 +63,7 @@ class Formulario extends Component
     public function mount(Curso $curso, ?Tarea $tarea = null): void
     {
         $this->curso = $curso;
+        $this->desdeActividades = request()->query('desde') === 'actividades';
 
         if ($tarea?->exists) {
             Gate::authorize('gestionar', $tarea);
@@ -141,7 +147,14 @@ class Formulario extends Component
         }
 
         session()->flash('estado', "Tarea \"{$tarea->titulo}\" guardada.");
-        $this->redirect(route('cursos.tareas.index', $this->curso), navigate: true);
+        $this->redirect($this->rutaVolver(), navigate: true);
+    }
+
+    public function rutaVolver(): string
+    {
+        return $this->desdeActividades
+            ? route('cursos.actividades', [$this->curso, 'tipo' => 'tareas'])
+            : route('cursos.tareas.index', $this->curso);
     }
 
     public function render()

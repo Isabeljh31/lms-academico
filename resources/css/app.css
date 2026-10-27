@@ -164,3 +164,18 @@
 @media (prefers-reduced-motion: reduce) {
     .fc .evento-resaltado { animation: none; }
 }
+
+/*
+ * Formularios del Profesor (quizzes/formulario): campos numéricos sin las
+ * flechas nativas de spinner. La rueda del mouse no cambia el valor (el
+ * formulario quita el foco del campo al girarla).
+ */
+.campos-sin-flechas input[type='number']::-webkit-outer-spin-button,
+.campos-sin-flechas input[type='number']::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.campos-sin-flechas input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}

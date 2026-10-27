@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\RecursoLeccionController;
 use App\Livewire\Asistencia\MiHistorial;
+use App\Livewire\Cursos\Actividades;
 use App\Livewire\Cursos\Formulario;
 use App\Livewire\Cursos\Index;
 use App\Livewire\Cursos\LibroCalificaciones;
@@ -45,6 +46,10 @@ Route::middleware(['auth', 'verified'])
                 Route::get('/{quiz}', Resolver::class)->name('show');
             });
 
+        // Actividades del Profesor del curso: tareas, quizzes y banco de preguntas en un solo apartado.
+        Route::get('/{curso}/actividades', Actividades::class)
+            ->middleware('role:profesor')
+            ->name('actividades');
         // ERS RF-47: banco de preguntas por tema (Profesor del curso)
         Route::get('/{curso}/banco-preguntas', BancoPreguntas::class)
             ->middleware('role:profesor')

@@ -567,7 +567,7 @@ class Curso extends Model
             // RF-47: el banco de preguntas es contenido reutilizable del curso.
             foreach ($this->bancoPreguntasCurso()->get() as $pregunta) {
                 $nuevo->bancoPreguntasCurso()->create($pregunta->only([
-                    'tema', 'pregunta', 'tipo', 'opciones', 'respuestas_correctas', 'explicacion', 'dificultad', 'creado_por',
+                    'tema', 'pregunta', 'tipo', 'opciones', 'respuestas_correctas', 'explicacion', 'dificultad', 'puntaje', 'creado_por',
                 ]));
             }
 
