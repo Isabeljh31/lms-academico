@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Cursos;
+namespace App\Livewire\Profesor;
 
 use App\Enums\ModoCalculo;
 use App\Models\BitacoraAuditoria;
@@ -521,7 +521,7 @@ class Actividades extends Component
             ['pageName' => 'pagina'],
         );
 
-        return view('livewire.cursos.actividades', [
+        return view('livewire.profesor.actividades', [
             'rubros' => $this->curso->esquemaEvaluacion()->with(['rubros.tareas', 'rubros.quizzes'])->first()?->rubros ?? collect(),
             'tareasDisponibles' => $this->mostrarCalculo ? $this->curso->tareas()->with(['modulo', 'rubrosEvaluacion'])->orderBy('titulo')->get() : collect(),
             'quizzesDisponibles' => $this->mostrarCalculo ? $this->curso->quizzes()->with(['modulo', 'rubrosEvaluacion'])->orderBy('tema')->get() : collect(),

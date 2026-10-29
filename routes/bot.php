@@ -1,14 +1,14 @@
 <?php
 
-use App\Livewire\BotSugerencias\Bandeja;
-use App\Livewire\BotSugerencias\ResumenSemanal;
+use App\Livewire\Estudiante\PropuestasBot;
+use App\Livewire\Profesor\ResumenSemanal;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])
     ->prefix('bot')
     ->name('bot.')
     ->group(function () {
-        Route::get('propuestas', Bandeja::class)
+        Route::get('propuestas', PropuestasBot::class)
             ->middleware('role:estudiante')
             ->name('propuestas');
 

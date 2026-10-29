@@ -193,7 +193,7 @@
         @endif
 
         <div x-data="{
-                pestanas: @js(array_keys(\App\Livewire\Cursos\Actividades::PESTANAS)),
+                pestanas: @js(array_keys(\App\Livewire\Profesor\Actividades::PESTANAS)),
                 get activa() { return this.$wire.pestana },
                 elegir(clave, enfocar = false) {
                     this.$wire.pestana = clave;
@@ -207,7 +207,7 @@
             <div role="tablist" aria-label="Apartados de Actividades" class="flex gap-1 border-b border-celeste dark:border-azul-borde-oscuro"
                 x-on:keydown.arrow-right.prevent="mover(1)" x-on:keydown.arrow-left.prevent="mover(-1)"
                 x-on:keydown.home.prevent="elegir(pestanas[0], true)" x-on:keydown.end.prevent="elegir(pestanas[pestanas.length - 1], true)">
-                @foreach (\App\Livewire\Cursos\Actividades::PESTANAS as $clave => $etiqueta)
+                @foreach (\App\Livewire\Profesor\Actividades::PESTANAS as $clave => $etiqueta)
                     @php $esActiva = $pestana === $clave; @endphp
                     <button type="button" role="tab" id="pestana-{{ $clave }}" aria-controls="panel-{{ $clave }}"
                         aria-selected="{{ $esActiva ? 'true' : 'false' }}" x-bind:aria-selected="(activa === '{{ $clave }}').toString()"
@@ -232,7 +232,7 @@
                 class="space-y-4 pt-5 focus:outline-none">
                 <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div role="group" aria-label="Filtrar actividades" class="inline-flex w-full flex-wrap rounded-lg border border-celeste bg-white p-1 dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura sm:w-auto">
-                        @foreach (\App\Livewire\Cursos\Actividades::FILTROS as $clave => $etiqueta)
+                        @foreach (\App\Livewire\Profesor\Actividades::FILTROS as $clave => $etiqueta)
                             @php $cantidad = match ($clave) { 'tareas' => $totales['tareas'], 'quizzes' => $totales['quizzes'], 'sin_evaluacion' => $totales['sin_evaluacion'], default => $totales['tareas'] + $totales['quizzes'] }; @endphp
                             <button type="button" wire:click="filtrar('{{ $clave }}')" aria-pressed="{{ $tipo === $clave ? 'true' : 'false' }}"
                                 @class(['flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro sm:flex-none',
@@ -335,7 +335,7 @@
             <div id="panel-banco" role="tabpanel" aria-labelledby="pestana-banco" tabindex="0"
                 x-show="activa === 'banco'" @unless ($pestana === 'banco') style="display: none" @endunless
                 class="pt-5 focus:outline-none">
-                <livewire:quizzes.banco-preguntas :curso="$curso" :incrustado="true" :key="'banco-'.$curso->id" />
+                <livewire:profesor.banco-preguntas :curso="$curso" :incrustado="true" :key="'banco-'.$curso->id" />
             </div>
         </div>
     </div>

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\BotSugerencias;
+namespace App\Livewire\Profesor;
 
 use App\Models\PropuestaBot;
 use Livewire\Attributes\Layout;
@@ -31,7 +31,7 @@ class ResumenSemanal extends Component
             ->with('usuario')
             ->get();
 
-        return view('livewire.bot-sugerencias.resumen-semanal', [
+        return view('livewire.profesor.resumen-semanal', [
             'pendientes' => $propuestas->where('estado', 'pendiente'),
             'aprobadas' => $propuestas->where('estado', 'aprobado'),
             'rechazadas' => $propuestas->where('estado', 'rechazado'),

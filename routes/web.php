@@ -3,8 +3,8 @@
 use App\Http\Controllers\LeccionesSemanaController;
 use App\Livewire\Actions\Logout;
 use App\Livewire\Auth\CambiarPasswordPrimerLogin;
-use App\Livewire\Cursos\BoletaEstudiante;
 use App\Livewire\Cursos\GestionMatricula;
+use App\Livewire\Estudiante\BoletaCurso;
 use App\Livewire\EventoCalendario\Index;
 use App\Livewire\Mensajeria\Selector as MensajeriaSelector;
 use App\Livewire\Profesor\PorCalificar\Index as PorCalificarIndex;
@@ -56,7 +56,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('cursos.esquema');
 
     // ERS RF-59: boleta de notas por rubro del estudiante
-    Route::get('cursos/{curso}/boleta', BoletaEstudiante::class)
+    Route::get('cursos/{curso}/boleta', BoletaCurso::class)
         ->name('cursos.boleta');
 
     // ERS RF-26 a RF-33: matrícula del curso (el Profesor solo consulta)

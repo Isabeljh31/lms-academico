@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Cursos;
+namespace App\Livewire\Estudiante;
 
 use App\Models\Curso;
 use App\Models\RubroEvaluacion;
@@ -15,7 +15,7 @@ use Livewire\Component;
  * Cada estudiante solo ve su propia boleta (sin parámetros de otro usuario).
  */
 #[Layout('layouts.app')]
-class BoletaEstudiante extends Component
+class BoletaCurso extends Component
 {
     public Curso $curso;
 
@@ -50,7 +50,7 @@ class BoletaEstudiante extends Component
 
         $notaFinal = $calculadora->notaFinal($rubros, $notasMap);
 
-        return view('livewire.cursos.boleta-estudiante', [
+        return view('livewire.estudiante.boleta-curso', [
             'esquema' => $esquema,
             'rubros' => $rubros,
             'filas' => $filas,

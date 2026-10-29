@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Quizzes\BancoPreguntas;
+use App\Livewire\Profesor\BancoPreguntas;
 use App\Livewire\Quizzes\Formulario as FormularioQuiz;
 use App\Models\BancoPregunta;
 use App\Models\Curso;

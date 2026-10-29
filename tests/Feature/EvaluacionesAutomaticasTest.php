@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Enums\ModoCalculo;
-use App\Livewire\Cursos\Actividades;
-use App\Livewire\Cursos\BoletaEstudiante;
 use App\Livewire\Cursos\LibroCalificaciones;
+use App\Livewire\Estudiante\BoletaCurso;
+use App\Livewire\Profesor\Actividades;
 use App\Livewire\Supervisor\Cursos\EsquemaEvaluacion;
 use App\Models\Entrega;
 use App\Models\NotaRubro;
@@ -55,7 +55,7 @@ class EvaluacionesAutomaticasTest extends TestCase
         $this->assertSame('en_curso', $resumen['condicion']);
         Livewire::actingAs($e['profesor'])->test(LibroCalificaciones::class, ['curso' => $e['curso']])
             ->assertSee('16.0')->assertSee('6.4')->assertSee('Promedio de actividades');
-        Livewire::actingAs($e['estudiante'])->test(BoletaEstudiante::class, ['curso' => $e['curso']])
+        Livewire::actingAs($e['estudiante'])->test(BoletaCurso::class, ['curso' => $e['curso']])
             ->assertSee('16.0')->assertSee('6.4');
 
         NotaRubro::create(['rubro_id' => $esquema->rubros->last()->id, 'estudiante_id' => $e['estudiante']->id, 'nota' => 18, 'registrado_por' => $e['profesor']->id]);
