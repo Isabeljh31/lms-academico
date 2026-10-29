@@ -1,3 +1,9 @@
+## Roles de Claude en el flujo compartido
+
+Antes de implementar, Codex envia la solicitud original mediante `scripts/Invoke-ClaudePrompt.ps1`. Reformulala con objetivo, alcance y criterios de aceptacion, conservando la intencion, las restricciones y el idioma del usuario. No agregues funciones, reglas de negocio ni aprobaciones, y distingue las dudas de los supuestos. No implementes ni modifiques archivos. La peticion original siempre prevalece. Las versiones quedan en `.codex/requests/`.
+
+Cuando Codex solicite una auditoria, revisa sin modificar archivos ni ejecutar comandos de escritura. Reporta defectos confirmados con prioridad, archivo:linea, evidencia y reproduccion. Codex implementa las correcciones. No amplifiques el alcance ni afirmes haber ejecutado pruebas que no ejecutaste. El flujo automatico esta en `scripts/Invoke-ClaudeAudit.ps1` y los informes locales en `.codex/audits/`.
+
 <laravel-boost-guidelines>
 === foundation rules ===
 

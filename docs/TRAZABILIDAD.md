@@ -368,3 +368,14 @@ equivalencia con el documento oficial, que es el que se usa en el resto de esta 
 | RF-89 | RF-94 | Solo datos del curso propio | Cumple | Cumple | `S/AsistenteIaTest` |
 | RF-97 + sin ID | RF-95 a RF-99 | Auditoría | Cumple | Cumple | + exportación a Excel · `S/AuditoriaTest`, `HojasCalculo/ExportacionesTest` |
 | RF-90 a RF-96 | RF-100 a RF-106 | Integración API | Cumple | Cumple | `S/ApiIntegracionTest` |
+
+## 5. Extensiones fuera del ERS
+
+Funciones agregadas a pedido que no corresponden a ningún RF del ERS v2. No cambian el estado de los RF anteriores.
+
+| Extensión | Origen | Implementación / pruebas | Observación |
+|---|---|---|---|
+| Debates del curso | Pedido del 26/10/2026, inspirado en la pestaña Debates de Blackboard UPN | `Debates\Index`, `Debates\Show`, `DebatePolicy`, `NuevoDebatePublicado`; tablas `debates` y `debate_comentarios` · `DebatesTest` | Profesor del curso: crea, edita, cierra/reabre, elimina y modera. Estudiante matriculado: comenta y responde (un nivel). Supervisor: solo lectura. Avisa al publicar (patrón RF-84). |
+| Contenido de la semana en secciones fijas | Pedido del 26/10/2026 (mejora de RF-35, RF-36 y RF-67; inspirado en Blackboard UPN) | `Cursos\Show` + `Cursos\Concerns\GestionaContenidoSemanal`, `Leccion::SECCIONES`, `Leccion::seccionDe`, `Leccion::tipoRecurso` · `LeccionesFormularioTest` | Se gestiona en la misma pantalla del curso: acordeón por semana con Mensaje de inicio (uno por semana), Recursos de aprendizaje, Actividades complementarias y Grabación de la clase. Las lecciones antiguas se leen en su sección equivalente; "Foro de preguntas" se conserva, pero ya no se ofrece. |
+| Apartado "Actividades" del Profesor | Pedido del 27/10/2026 (agrupa RF-39 a RF-47 sin cambiarlos) | `Cursos\Actividades` (ruta `cursos.actividades`), `livewire/cursos/actividades.blade.php` · `ActividadesTest` | Un botón "Actividades" en el curso reemplaza a Tareas, Quizzes y Banco de preguntas. Pestaña Actividades: lista unificada de tareas y quizzes con filtro, búsqueda, paginación y menú "Crear actividad" (reutiliza los formularios existentes). Pestaña Banco de preguntas. Las rutas antiguas siguen activas para el Estudiante y como compatibilidad. |
+| Carga masiva del banco de preguntas | Pedido del 27/10/2026 (extensión de RF-47; patrón de RF-11 a RF-13) | `Services\Evaluacion\ImportadorBancoPreguntas`, `Quizzes\BancoPreguntas`; columna `banco_preguntas.puntaje` (nullable) · `BancoPreguntasImportacionTest` | Plantilla .xlsx con instrucciones; .xlsx o .csv (máx. 2 MB y 500 filas); vista previa; validación fila por fila con reporte descargable; duplicados (mismo tema y enunciado) omitidos. El banco además muestra "usada en N quizzes" (el quiz guarda una copia), filtros por tema y tipo, y eliminación en lote. |

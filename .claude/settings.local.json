@@ -1,5 +1,4 @@
 {
-  "description": "Impeccable design detector: immediate-tier checks after Edit/Write on UI files, full-rule deep pass on Stop.",
   "hooks": {
     "SessionStart": [
       {
@@ -38,5 +37,9 @@
         ]
       }
     ]
-  }
+  },
+  "description": "Impeccable design detector: immediate-tier checks after Edit/Write on UI files, full-rule deep pass on Stop.",
+  "enabledMcpjsonServers": [
+    "laravel-boost"
+  ]
 }

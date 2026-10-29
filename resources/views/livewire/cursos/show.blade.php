@@ -69,6 +69,10 @@
                             <x-secondary-button>Mensajería</x-secondary-button>
                         </a>
 
+                        <a href="{{ route('cursos.debates.index', $curso) }}" wire:navigate>
+                            <x-secondary-button>Debates</x-secondary-button>
+                        </a>
+
                         @if (auth()->user()->hasRole('estudiante'))
                             @if ($this->estaInscrito)
                                 <span class="inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold bg-celeste/50 text-azul-oscuro">
@@ -95,15 +99,18 @@
                     </div>
                     @else
                     <div class="flex flex-wrap items-center gap-2">
-                        @unless ($esAdminVista)
+                        @if ($this->puedeGestionar)
+                            {{-- Tareas, Quizzes y Banco de preguntas en un solo apartado. --}}
+                            <x-gestion.boton variante="secundario" tamano="sm" icono="tarea" :href="route('cursos.actividades', $curso)">Actividades</x-gestion.boton>
+                        @elseif (! $esAdminVista)
                             <x-gestion.boton variante="secundario" tamano="sm" icono="tarea" :href="route('cursos.tareas.index', $curso)">Tareas</x-gestion.boton>
                             <x-gestion.boton variante="secundario" tamano="sm" icono="quiz" :href="route('cursos.quizzes.index', $curso)">Quizzes</x-gestion.boton>
-                        @endunless
+                        @endif
                         @if (auth()->user()->hasRole('profesor'))
                             <x-gestion.boton variante="secundario" tamano="sm" icono="usuarios" :href="route('cursos.mensajeria', $curso)">Mensajería</x-gestion.boton>
+                            <x-gestion.boton variante="secundario" tamano="sm" icono="chat" :href="route('cursos.debates.index', $curso)">Debates</x-gestion.boton>
                         @endif
                         @if ($this->puedeGestionar)
-                            <x-gestion.boton variante="secundario" tamano="sm" icono="base-datos" :href="route('cursos.banco-preguntas', $curso)">Banco de preguntas</x-gestion.boton>
                             <x-gestion.boton variante="secundario" tamano="sm" icono="usuarios" :href="route('cursos.grupos.index', $curso)">Grupos</x-gestion.boton>
                         @endif
                         @if ($this->puedeSupervisar)
@@ -256,7 +263,16 @@
                     @if ($secciones['practicas'])
                         @php $practicas = $secciones['practicas']['modulo']; @endphp
                         <section aria-labelledby="titulo-practicas-gestion" wire:key="practicas-gestion-{{ $practicas->id }}"
-                            class="overflow-hidden rounded-xl border shadow-sm {{ $esAdminVista ? 'border-arena-medio border-l-4 border-l-terracota-base bg-arena-claro/60 dark:border-stone-700 dark:border-l-terracota-base dark:bg-stone-800' : 'border-celeste border-l-4 border-l-azul-oscuro bg-celeste/60 dark:border-azul-borde-oscuro dark:border-l-azul-oscuro dark:bg-azul-superficie-oscura' }}">
+                            @if ($this->puedeGestionar)
+                                x-data="{
+                                    get abierta() { return (this.$wire.semanasAbiertas ?? []).map(Number).includes(0) },
+                                    alternar() {
+                                        const otras = (this.$wire.semanasAbiertas ?? []).map(Number).filter(s => s !== 0);
+                                        this.$wire.semanasAbiertas = this.abierta ? otras : [...otras, 0];
+                                    },
+                                }"
+                            @endif
+                            class="rounded-xl border shadow-sm {{ $esAdminVista ? 'border-arena-medio border-l-4 border-l-terracota-base bg-arena-claro/60 dark:border-stone-700 dark:border-l-terracota-base dark:bg-stone-800' : 'border-celeste border-l-4 border-l-azul-oscuro bg-celeste/60 dark:border-azul-borde-oscuro dark:border-l-azul-oscuro dark:bg-azul-superficie-oscura' }}">
                             <div class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
                                 <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white shadow-sm {{ $esAdminVista ? 'bg-terracota-oscuro' : 'bg-azul-oscuro' }}">
                                     <x-icono nombre="maletin" class="h-6 w-6" />
@@ -279,18 +295,25 @@
                                     </p>
                                 </div>
                                 @if ($this->puedeGestionar)
-                                    <div class="flex flex-wrap gap-1">
-                                        <x-gestion.boton tamano="sm" icono="documento" :href="route('lecciones.index', $practicas)">Lecciones</x-gestion.boton>
+                                    @php $practicasAbiertas = in_array(\App\Livewire\Cursos\Show::CLAVE_PRACTICAS, $semanasAbiertas, true); @endphp
+                                    <div class="flex items-center gap-1">
+                                        <x-gestion.boton variante="secundario" tamano="sm" icono="flecha-abajo" x-on:click="alternar()"
+                                            aria-controls="practicas-contenido" aria-expanded="{{ $practicasAbiertas ? 'true' : 'false' }}" x-bind:aria-expanded="abierta.toString()">
+                                            <span x-text="abierta ? 'Ocultar contenido' : 'Ver contenido'">{{ $practicasAbiertas ? 'Ocultar contenido' : 'Ver contenido' }}</span>
+                                        </x-gestion.boton>
                                         @if ($editable)
-                                            <x-gestion.boton variante="fantasma" tamano="sm" icono="lapiz" wire:click="abrirEditarModulo({{ $practicas->id }})">Editar</x-gestion.boton>
-                                            <x-gestion.boton variante="fantasma-peligro" tamano="sm" icono="papelera" wire:click="eliminarModulo({{ $practicas->id }})"
-                                                wire:confirm="¿Quitar las prácticas de campo? Se eliminan sus lecciones, tareas y quizzes. Si tienen entregas o resultados de estudiantes no se eliminarán.">
-                                                Quitar
-                                            </x-gestion.boton>
+                                            @include('livewire.cursos._menu-semana', ['modulo' => $practicas, 'numero' => \App\Livewire\Cursos\Show::CLAVE_PRACTICAS, 'etiqueta' => 'Prácticas de campo'])
                                         @endif
                                     </div>
                                 @endif
                             </div>
+                            @if ($this->puedeGestionar)
+                                <div id="practicas-contenido" role="region" aria-labelledby="titulo-practicas-gestion"
+                                    x-show="abierta" @unless ($practicasAbiertas) style="display: none" @endunless
+                                    class="border-t border-celeste/60 bg-white/70 px-4 py-3 dark:border-azul-borde-oscuro dark:bg-azul-pagina-oscura/40">
+                                    @include('livewire.cursos._secciones-leccion', ['modulo' => $practicas, 'semanaClave' => \App\Livewire\Cursos\Show::CLAVE_PRACTICAS])
+                                </div>
+                            @endif
                         </section>
                     @endif
 
@@ -313,6 +336,8 @@
                                     @include('livewire.cursos._lista-semanas')
                                 </div>
                             </details>
+                        @elseif ($this->puedeGestionar)
+                            @include('livewire.cursos._semanas-profesor')
                         @else
                             @include('livewire.cursos._lista-semanas')
                         @endif
@@ -487,6 +512,22 @@
                     <x-slot name="pie">
                         <x-gestion.boton variante="secundario" wire:click="$set('mostrarModalModulo', false)">Cancelar</x-gestion.boton>
                         <x-gestion.boton wire:click="guardarModulo">Guardar</x-gestion.boton>
+                    </x-slot>
+                </x-gestion.modal>
+            @endif
+
+            {{-- Contenido de la semana (Profesor): formulario de la sección y confirmación de eliminar o vaciar. --}}
+            @if ($mostrarFormularioLeccion && $seccionLeccion)
+                @include('livewire.cursos._formulario-leccion')
+            @endif
+
+            @if ($mostrarConfirmacion)
+                <x-gestion.modal :titulo="$confirmacionTitulo" cerrar="cerrarConfirmacion()" icono="alerta">
+                    <p class="text-sm text-stone-700 dark:text-stone-200">{{ $confirmacionMensaje }}</p>
+                    <x-slot name="pie">
+                        <x-gestion.boton variante="secundario" wire:click="cerrarConfirmacion">Cancelar</x-gestion.boton>
+                        <x-gestion.boton variante="peligro" icono="papelera" wire:click="ejecutarConfirmacion"
+                            wire:loading.attr="disabled" wire:target="ejecutarConfirmacion">{{ $confirmacionTextoBoton }}</x-gestion.boton>
                     </x-slot>
                 </x-gestion.modal>
             @endif

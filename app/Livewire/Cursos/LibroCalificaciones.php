@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\NotaRubroRegistrada;
 use App\Services\Evaluacion\CalculadoraNotas;
 use App\Services\Evaluacion\ExportadorLibroCalificaciones;
+use App\Services\Evaluacion\NotasDeEvaluacion;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
@@ -27,8 +28,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  *   curso registra y edita notas (RF-57, RF-65, matriz de la sección 5), mientras
  *   el curso no esté finalizado y el esquema sume 100 %. Toda edición de una
  *   nota ya registrada queda en la auditoría (RF-95).
- * - Vista de actividades: notas de tareas y quizzes de práctica, mostradas
- *   aparte y sin promediarse en la nota final (RF-48, RF-60).
+ * - Las actividades seleccionadas por el profesor se promedian en los rubros
+ *   automáticos. El resto conserva su carácter de práctica.
  * - Exportación a Excel del listado (RF-63).
  */
 #[Layout('layouts.app')]
@@ -87,7 +88,7 @@ class LibroCalificaciones extends Component
     public function abrirModalNota(int $rubroId, int $estudianteId): void
     {
         $this->autorizarCalificacion();
-        $this->rubroDelCurso($rubroId);
+        abort_if($this->rubroDelCurso($rubroId)->esAutomatico(), 403, 'Esta nota se calcula desde las actividades seleccionadas.');
         $this->estudianteMatriculado($estudianteId);
 
         $nota = NotaRubro::where('rubro_id', $rubroId)->where('estudiante_id', $estudianteId)->value('nota');
@@ -104,6 +105,7 @@ class LibroCalificaciones extends Component
     {
         $this->autorizarCalificacion();
         $rubro = $this->rubroDelCurso($this->rubroIdModal);
+        abort_if($rubro->esAutomatico(), 403, 'Esta nota se calcula desde las actividades seleccionadas.');
         $estudiante = $this->estudianteMatriculado($this->estudianteIdModal);
 
         $anterior = NotaRubro::where('rubro_id', $rubro->id)->where('estudiante_id', $estudiante->id)->value('nota');
@@ -280,15 +282,10 @@ class LibroCalificaciones extends Component
         $rubros = $this->curso->esquemaEvaluacion?->rubros ?? collect();
         $estudiantes = $this->estudiantes();
 
-        $notas = NotaRubro::whereIn('rubro_id', $rubros->pluck('id'))
-            ->whereIn('estudiante_id', $estudiantes->pluck('id'))
-            ->get()
-            ->groupBy('estudiante_id');
+        $notas = app(NotasDeEvaluacion::class)->resolver($rubros, $estudiantes->pluck('id'));
 
         return $estudiantes->map(function (User $estudiante) use ($rubros, $notas, $calculadora) {
-            $notasEstudiante = ($notas[$estudiante->id] ?? collect())
-                ->mapWithKeys(fn ($n) => [$n->rubro_id => $n->nota !== null ? (float) $n->nota : null])
-                ->all();
+            $notasEstudiante = $notas[$estudiante->id] ?? [];
             $condicion = $calculadora->condicion($rubros, $notasEstudiante);
 
             return [

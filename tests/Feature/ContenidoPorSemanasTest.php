@@ -33,7 +33,8 @@ class ContenidoPorSemanasTest extends TestCase
             ->assertSee('Agregar prácticas de campo')
             ->assertSee('Semana 6')
             ->assertDontSee('Semana 7')
-            ->assertSee('Preparar semana')
+            ->assertSee('Mensaje de inicio')
+            ->assertDontSee('Preparar semana')
             ->call('prepararSeccion', null)
             ->assertSet('mostrarModalModulo', true);
 

@@ -3,9 +3,9 @@
 namespace App\Livewire\Cursos;
 
 use App\Models\Curso;
-use App\Models\NotaRubro;
 use App\Models\RubroEvaluacion;
 use App\Services\Evaluacion\CalculadoraNotas;
+use App\Services\Evaluacion\NotasDeEvaluacion;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -35,11 +35,7 @@ class BoletaEstudiante extends Component
         $rubros = $esquema?->rubros ?? collect();
         $notaMinima = $calculadora->notaMinima();
 
-        $notasMap = NotaRubro::whereIn('rubro_id', $rubros->pluck('id'))
-            ->where('estudiante_id', auth()->id())
-            ->pluck('nota', 'rubro_id')
-            ->map(fn ($nota) => $nota !== null ? (float) $nota : null)
-            ->all();
+        $notasMap = app(NotasDeEvaluacion::class)->resolver($rubros, collect([auth()->id()]))[auth()->id()] ?? [];
 
         $filas = $rubros->map(function (RubroEvaluacion $rubro) use ($notasMap, $notaMinima) {
             $nota = $notasMap[$rubro->id] ?? null;

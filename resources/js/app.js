@@ -1,3 +1,4 @@
+import { tableroGrupos } from './grupos';
 import { Calendar } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -40,3 +41,24 @@ window.cargarFlatpickr = () => {
 
     return flatpickrCargado;
 };
+
+// Arrastrar y soltar (SortableJS desde cdnjs). Igual que Flatpickr: se carga
+// una sola vez y solo en la pantalla que lo usa (Grupos del curso).
+let sortableCargado = null;
+window.cargarSortable = () => {
+    if (window.Sortable) {
+        return Promise.resolve();
+    }
+
+    sortableCargado ??= new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js';
+        script.onload = () => resolve();
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+
+    return sortableCargado;
+};
+
+window.tableroGrupos = tableroGrupos;

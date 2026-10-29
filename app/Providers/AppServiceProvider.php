@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Models\Curso;
+use App\Models\Debate;
+use App\Models\DebateComentario;
 use App\Models\Entrega;
 use App\Models\Grupo;
 use App\Models\PropuestaBot;
@@ -10,6 +12,7 @@ use App\Models\Quiz;
 use App\Models\Tarea;
 use App\Models\User;
 use App\Policies\CursoPolicy;
+use App\Policies\DebatePolicy;
 use App\Policies\EntregaPolicy;
 use App\Policies\GrupoPolicy;
 use App\Policies\PropuestaBotPolicy;
@@ -61,6 +64,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Quiz::class, QuizPolicy::class);
         Gate::policy(PropuestaBot::class, PropuestaBotPolicy::class);
         Gate::policy(Grupo::class, GrupoPolicy::class);
+        Gate::policy(Debate::class, DebatePolicy::class);
+        Gate::policy(DebateComentario::class, DebatePolicy::class);
 
         $this->aplicarConfiguracionRegional();
 

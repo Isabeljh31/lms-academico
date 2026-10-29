@@ -540,3 +540,198 @@ Decisiones:
    "Aún no disponible", con número y fechas, sin su tema ni su contenido, para no revelar lo que está en preparación.
 3. **Ícono.** Maletín, del mismo set de íconos de línea que el resto de la plataforma; distinto del distintivo
    "SEM N" de las semanas.
+
+## Profesor: formulario de lección por tipo y Debates (rama `feat/profesor-lecciones-y-debates`, 26/10/2026)
+
+Sin commit. La migración se aplica en Supabase solo si se cumplen las condiciones del pedido (ver `docs/PROGRESO.md`).
+
+Formulario "Nueva lección":
+
+- M `app/Models/Leccion.php` — `FORMULARIO_POR_TIPO` (campos, etiquetas, formatos y requisito de cada tipo),
+  `TIPOS_HEREDADOS` (`foro`) y `tiposParaFormulario()`. `TIPOS_RECURSO` no cambia: las lecciones antiguas conservan
+  su etiqueta e ícono.
+- M `app/Livewire/Lecciones/Index.php` — el formulario muestra y valida solo los campos del tipo elegido; al cambiar de
+  tipo limpia los que dejan de aplicar; "Al abrir su video o su material" solo se ofrece si habrá un recurso; un
+  archivo ya subido se muestra como "Archivo actual" (se puede quitar) en vez de cargarse en el campo de enlace.
+  Presentación acepta solo PDF, PPT y PPTX.
+- M `resources/views/livewire/lecciones/index.blade.php` — formulario por tipo y desplegables propios.
+- C `resources/views/components/gestion/desplegable.blade.php` — desplegable con Alpine (teclado, ARIA, cierre al hacer
+  clic fuera, lista con `position: fixed` para no quedar cortada en el modal). No cambia `gestion/control`.
+- M `tests/Feature/Flujos/CasosDeUsoTest.php` — la lectura de la prueba de notificación lleva descripción (la nueva
+  regla exige descripción, archivo o enlace).
+- C `tests/Feature/LeccionesFormularioTest.php`.
+
+Debates (extensión fuera del ERS):
+
+- C migraciones `2026_10_26_205355_create_debates_table.php` y `2026_10_26_205357_create_debate_comentarios_table.php`
+  (solo tablas nuevas).
+- C `app/Models/Debate.php`, `app/Models/DebateComentario.php`, `database/factories/DebateFactory.php`,
+  `database/factories/DebateComentarioFactory.php`.
+- C `app/Policies/DebatePolicy.php`; M `app/Providers/AppServiceProvider.php` (registro de la política).
+- C `app/Livewire/Debates/Index.php`, `app/Livewire/Debates/Show.php` y sus vistas en
+  `resources/views/livewire/debates/` (`index`, `show`, `_comentario`).
+- C `app/Notifications/NuevoDebatePublicado.php` — aviso a los estudiantes al publicar un debate por primera vez.
+- M `app/Models/Curso.php` — relación `debates()`.
+- M `routes/cursos.php` — `cursos.debates.index` y `cursos.debates.show` (con `scopeBindings`).
+- M `resources/views/livewire/cursos/show.blade.php` — botón "Debates" para Profesor y enlace para Estudiante. La rama
+  del Supervisor no cambia.
+- C `tests/Feature/DebatesTest.php`.
+
+Decisiones:
+
+1. **Estados del debate.** Se reutilizan Borrador y Publicado de RF-37; no se ofrece Programado porque exigiría otra
+   tarea programada de avisos. "Cerrado" es aparte (`cerrado_en`) y deja el debate en solo lectura.
+2. **Aviso.** Solo la primera publicación notifica (`publicado_en`); las respuestas no notifican.
+3. **Supervisor.** Puede abrir la URL de Debates de cualquier curso en solo lectura (como en tareas y quizzes), pero
+   no se agregó un botón en su pantalla del curso.
+4. **Lecciones antiguas.** Al editar sin cambiar el tipo se conservan los datos que el tipo ya no muestra (por
+   ejemplo, el video de una lectura creada con el formulario anterior). Al cambiar de tipo se descartan.
+
+### Formulario de lección simplificado: Documento, Video y Enlace (26/10/2026)
+
+Sin commit y sin cambios en la base de datos.
+
+- M `app/Models/Leccion.php` — `TIPOS_FORMULARIO` (`documento`, `video`, `enlace`), `EQUIVALENCIAS_ANTIGUAS`
+  (lectura, presentación y actividad → Documento; grabación → Video; también los nombres largos
+  `actividad_complementaria`, `grabacion_sesion`, `recurso_externo` y `foro_preguntas`), `tipoParaFormulario()` y
+  `FORMULARIO_POR_TIPO` con los tres tipos más el heredado `foro`. `tipoRecurso()` resuelve ícono y etiqueta de valores
+  nuevos y antiguos; los antiguos se siguen mostrando con su etiqueta de siempre.
+- M `app/Livewire/Lecciones/Index.php` — Documento exige archivo o descripción (PDF, Word, Excel, PPT/PPTX o imagen,
+  10 MB); Video y Enlace exigen su URL. Estado solo Borrador o Publicado ("Programado" solo al editar una lección que
+  ya lo estaba). "Al abrir su recurso" solo se habilita con archivo o enlace. Una lección antigua se muestra con su
+  tipo equivalente y el valor nuevo se escribe al guardar.
+- M `resources/views/livewire/lecciones/index.blade.php` — selector de tipo con 3 botones con ícono, estado segmentado
+  y sección "Avance del estudiante", todos con radios nativos (flechas, Enter o Espacio, `fieldset`/`legend`). Aviso si
+  la lección conserva un video o enlace del formulario anterior.
+- M `resources/views/components/gestion/desplegable.blade.php` — la palomita solo aparece en la opción elegida (el
+  `x-show` estaba en `<x-icono>`, donde `@js` no se compila, y la expresión llegaba inválida al navegador).
+- M `tests/Feature/LeccionesFormularioTest.php` (reescrita para los tres tipos) y C `tests/Feature/DesplegableTest.php`.
+
+Decisiones:
+
+1. **Etiquetas de lecciones antiguas.** El estudiante sigue viendo "Lectura", "Presentación", etc. hasta que el
+   Profesor guarde la lección; recién ahí pasa a "Documento", "Video" o "Enlace". La etiqueta del valor `enlace`
+   cambia de "Recurso externo" a "Enlace" porque es el mismo valor que usa el tipo nuevo.
+2. **Video.** Se acepta cualquier URL http(s); la ayuda sugiere YouTube, Vimeo, Drive, Zoom o Teams, pero no se
+   restringe por dominio (las grabaciones de Drive, Zoom o Teams usan dominios variables).
+
+### Contenido de la semana en secciones fijas (26/10/2026)
+
+Reemplaza al formulario con tipo de recurso de las dos entradas anteriores. Sin commit y sin migración: la sección se
+guarda en `lecciones.tipo_recurso` (`varchar(30)` sin restricción, revisado con `db:table`).
+
+- M `app/Models/Leccion.php` — `SECCIONES` (`mensaje_inicio`, `recursos`, `actividades`, `grabacion`),
+  `EQUIVALENCIAS_ANTIGUAS`, `TIPOS_ANTIGUOS`, `EXTENSIONES_ARCHIVO`, `seccionDe()`, `seccion()`, `iconoDelMaterial()`.
+  `tipoRecurso()` da etiqueta e ícono para valores nuevos y antiguos; en Recursos el ícono sale de la extensión o de
+  la URL.
+- M `app/Livewire/Lecciones/Index.php` — `agregar($seccion)` reemplaza a `abrirNueva()`; cada sección define su
+  formulario y su validación; Mensaje de inicio único por semana (si existe, se edita); fuente del material como
+  selector "Subir archivo / Pegar enlace" (y "Sin adjunto" en Actividades); condición de completitud con valor por
+  defecto según la sección hasta que el Profesor elige; el orden se cambia dentro de la sección; `cerrarFormulario()`
+  limpia todo el estado.
+- M `resources/views/livewire/lecciones/index.blade.php` — página "Contenido de la semana" con las 4 secciones
+  expandibles (contador, "Agregar" o "Editar"), lista de elementos con estado, editar, eliminar y orden; modal por
+  sección con estado segmentado y "Avance del estudiante" colapsado (el valor elegido se ve en el resumen).
+- M `tests/Feature/LeccionesFormularioTest.php` (reescrita) y `tests/Feature/Flujos/CasosDeUsoTest.php`
+  (`agregar('actividades')` en lugar de `abrirNueva()`).
+
+Eliminado por obsoleto: selector de "Tipo de lección" (botones Documento/Video/Enlace), `Leccion::TIPOS_RECURSO`,
+`TIPOS_FORMULARIO`, `TIPOS_HEREDADOS`, `FORMULARIO_POR_TIPO`, `formularioDe()`, `tipoParaFormulario()`,
+`tiposParaFormulario()`, `Index::abrirNueva()`, `updatedTipoRecurso()`, `$tiposDisponibles`, `$tipoGuardado`, la
+validación "archivo o descripción" de Documento y los textos de ayuda de cada tipo.
+
+Decisiones:
+
+1. **Dónde están las secciones.** En la pantalla de gestión de cada semana (botón "Lecciones" del curso). La pantalla
+   del curso y la del Estudiante no cambian.
+2. **Equivalencias.** lectura, presentación, video, enlace, recurso_externo y documento → Recursos; actividad y
+   actividad_complementaria → Actividades; grabacion_sesion → Grabación; foro y foro_preguntas se conservan como
+   "Foro de preguntas (formato anterior)". El valor nuevo se escribe solo en la lección que se guarda.
+3. **Lección antigua de video.** Al editarla en Recursos, su enlace pasa a "Pegar enlace" (de `video_url` a
+   `material_url`) al guardar.
+4. **Etiquetas antiguas.** Hasta que se guarden, las lecciones antiguas conservan la etiqueta e ícono que ya veía el
+   estudiante ("Lectura", "Presentación", "Recurso externo"…).
+
+### Contenido de cada semana en la misma pantalla del curso (26/10/2026)
+
+El Profesor ya no sale de la pantalla del curso para cargar contenido. Sin migración y sin commit.
+
+- C `app/Livewire/Cursos/Concerns/GestionaContenidoSemanal.php` — toda la gestión del contenido semanal (antes en
+  `Lecciones\Index`): acordeón (`$semanasAbiertas`), formulario por sección (`agregarLeccion`, `editarLeccion`,
+  `guardarLeccion`, `moverLeccion`), confirmación de eliminar o vaciar (`confirmarEliminarLeccion`,
+  `confirmarVaciarModulo`, `ejecutarConfirmacion`). Una semana vacía se crea al guardar su primer elemento.
+- M `app/Livewire/Cursos/Show.php` — usa el trait; al entrar abre la semana en curso (o la primera con contenido, o la
+  Semana 1, o la indicada en `?semana=N`); carga las lecciones de todas las semanas en una sola consulta.
+- C `resources/views/livewire/cursos/_semanas-profesor.blade.php` (acordeón), `_secciones-leccion.blade.php` (las 4
+  secciones de una semana), `_formulario-leccion.blade.php` (modal) y `_menu-semana.blade.php` (menú "⋯": Editar y
+  Vaciar).
+- M `resources/views/livewire/cursos/show.blade.php` — el Profesor usa el acordeón; prácticas de campo con "Ver
+  contenido" y menú "⋯"; modal de confirmación. La vista del Supervisor y la del Estudiante no cambian.
+- M `resources/views/livewire/cursos/_lista-semanas.blade.php` — queda solo para el Supervisor (consulta).
+- C `app/Http/Controllers/LeccionesSemanaController.php` — la ruta antigua `lecciones.index` redirige a la pantalla del
+  curso con esa semana abierta (compatibilidad para enlaces guardados).
+- E `app/Livewire/Lecciones/Index.php` y `resources/views/livewire/lecciones/index.blade.php`.
+- M pruebas: `LeccionesFormularioTest` (reescrita sobre la pantalla del curso), `CasosDeUsoTest`, `IdorTest`,
+  `AccesoPorRolTest` (la ruta antigua responde 302 al Profesor), `RevisionPantallasTest` (sin la pantalla eliminada),
+  `ContenidoPorSemanasTest` y `CursoShowEstudianteTest` (ya no existe "Preparar semana").
+
+Eliminado: botón "Lecciones" de cada semana y de prácticas de campo, botón "Preparar semana", botones "Editar" y
+"Vaciar" sueltos de cada fila (pasan al menú "⋯"), `wire:confirm` de "Vaciar" y "Quitar" (ahora modal de
+confirmación con el detalle de lo que se borra) y la pantalla `Lecciones\Index`.
+
+### Pulido visual y de comportamiento de "Contenido por semanas" (27/10/2026)
+
+Solo el bloque del Profesor. Sin colores nuevos, sin dependencias, sin migración y sin commit.
+
+- M `app/Livewire/Cursos/Concerns/GestionaContenidoSemanal.php` — `$seccionesAbiertas` (semana => sección): todas
+  las secciones empiezan cerradas, una sola abierta por semana, Alpine la cambia sin pedir al servidor y se conserva
+  entre re-renders; `guardarLeccion` abre la sección del elemento guardado; `updatedSeccionesAbiertas` descarta
+  valores no válidos que lleguen del navegador. "Agregar" (`agregarLeccion`) no cambia la sección abierta.
+- M `resources/views/livewire/cursos/_semanas-profesor.blade.php` — nivel 1: número en recuadro de 44 px (relleno
+  `azul-oscuro` si la semana está abierta), título en negrita, fechas y resumen en `slate-600`, divisor
+  `azul-oscuro/15` entre semanas, semana abierta con fondo `celeste/60` y chevron girado.
+- M `resources/views/livewire/cursos/_secciones-leccion.blade.php` — nivel 2: filas sin tarjeta colgadas de una guía
+  vertical (`azul-oscuro/20`), divisores `azul-oscuro/10`, íconos de 44 px con trazo 2 y fondo claro + ícono oscuro
+  de la paleta azul (uno por sección); sección abierta con fondo `azul-oscuro/[0.06]`, acento izquierdo
+  `azul-oscuro` y chevron girado; botón "Agregar"/"Editar" del mismo ancho fuera del botón de la fila (pasa debajo
+  del título en pantallas angostas). Nivel 3: elementos en filas compactas con divisor superior sutil, texto de 13 px
+  e ícono de 28 px; Editar/Eliminar como acciones de texto pequeñas (Eliminar sigue con confirmación). El Mensaje de
+  inicio ya no repite "Editar" dentro del elemento. Transición de apertura con `x-transition` y
+  `motion-reduce:transition-none`; al cerrar una sección de arriba se compensa el desplazamiento para que la fila
+  pulsada no se mueva.
+- M `tests/Feature/LeccionesFormularioTest.php` — 4 pruebas nuevas: secciones cerradas y solo la semana actual
+  abierta, una sección por semana y estado tras re-render, "Agregar" no alterna y guardar abre la sección, Editar
+  único del Mensaje de inicio.
+
+### Apartado "Actividades" del Profesor y carga masiva del banco de preguntas (27/10/2026)
+
+Solo el lado Profesor. Sin colores ni dependencias nuevas y sin commit. Estudiante y Supervisor no cambian.
+
+- C `app/Livewire/Cursos/Actividades.php` y `resources/views/livewire/cursos/actividades.blade.php` — pantalla con
+  pestañas "Actividades" y "Banco de preguntas". Lista unificada de tareas y quizzes (2 consultas con `withCount`,
+  paginada de 10 en 10), filtro Todas/Tareas/Quizzes, búsqueda, estado, fecha límite, "N por calificar" (tareas) e
+  intentos (quizzes); eliminar con confirmación (deshabilitado si hay entregas o intentos, igual que antes). Menú
+  propio "Crear actividad" (Tarea / Quiz). Pestaña, filtro y búsqueda en la URL (`?pestana=`, `?tipo=`, `?q=`).
+- M `routes/cursos.php` — ruta `cursos.actividades` (`role:profesor` + `gestionar`). Las rutas de tareas, quizzes y
+  banco no cambian.
+- M `resources/views/livewire/cursos/show.blade.php` — el Profesor del curso ve un solo botón "Actividades" en lugar de
+  Tareas, Quizzes y Banco de preguntas.
+- M `app/Livewire/Tareas/Formulario.php`, `app/Livewire/Quizzes/Formulario.php` y sus vistas — con
+  `?desde=actividades`, guardar y Cancelar vuelven a Actividades; sin el parámetro, como antes.
+- M `app/Livewire/Quizzes/BancoPreguntas.php` y `resources/views/livewire/quizzes/banco-preguntas.blade.php` — modo
+  incrustado (pestaña), filtro por tipo, contador, "usada en N quizzes" con aviso al editar, selección y eliminación
+  en lote con confirmación, campo Puntaje opcional, importación con vista previa, resultado y reporte de errores.
+- C `app/Services/Evaluacion/ImportadorBancoPreguntas.php` — lectura (.xlsx con `LectorXlsx`; .csv UTF-8 o
+  Windows-1252, coma o punto y coma), validación fila por fila, duplicados, plantilla y reporte (`LibroXlsx`).
+- M `app/Models/BancoPregunta.php` — `puntaje` (usado al copiar al quiz; vacío = 1), claves de duplicado/enunciado.
+- M `app/Models/Curso.php` — el clon del curso copia también `puntaje` del banco.
+- C `database/migrations/2026_10_27_165000_add_puntaje_to_banco_preguntas_table.php` — `ADD COLUMN puntaje
+  decimal(5,2) NULL`. Aplicada en Supabase.
+- C pruebas: `ActividadesTest` (9) y `BancoPreguntasImportacionTest` (8).
+- M (27/10/2026) Puntaje decidido en el quiz: `Quizzes\Formulario` agrega "Puntaje total del quiz" (0–20, por defecto 20, en `configuracion.puntaje_total`, sin migración), "Repartir en partes iguales" (ajuste en la última pregunta; no disponible con intentos) y aviso "Suma actual / Total" sin bloquear; el banco muestra "Puntaje sugerido (opcional)" · `QuizPuntajeTotalTest`.
+- C/M (27/10/2026) Fechas del Profesor sin calendario nativo: nuevo `components/gestion/fecha-hora.blade.php` (envuelve el Flatpickr ya usado por el sistema; dd/mm/aaaa hh:mm, 24 h, español, botón "Quitar fecha") en "Disponible desde"/"Fecha límite" del quiz y "Fecha de inicio"/"Fecha límite" de la tarea; mismo valor `Y-m-d\TH:i` al servidor · `SelectorFechaHoraProfesorTest`.
+- M (27/10/2026) Formulario de quiz (Profesor): empieza sin preguntas con dos acciones (banco / pregunta nueva), panel del banco con tema, buscador, "Seleccionar todas" y "Agregar N seleccionadas"; las del banco se copian, se ven de solo lectura con "Del banco · tema" y "Editar"/"Editada" (`banco_tema` y `editada` en el JSON del quiz, sin migración); el total se reparte solo salvo puntajes manuales; sin flechas ni rueda en números (`.campos-sin-flechas` en app.css); al menos 1 pregunta para guardar · `QuizFormularioPreguntasTest`.
+- C/M (27/10/2026) Banco de preguntas por unidad: columna nueva `banco_preguntas.unidad` (nullable, índice con `curso_id`; existentes "Sin unidad", sin backfill) con valores `BancoPregunta::UNIDADES` (T1–T4); campo "Unidad" obligatorio en el modal, chips de unidad, temas filtrados por unidad, "Ocultar unidades anteriores" (localStorage) con "Mostrar todas"; plantilla Excel/CSV con columna `unidad` antes de `tema` (archivo sin ella pide la plantilla nueva); el quiz elige Unidad → Tema y muestra "Del banco · T1 · tema" (`banco_unidad` en el JSON) · `BancoPreguntasImportacionTest`, `QuizFormularioPreguntasTest`.
+- M (27/10/2026) Banco por unidad actual y repaso de lo más fallado: selector "Unidad actual" (localStorage por curso) en lugar de los chips, unidades anteriores archivadas con "Ver unidades archivadas" (agrupadas) y aviso de preguntas sin unidad; las copias en el quiz guardan `banco_pregunta_id` y `banco_unidad` en su JSON (sin migración; el estudiante no las recibe); nuevo `Services/Evaluacion/EstadisticaFallosBanco` (% de fallos por pregunta del banco con los intentos enviados, en lote, "Sin datos" con menos de 3 respuestas); el quiz abre el banco en la unidad actual con "Incluir unidades anteriores", orden "Más falladas primero"/por tema y "Seleccionar las N más falladas" · `BancoUnidadActualYFallosTest`.
+- F (27/10/2026) Banco de preguntas, borrado y espacio vacío: "Seleccionar esta página" usaba los ids de la primera carga guardados en `x-data` (Alpine no lo reevalúa al re-renderizar) y "Eliminar seleccionadas" borraba preguntas ya no visibles; ahora la página se selecciona en el servidor (`alternarSeleccionPagina`), la selección se limpia al cambiar unidad, filtros, búsqueda o página (`updatingPaginators`), solo se borran ids del curso visibles en la página, y tras borrar se vuelve de una página vacía y el aviso se trae a la vista; el mismo patrón se corrigió en "Seleccionar todas" del formulario del quiz. Espacio vacío/menú cortado: los `sr-only` (absolute) se posicionaban respecto de `<body>` y estiraban el documento; raíz del banco y de Actividades con `relative` · `BancoPreguntasBorradoTest`.
+- F (27/10/2026) Espacio vacío bajo el contenido y menú lateral cortado (Profesor): los `sr-only` (position: absolute) sin ancestro posicionado se ubicaban respecto de `<body>`, escapaban de la columna con scroll del layout y estiraban el documento (medido: editar quiz con 20 preguntas del banco, 7711 px en una ventana de 900). `relative` en la raíz de formulario de quiz y panel de reportes del profesor, en el formulario de calificación de `tareas/detalle`, y solo para el profesor en asistencia y grupos (vistas compartidas con Supervisor); banco y Actividades ya lo tenían · `ContencionTextosOcultosProfesorTest`.

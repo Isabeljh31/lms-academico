@@ -29,10 +29,10 @@
             <x-gestion.tarjeta titulo="Plazos y calificación" descripcion="La nota de la tarea es de práctica: no se suma sola a la nota final ponderada del curso.">
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <x-gestion.campo etiqueta="Fecha de inicio" nombre="fecha_inicio" ayuda="Opcional. Antes de esta fecha no se puede entregar.">
-                        <x-gestion.control id="fecha_inicio" type="datetime-local" wire:model="fecha_inicio" />
+                        <x-gestion.fecha-hora id="fecha_inicio" wire:model="fecha_inicio" />
                     </x-gestion.campo>
                     <x-gestion.campo etiqueta="Fecha límite" nombre="fecha_entrega" requerido>
-                        <x-gestion.control id="fecha_entrega" type="datetime-local" wire:model="fecha_entrega" />
+                        <x-gestion.fecha-hora id="fecha_entrega" wire:model="fecha_entrega" />
                     </x-gestion.campo>
                     <x-gestion.campo etiqueta="Puntaje / peso de práctica" nombre="peso_nota" requerido>
                         <x-gestion.control id="peso_nota" type="number" step="0.01" min="0" max="100" wire:model="peso_nota" />
@@ -97,7 +97,7 @@
             </x-gestion.tarjeta>
 
             <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <x-gestion.boton variante="secundario" :href="route('cursos.tareas.index', $curso)">Cancelar</x-gestion.boton>
+                <x-gestion.boton variante="secundario" :href="$this->rutaVolver()">Cancelar</x-gestion.boton>
                 <x-gestion.boton type="submit" icono="check">Guardar tarea</x-gestion.boton>
             </div>
         </form>

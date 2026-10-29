@@ -8,7 +8,6 @@ use App\Livewire\Asistencia\Index as AsistenciaIndex;
 use App\Livewire\Cursos\Show;
 use App\Livewire\EventoCalendario\Index as Calendario;
 use App\Livewire\Grupos\Index as GruposIndex;
-use App\Livewire\Lecciones\Index as LeccionesIndex;
 use App\Livewire\Mensajeria\Bandeja;
 use App\Livewire\Quizzes\Formulario as QuizFormulario;
 use App\Livewire\Quizzes\Resolver;
@@ -85,11 +84,14 @@ class CasosDeUsoTest extends TestCase
         Notification::fake();
         $escenario = $this->escenario();
 
-        Livewire::actingAs($escenario['profesor'])->test(LeccionesIndex::class, ['modulo' => $escenario['modulo']])
-            ->call('abrirNueva')
+        $escenario['modulo']->update(['semana' => 1]);
+
+        Livewire::actingAs($escenario['profesor'])->test(Show::class, ['curso' => $escenario['curso']])
+            ->call('agregarLeccion', 'actividades', 1)
             ->set('titulo', 'Introducción')
+            ->set('descripcion', 'Lectura de bienvenida al curso.')
             ->set('estado', 'publicado')
-            ->call('guardar')
+            ->call('guardarLeccion')
             ->assertHasNoErrors();
 
         Notification::assertSentTo($escenario['estudiante'], NuevoContenidoPublicado::class);
@@ -228,12 +230,14 @@ class CasosDeUsoTest extends TestCase
 
         $this->assertSame('aprobacion', $escenario['modulo']->fresh()->condicion_completitud);
 
-        Livewire::actingAs($escenario['profesor'])->test(LeccionesIndex::class, ['modulo' => $escenario['modulo']])
-            ->call('abrirNueva')
+        $escenario['modulo']->update(['semana' => 1]);
+
+        Livewire::actingAs($escenario['profesor'])->test(Show::class, ['curso' => $escenario['curso']])
+            ->call('agregarLeccion', 'actividades', 1)
             ->set('titulo', 'Sin recurso')
             ->set('estado', 'publicado')
             ->set('condicion_completitud', 'abrir_recurso')
-            ->call('guardar')
+            ->call('guardarLeccion')
             ->assertHasErrors('condicion_completitud');
     }
 
@@ -478,12 +482,12 @@ class CasosDeUsoTest extends TestCase
         $grupo = $escenario['curso']->grupos()->firstOrFail();
 
         $componente->call('empezarRenombrar', $grupo->id)->set('nombreRenombrar', 'Equipo Alfa')->call('renombrar');
-        $componente->set("seleccion.{$grupo->id}", (string) $escenario['estudiante']->id)->call('asignar', $grupo->id);
+        $componente->call('mover', [$escenario['estudiante']->id], $grupo->id);
 
         $this->assertSame('Equipo Alfa', $grupo->fresh()->nombre);
         $this->assertTrue($grupo->estudiantes()->whereKey($escenario['estudiante']->id)->exists());
 
-        $componente->set("seleccion.{$grupo->id}", (string) $ajeno->id)->call('asignar', $grupo->id)->assertForbidden();
+        $componente->call('mover', [$ajeno->id], $grupo->id)->assertForbidden();
     }
 
     // CU-08 / RF-80 a RF-83

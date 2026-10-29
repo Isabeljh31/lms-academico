@@ -57,7 +57,8 @@ class AccesoPorRolTest extends TestCase
             'mi asistencia' => ['cursos.mi-asistencia', ['curso'], [403, 403, 200]],
             'boleta' => ['cursos.boleta', ['curso'], [403, 403, 200]],
             'banco de preguntas' => ['cursos.banco-preguntas', ['curso'], [403, 200, 403]],
-            'lecciones' => ['lecciones.index', ['modulo'], [403, 200, 403]],
+            // Ruta antigua: solo redirige a la pantalla del curso, donde se gestiona el contenido.
+            'lecciones' => ['lecciones.index', ['modulo'], [403, 302, 403]],
             'tareas' => ['cursos.tareas.index', ['curso'], [200, 200, 200]],
             'crear tarea' => ['cursos.tareas.crear', ['curso'], [403, 200, 403]],
             'detalle tarea' => ['cursos.tareas.show', ['curso', 'tarea'], [200, 200, 200]],

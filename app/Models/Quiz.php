@@ -6,6 +6,7 @@ use App\Models\Concerns\TieneEstadoPublicacion;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
 
@@ -263,9 +264,18 @@ class Quiz extends Model
      */
     public function puedeEliminarse(): bool
     {
+        if ($this->rubrosEvaluacion()->exists()) {
+            return false;
+        }
+
         return $this->relationLoaded('resultados')
             ? $this->resultados->isEmpty()
             : $this->resultados()->doesntExist();
+    }
+
+    public function rubrosEvaluacion(): BelongsToMany
+    {
+        return $this->belongsToMany(RubroEvaluacion::class, 'rubro_quiz', 'quiz_id', 'rubro_id')->withPivot('peso');
     }
 
     /**

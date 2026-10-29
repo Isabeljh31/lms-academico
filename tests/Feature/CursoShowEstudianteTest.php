@@ -57,7 +57,7 @@ class CursoShowEstudianteTest extends TestCase
         Livewire::actingAs($profesor)
             ->test(Show::class, ['curso' => $curso])
             ->assertSee('Contenido por semanas')
-            ->assertSee('Preparar semana')
+            ->assertSee('Recursos de aprendizaje')
             ->assertDontSee('Mi grupo');
     }
 

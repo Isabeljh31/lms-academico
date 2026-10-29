@@ -11,6 +11,7 @@ use App\Models\SesionClase;
 use App\Models\Tarea;
 use App\Models\User;
 use App\Services\Calendario\ColoresCursos;
+use App\Services\Evaluacion\NotasDeEvaluacion;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
@@ -446,14 +447,16 @@ class Index extends Component
         return $this->cursos
             ->filter(fn (Curso $c) => $c->fecha_inicio && $c->esquemaEvaluacion)
             ->flatMap(function (Curso $curso) {
-                $matriculados = $curso->inscripcionesActivas()->count();
+                $estudiantes = $curso->inscripcionesActivas()->pluck('estudiante_id');
+                $notas = app(NotasDeEvaluacion::class)
+                    ->resolver($curso->esquemaEvaluacion->rubros, $estudiantes);
 
                 return $curso->esquemaEvaluacion->rubros
                     ->filter(fn ($rubro) => $rubro->semana && $this->semanaDelCurso($curso, (int) $rubro->semana)->copy()->endOfWeek()->isPast())
                     ->map(fn ($rubro) => [
                         'curso' => $curso,
                         'rubro' => $rubro,
-                        'faltan' => max(0, $matriculados - $rubro->notas()->whereIn('estudiante_id', $curso->inscripcionesActivas()->select('estudiante_id'))->count()),
+                        'faltan' => $estudiantes->filter(fn ($id) => ($notas[$id][$rubro->id] ?? null) === null)->count(),
                     ]);
             })
             ->filter(fn ($item) => $item['faltan'] > 0)

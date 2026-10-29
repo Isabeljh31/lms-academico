@@ -62,7 +62,11 @@
             <tbody class="divide-y divide-stone-50 dark:divide-stone-700/50">
                 @foreach($filas as $f)
                 <tr class="hover:bg-stone-50 dark:hover:bg-stone-700/20">
-                    <td class="px-6 py-4 font-medium text-stone-800 dark:text-stone-200">{{ $f['rubro']->nombre }}</td>
+                    <td class="px-6 py-4 font-medium text-stone-800 dark:text-stone-200">{{ $f['rubro']->nombre }}
+                        @if ($f['rubro']->esAutomatico())
+                            <p class="mt-1 text-xs font-normal text-stone-500 dark:text-stone-400">{{ $f['rubro']->modo_calculo->etiqueta() }} @if ($f['nota'] === null) · Actividades pendientes @endif</p>
+                        @endif
+                    </td>
                     <td class="px-4 py-4 text-center text-stone-500 dark:text-stone-400">
                         {{ $f['rubro']->semana ? "Sem. {$f['rubro']->semana}" : '—' }}
                     </td>

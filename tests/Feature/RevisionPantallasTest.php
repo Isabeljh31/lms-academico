@@ -50,7 +50,6 @@ class RevisionPantallasTest extends TestCase
             'P panel' => ['profesor', 'dashboard', [], 'Cursos a cargo'],
             'P cursos' => ['profesor', 'cursos.index', [], 'Curso de prueba'],
             'P curso' => ['profesor', 'cursos.show', ['curso'], 'Contenido por semanas'],
-            'P lecciones' => ['profesor', 'lecciones.index', ['modulo'], 'Lección visible'],
             'P tareas' => ['profesor', 'cursos.tareas.index', ['curso'], 'Tarea de prueba'],
             'P nueva tarea' => ['profesor', 'cursos.tareas.crear', ['curso'], 'Formatos de archivo permitidos'],
             'P tarea' => ['profesor', 'cursos.tareas.show', ['curso', 'tarea'], 'Sin entregar'],

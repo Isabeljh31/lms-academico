@@ -212,7 +212,7 @@
                                 </div>
 
                                 @if ($this->puedeCalificar)
-                                    <form wire:submit="calificar({{ $entrega->id }})" class="flex flex-col gap-2 sm:flex-row sm:items-start">
+                                    <form wire:submit="calificar({{ $entrega->id }})" class="relative flex flex-col gap-2 sm:flex-row sm:items-start">
                                         <div>
                                             <label class="sr-only" for="nota-{{ $entrega->id }}">Nota sobre 20</label>
                                             <x-gestion.control id="nota-{{ $entrega->id }}" type="number" step="0.01" min="0" max="20" class="sm:w-28"
