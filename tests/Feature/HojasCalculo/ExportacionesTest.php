@@ -3,7 +3,7 @@
 namespace Tests\Feature\HojasCalculo;
 
 use App\Livewire\Cursos\LibroCalificaciones;
-use App\Livewire\PanelAdmin\Auditoria;
+use App\Livewire\Supervisor\Auditoria;
 use App\Models\BitacoraAuditoria;
 use App\Models\NotaRubro;
 use App\Services\HojasCalculo\HojaXlsx;

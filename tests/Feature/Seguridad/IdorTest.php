@@ -4,12 +4,12 @@ namespace Tests\Feature\Seguridad;
 
 use App\Enums\Rol;
 use App\Livewire\Asistencia\Index as AsistenciaIndex;
-use App\Livewire\Cursos\EsquemaEvaluacion;
 use App\Livewire\Cursos\GestionMatricula;
 use App\Livewire\Cursos\LibroCalificaciones;
 use App\Livewire\Cursos\Show as CursoShow;
-use App\Livewire\Docente\PorCalificar\Index as PorCalificar;
 use App\Livewire\Mensajeria\Bandeja;
+use App\Livewire\Profesor\PorCalificar\Index as PorCalificar;
+use App\Livewire\Supervisor\Cursos\EsquemaEvaluacion;
 use App\Livewire\Tareas\Detalle;
 use App\Models\Curso;
 use App\Models\Entrega;

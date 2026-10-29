@@ -42,10 +42,10 @@
                 </x-gestion.tarjeta>
                 <x-gestion.tarjeta titulo="Accesos rápidos">
                     <div class="flex flex-wrap gap-2">
-                        <x-gestion.boton variante="secundario" tamano="sm" icono="usuario-mas" :href="route('admin.usuarios.index')">Usuarios</x-gestion.boton>
+                        <x-gestion.boton variante="secundario" tamano="sm" icono="usuario-mas" :href="route('supervisor.estudiantes.index')">Usuarios</x-gestion.boton>
                         <x-gestion.boton variante="secundario" tamano="sm" icono="libro" :href="route('cursos.index')">Cursos</x-gestion.boton>
-                        <x-gestion.boton variante="secundario" tamano="sm" icono="grafico" :href="route('admin.metricas')">Dashboard institucional</x-gestion.boton>
-                        <x-gestion.boton variante="secundario" tamano="sm" icono="escudo" :href="route('admin.auditoria')">Auditoría</x-gestion.boton>
+                        <x-gestion.boton variante="secundario" tamano="sm" icono="grafico" :href="route('supervisor.dashboard-institucional')">Dashboard institucional</x-gestion.boton>
+                        <x-gestion.boton variante="secundario" tamano="sm" icono="escudo" :href="route('supervisor.auditoria')">Auditoría</x-gestion.boton>
                     </div>
                 </x-gestion.tarjeta>
             </div>
@@ -61,7 +61,7 @@
 
             <x-gestion.tarjeta titulo="Mis cursos" :relleno="false">
                 <x-slot name="acciones">
-                    <x-gestion.boton variante="secundario" tamano="sm" icono="tarea" :href="route('docente.por-calificar')">Ir a Por calificar</x-gestion.boton>
+                    <x-gestion.boton variante="secundario" tamano="sm" icono="tarea" :href="route('profesor.por-calificar')">Ir a Por calificar</x-gestion.boton>
                 </x-slot>
                 @if ($cursos->isEmpty())
                     <div class="p-4">

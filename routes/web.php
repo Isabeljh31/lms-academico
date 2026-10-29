@@ -4,12 +4,11 @@ use App\Http\Controllers\LeccionesSemanaController;
 use App\Livewire\Actions\Logout;
 use App\Livewire\Auth\CambiarPasswordPrimerLogin;
 use App\Livewire\Cursos\BoletaEstudiante;
-use App\Livewire\Cursos\EsquemaEvaluacion;
 use App\Livewire\Cursos\GestionMatricula;
-use App\Livewire\Docente\PorCalificar\Index as PorCalificarIndex;
 use App\Livewire\EventoCalendario\Index;
 use App\Livewire\Mensajeria\Selector as MensajeriaSelector;
-use App\Livewire\Usuarios\ImportarCSV;
+use App\Livewire\Profesor\PorCalificar\Index as PorCalificarIndex;
+use App\Livewire\Supervisor\Cursos\EsquemaEvaluacion;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -37,7 +36,7 @@ Route::get('/evento-calendario', Index::class)
 // ERS RF-49: bandeja de entregas por calificar del profesor
 Route::get('/por-calificar', PorCalificarIndex::class)
     ->middleware(['auth', 'verified', 'role:profesor'])
-    ->name('docente.por-calificar');
+    ->name('profesor.por-calificar');
 
 require __DIR__.'/auth.php';
 require __DIR__.'/admin.php';
@@ -64,11 +63,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('cursos/{curso}/matriculas', GestionMatricula::class)
         ->middleware('role:supervisor|profesor')
         ->name('cursos.matriculas');
-
-    // ERS RF-11 a RF-13: importación masiva de usuarios (solo Supervisor)
-    Route::get('usuarios/importar', ImportarCSV::class)
-        ->middleware('role:supervisor')
-        ->name('usuarios.importar');
 
     // Compatibilidad: la antigua pantalla de lecciones de una semana lleva a la pantalla del curso,
     // donde ahora se gestiona el contenido (ERS RF-35 a RF-38).
