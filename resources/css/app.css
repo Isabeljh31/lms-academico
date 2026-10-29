@@ -179,3 +179,27 @@
     -moz-appearance: textfield;
     appearance: textfield;
 }
+
+/*
+ * Grupos del curso: arrastrar y soltar (SortableJS, ver tableroGrupos en
+ * resources/js/app.js). Hueco que deja el estudiante arrastrado, el chip
+ * elegido y la entrada animada al grupo de destino.
+ */
+.grupos-fantasma {
+    opacity: 0.35;
+    outline: 2px dashed #2541B2;
+    outline-offset: 2px;
+}
+.grupos-elegido {
+    box-shadow: 0 10px 20px -8px rgb(3 37 108 / 0.45);
+}
+@keyframes grupos-entrada {
+    from { opacity: 0; transform: translateY(-4px) scale(0.96); }
+    to { opacity: 1; transform: none; }
+}
+.grupos-entrada {
+    animation: grupos-entrada 220ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+    .grupos-entrada { animation: none; }
+}

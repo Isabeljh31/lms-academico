@@ -6,10 +6,10 @@ use App\Models\Curso;
 use App\Models\Leccion;
 use App\Models\LeccionCompletada;
 use App\Models\Modulo;
-use App\Models\NotaRubro;
 use App\Models\ResultadoQuiz;
 use App\Models\User;
 use App\Services\Evaluacion\CalculadoraNotas;
+use App\Services\Evaluacion\NotasDeEvaluacion;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
@@ -319,11 +319,8 @@ class ProgresoAcademicoService
         $rubros = $esquema?->rubros ?? collect();
         $notaMinima = $this->calculadora->notaMinima();
 
-        $notas = NotaRubro::whereIn('rubro_id', $rubros->pluck('id'))
-            ->where('estudiante_id', $estudiante->id)
-            ->pluck('nota', 'rubro_id')
-            ->map(fn ($n) => $n !== null ? (float) $n : null)
-            ->all();
+        $notas = app(NotasDeEvaluacion::class)
+            ->resolver($rubros, collect([$estudiante->id]))[$estudiante->id] ?? [];
 
         $notaFinal = $this->calculadora->notaFinal($rubros, $notas);
         $condicion = $this->calculadora->condicion($rubros, $notas);

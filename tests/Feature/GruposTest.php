@@ -60,10 +60,49 @@ class GruposTest extends TestCase
 
         $grupo = Grupo::where('curso_id', $curso->id)->where('nombre', 'Grupo A')->firstOrFail();
 
-        $componente->set("seleccion.$grupo->id", $estudiante->id)
-            ->call('asignar', $grupo->id);
+        $componente->call('mover', [$estudiante->id], $grupo->id)->assertHasNoErrors();
 
         $this->assertTrue($grupo->fresh()->estudiantes->contains($estudiante));
+    }
+
+    public function test_cancelar_renombrado_descarta_el_nombre_y_los_errores_sin_modificar_el_grupo(): void
+    {
+        [$profesor, $curso] = $this->cursoConProfesor();
+        $grupo = $curso->grupos()->create(['nombre' => 'Grupo original']);
+
+        Livewire::actingAs($profesor)->test(GruposIndex::class, ['curso' => $curso])
+            ->call('empezarRenombrar', $grupo->id)
+            ->assertSee('wire:click="cancelarRenombrar"', false)
+            ->set('nombreRenombrar', '')
+            ->call('renombrar')->assertHasErrors('nombreRenombrar')
+            ->call('cancelarRenombrar')
+            ->assertSet('grupoRenombrarId', null)
+            ->assertSet('nombreRenombrar', '')
+            ->assertHasNoErrors('nombreRenombrar')
+            ->assertSee('Grupo original');
+
+        $this->assertSame('Grupo original', $grupo->fresh()->nombre);
+    }
+
+    public function test_cada_estudiante_aparece_solo_en_su_zona_al_mover_y_deshacer(): void
+    {
+        [$profesor, $curso] = $this->cursoConProfesor();
+        $estudiante = $this->inscribir($curso);
+        $sinGrupo = $this->inscribir($curso);
+        $grupo = $curso->grupos()->create(['nombre' => 'Grupo 1']);
+        $grupo->estudiantes()->attach($estudiante);
+
+        $componente = Livewire::actingAs($profesor)->test(GruposIndex::class, ['curso' => $curso])
+            ->assertViewHas('sinGrupo', fn ($alumnos) => $alumnos->pluck('id')->all() === [$sinGrupo->id]);
+        $this->assertSame(1, substr_count($componente->html(), 'data-estudiante="'.$estudiante->id.'"'));
+
+        $componente->call('mover', [$sinGrupo->id], $grupo->id)
+            ->assertViewHas('sinGrupo', fn ($alumnos) => $alumnos->isEmpty());
+        $this->assertSame(1, substr_count($componente->html(), 'data-estudiante="'.$sinGrupo->id.'"'));
+
+        $componente->call('deshacerUltimo')
+            ->assertViewHas('sinGrupo', fn ($alumnos) => $alumnos->pluck('id')->all() === [$sinGrupo->id]);
+        $this->assertSame(1, substr_count($componente->html(), 'data-estudiante="'.$sinGrupo->id.'"'));
     }
 
     public function test_asignar_a_otro_grupo_del_mismo_curso_lo_quita_del_anterior(): void
@@ -76,8 +115,7 @@ class GruposTest extends TestCase
 
         Livewire::actingAs($profesor)
             ->test(GruposIndex::class, ['curso' => $curso])
-            ->set("seleccion.$grupoB->id", $estudiante->id)
-            ->call('asignar', $grupoB->id);
+            ->call('mover', [$estudiante->id], $grupoB->id);
 
         $this->assertFalse($grupoA->fresh()->estudiantes->contains($estudiante));
         $this->assertTrue($grupoB->fresh()->estudiantes->contains($estudiante));
@@ -167,5 +205,96 @@ class GruposTest extends TestCase
         $this->assertEquals(16, $entrega2->fresh()->nota);
         $this->assertEquals('Buen trabajo en equipo', $entrega2->fresh()->feedback);
         $this->assertEquals('calificado', $entrega2->fresh()->estado);
+    }
+
+    public function test_mover_varios_a_la_vez_y_devolverlos_a_sin_grupo(): void
+    {
+        [$profesor, $curso] = $this->cursoConProfesor();
+        [$ana, $beto] = [$this->inscribir($curso), $this->inscribir($curso)];
+        $grupo = $curso->grupos()->create(['nombre' => 'Grupo 1']);
+
+        $componente = Livewire::actingAs($profesor)->test(GruposIndex::class, ['curso' => $curso])
+            ->call('mover', [$ana->id, $beto->id], $grupo->id)
+            ->assertSee('2 estudiantes ahora están en Grupo 1.');
+        $this->assertEqualsCanonicalizing([$ana->id, $beto->id], $grupo->estudiantes()->pluck('users.id')->all());
+
+        $componente->call('mover', [$ana->id], null)->assertSee("{$ana->name} volvió a Sin grupo.");
+        $this->assertSame([$beto->id], $grupo->estudiantes()->pluck('users.id')->all());
+    }
+
+    public function test_no_se_puede_superar_el_maximo_de_integrantes(): void
+    {
+        [$profesor, $curso] = $this->cursoConProfesor();
+        $estudiantes = collect(range(1, 3))->map(fn () => $this->inscribir($curso));
+        $grupo = $curso->grupos()->create(['nombre' => 'Grupo 1']);
+        $grupo->estudiantes()->attach($estudiantes[0]);
+
+        $componente = Livewire::actingAs($profesor)->test(GruposIndex::class, ['curso' => $curso])
+            ->set('tamanoMaximo', '2')->call('guardarTamanoMaximo')->assertHasNoErrors()
+            ->call('mover', [$estudiantes[1]->id, $estudiantes[2]->id], $grupo->id)
+            ->assertSee('Grupo 1 admite 2 integrantes y solo le queda espacio para 1.');
+
+        $this->assertSame(2, $curso->fresh()->tamano_maximo_grupo);
+        $this->assertSame(1, $grupo->estudiantes()->count());
+
+        $componente->call('mover', [$estudiantes[1]->id], $grupo->id)->assertSee('ahora está en Grupo 1.');
+        $this->assertSame(2, $grupo->estudiantes()->count());
+
+        $componente->set('tamanoMaximo', '1')->call('guardarTamanoMaximo')->assertHasErrors('tamanoMaximo')
+            ->set('tamanoGrupoAuto', 3)->call('generarAutomatico')->assertHasErrors('tamanoGrupoAuto');
+    }
+
+    public function test_deshacer_devuelve_a_los_estudiantes_a_su_grupo_anterior(): void
+    {
+        [$profesor, $curso] = $this->cursoConProfesor();
+        $estudiante = $this->inscribir($curso);
+        $grupoA = $curso->grupos()->create(['nombre' => 'Grupo A']);
+        $grupoB = $curso->grupos()->create(['nombre' => 'Grupo B']);
+        $grupoA->estudiantes()->attach($estudiante);
+
+        Livewire::actingAs($profesor)->test(GruposIndex::class, ['curso' => $curso])
+            ->call('mover', [$estudiante->id], $grupoB->id)->assertSee('Deshacer')
+            ->call('deshacerUltimo')->assertSee('Cambio deshecho.');
+
+        $this->assertTrue($grupoA->estudiantes()->whereKey($estudiante->id)->exists());
+        $this->assertFalse($grupoB->estudiantes()->whereKey($estudiante->id)->exists());
+    }
+
+    public function test_eliminar_un_grupo_devuelve_sus_integrantes_y_se_puede_deshacer(): void
+    {
+        [$profesor, $curso, $modulo] = $this->cursoConProfesor();
+        $estudiante = $this->inscribir($curso);
+        $grupo = $curso->grupos()->create(['nombre' => 'Grupo 1']);
+        $grupo->estudiantes()->attach($estudiante);
+        $tarea = Tarea::factory()->create(['curso_id' => $curso->id, 'modulo_id' => $modulo->id]);
+        $entrega = Entrega::create(['tarea_id' => $tarea->id, 'estudiante_id' => $estudiante->id, 'grupo_id' => $grupo->id, 'estado' => 'entregado']);
+
+        $componente = Livewire::actingAs($profesor)->test(GruposIndex::class, ['curso' => $curso])
+            ->call('eliminarGrupo', $grupo->id)
+            ->assertSee('Grupo «Grupo 1» eliminado. Su integrante volvió a Sin grupo.');
+        $this->assertDatabaseMissing('grupos', ['id' => $grupo->id]);
+        $this->assertNull($entrega->fresh()->grupo_id);
+
+        $componente->call('deshacerUltimo');
+
+        $recuperado = $curso->grupos()->where('nombre', 'Grupo 1')->sole();
+        $this->assertTrue($recuperado->estudiantes()->whereKey($estudiante->id)->exists());
+        $this->assertSame($recuperado->id, $entrega->fresh()->grupo_id);
+    }
+
+    public function test_no_se_mueve_a_un_grupo_de_otro_curso_ni_puede_hacerlo_el_supervisor(): void
+    {
+        [$profesor, $curso] = $this->cursoConProfesor();
+        [, $otroCurso] = $this->cursoConProfesor();
+        $estudiante = $this->inscribir($curso);
+        $ajeno = $otroCurso->grupos()->create(['nombre' => 'Ajeno']);
+        $supervisor = User::factory()->create()->assignRole(Rol::Supervisor->value);
+
+        Livewire::actingAs($profesor)->test(GruposIndex::class, ['curso' => $curso])
+            ->call('mover', [$estudiante->id], $ajeno->id)->assertNotFound();
+        Livewire::actingAs($supervisor)->test(GruposIndex::class, ['curso' => $curso])
+            ->call('mover', [$estudiante->id], null)->assertForbidden();
+
+        $this->assertSame(0, $ajeno->estudiantes()->count());
     }
 }

@@ -3,7 +3,6 @@
 namespace App\Services\Evaluacion;
 
 use App\Models\Curso;
-use App\Models\NotaRubro;
 use App\Models\RubroEvaluacion;
 use App\Models\User;
 use App\Services\ConfiguracionPlataforma;
@@ -14,8 +13,8 @@ use Illuminate\Support\Collection;
  *
  * - RF-56: la suma de pesos de los rubros debe ser exactamente 100 %.
  * - RF-58: Nota Final = Σ (nota del rubro × peso / 100), escala 0–20.
- * - RF-48 / regla de negocio 5: las notas de tareas y quizzes NUNCA entran
- *   en este cálculo.
+ * - Las actividades solo participan cuando el profesor activa el cálculo
+ *   automático del rubro y las selecciona expresamente.
  * - RF-64: la nota final se compara con la nota mínima aprobatoria general.
  *
  * Mientras no estén registradas las notas de todos los rubros, la nota final
@@ -137,7 +136,7 @@ class CalculadoraNotas
 
     /**
      * Nota final, rendimiento a la fecha y condición de cada estudiante
-     * indicado, con una sola consulta (para reportes y paneles).
+     * indicado, con consultas por lote (para reportes y paneles).
      *
      * @param  Collection<int, int>  $estudianteIds
      * @return array<int, array{nota_final: float|null, rendimiento: float|null, condicion: string}>
@@ -146,13 +145,10 @@ class CalculadoraNotas
     {
         $rubros = $curso->esquemaEvaluacion?->rubros ?? collect();
 
-        $notas = NotaRubro::whereIn('rubro_id', $rubros->pluck('id'))
-            ->whereIn('estudiante_id', $estudianteIds)
-            ->get()
-            ->groupBy('estudiante_id');
+        $notas = app(NotasDeEvaluacion::class)->resolver($rubros, $estudianteIds);
 
         return $estudianteIds->mapWithKeys(function (int $id) use ($rubros, $notas) {
-            $notasEstudiante = ($notas[$id] ?? collect())->pluck('nota', 'rubro_id')->all();
+            $notasEstudiante = $notas[$id] ?? [];
 
             return [$id => [
                 'nota_final' => $this->notaFinal($rubros, $notasEstudiante),
@@ -197,10 +193,7 @@ class CalculadoraNotas
             return null;
         }
 
-        $notas = NotaRubro::whereIn('rubro_id', $rubros->pluck('id'))
-            ->where('estudiante_id', $estudiante->id)
-            ->pluck('nota', 'rubro_id')
-            ->all();
+        $notas = app(NotasDeEvaluacion::class)->resolver($rubros, collect([$estudiante->id]))[$estudiante->id] ?? [];
 
         return $this->notaFinal($rubros, $notas);
     }
@@ -212,16 +205,13 @@ class CalculadoraNotas
     {
         $rubros = $curso->esquemaEvaluacion?->rubros ?? collect();
 
-        $notas = NotaRubro::whereIn('rubro_id', $rubros->pluck('id'))
-            ->where('estudiante_id', $estudiante->id)
-            ->pluck('nota', 'rubro_id')
-            ->all();
+        $notas = app(NotasDeEvaluacion::class)->resolver($rubros, collect([$estudiante->id]))[$estudiante->id] ?? [];
 
         return $this->rendimiento($rubros, $notas);
     }
 
     /**
-     * Notas finales de todos los estudiantes indicados, con una sola consulta.
+     * Notas finales de todos los estudiantes indicados, con consultas por lote.
      *
      * @param  Collection<int, int>  $estudianteIds
      * @return array<int, float|null> estudiante_id => nota final
@@ -230,13 +220,10 @@ class CalculadoraNotas
     {
         $rubros = $curso->esquemaEvaluacion?->rubros ?? collect();
 
-        $notas = NotaRubro::whereIn('rubro_id', $rubros->pluck('id'))
-            ->whereIn('estudiante_id', $estudianteIds)
-            ->get()
-            ->groupBy('estudiante_id');
+        $notas = app(NotasDeEvaluacion::class)->resolver($rubros, $estudianteIds);
 
         return $estudianteIds->mapWithKeys(fn (int $id) => [
-            $id => $this->notaFinal($rubros, ($notas[$id] ?? collect())->pluck('nota', 'rubro_id')->all()),
+            $id => $this->notaFinal($rubros, $notas[$id] ?? []),
         ])->all();
     }
 }

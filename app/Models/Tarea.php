@@ -6,6 +6,7 @@ use App\Models\Concerns\TieneEstadoPublicacion;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 
@@ -180,8 +181,17 @@ class Tarea extends Model
      */
     public function puedeEliminarse(): bool
     {
+        if ($this->rubrosEvaluacion()->exists()) {
+            return false;
+        }
+
         return $this->relationLoaded('entregas')
             ? $this->entregas->isEmpty()
             : $this->entregas()->doesntExist();
+    }
+
+    public function rubrosEvaluacion(): BelongsToMany
+    {
+        return $this->belongsToMany(RubroEvaluacion::class, 'rubro_tarea', 'tarea_id', 'rubro_id')->withPivot('peso');
     }
 }

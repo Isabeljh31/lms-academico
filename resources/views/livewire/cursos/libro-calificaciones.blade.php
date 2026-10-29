@@ -8,6 +8,15 @@
 
         <x-gestion.alertas />
 
+        @can('gestionar', $curso)
+            <div class="flex flex-col gap-3 text-sm text-slate-600 dark:text-slate-300 sm:items-start">
+                <x-gestion.boton variante="secundario" icono="flecha-izquierda" :href="route('cursos.actividades', $curso)">Volver a actividades</x-gestion.boton>
+                @if ($this->puedeCalificar && $this->esquemaValido)
+                    <p>Las evaluaciones automáticas usan el promedio de las actividades seleccionadas y quedan pendientes hasta que todas tengan nota. Para las evaluaciones manuales, pulsa la celda del estudiante. Configura el origen de cada nota desde Actividades.</p>
+                @endif
+            </div>
+        @endcan
+
         @if ($rubros->isEmpty())
             <x-gestion.vacio icono="grafico" titulo="El curso todavía no tiene esquema de evaluación"
                 descripcion="El Supervisor debe definir los rubros y sus pesos antes de registrar notas.">
@@ -61,6 +70,7 @@
                                             <th class="min-w-[110px] px-3 py-3 text-center">
                                                 <span class="block normal-case text-stone-700 dark:text-stone-200">{{ $rubro->nombre }}</span>
                                                 <span class="font-normal normal-case">{{ (float) $rubro->peso }} %@if ($rubro->semana) - sem. {{ $rubro->semana }} @endif</span>
+                                                <span class="block font-normal normal-case">{{ ($rubro->modo_calculo?->etiqueta() ?? 'Nota manual').' · Sobre 20' }}</span>
                                             </th>
                                         @endforeach
                                         <th class="min-w-[110px] px-3 py-3 text-center">Nota final</th>
@@ -76,7 +86,7 @@
                                             @foreach ($rubros as $rubro)
                                                 @php $nota = $fila['notas'][$rubro->id] ?? null; @endphp
                                                 <td class="px-3 py-2 text-center">
-                                                    @if ($this->puedeCalificar && $this->esquemaValido)
+                                                    @if ($this->puedeCalificar && $this->esquemaValido && ! $rubro->esAutomatico())
                                                         <button type="button" wire:click="abrirModalNota({{ $rubro->id }}, {{ $fila['estudiante']->id }})"
                                                             class="min-w-[3.5rem] rounded-lg border border-dashed px-2 py-1 text-sm font-semibold transition {{ $esAdminVista ? 'hover:border-menta-oscuro' : 'hover:border-azul-oscuro' }}
                                                                 {{ $nota === null ? ($esAdminVista ? 'border-arena-medio text-stone-400 dark:border-stone-600' : 'border-celeste text-slate-400 dark:border-azul-borde-oscuro') : ($nota < $notaMinima ? 'border-transparent bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300' : 'border-transparent bg-exito-base/10 text-exito-oscuro dark:text-green-300') }}"
@@ -85,6 +95,9 @@
                                                         </button>
                                                     @else
                                                         <span class="font-semibold {{ $nota !== null && $nota < $notaMinima ? 'text-red-600' : 'text-stone-700 dark:text-stone-200' }}">{{ $nota !== null ? number_format($nota, 1) : '—' }}</span>
+                                                    @endif
+                                                    @if ($rubro->esAutomatico())
+                                                        <p class="mt-1 text-xs text-slate-500">{{ $nota === null ? 'Actividades pendientes' : $rubro->modo_calculo->etiqueta() }}</p>
                                                     @endif
                                                 </td>
                                             @endforeach
@@ -115,7 +128,7 @@
         @endif
 
         @if ($vistaActiva === 'actividades')
-            <x-gestion.tarjeta :relleno="false" titulo="Notas de práctica" descripcion="No se promedian ni se suman automáticamente a la nota final: el profesor decide cómo considerarlas en cada rubro.">
+            <x-gestion.tarjeta :relleno="false" titulo="Notas de actividades" descripcion="Solo las actividades seleccionadas en una evaluación automática participan en su nota. Configura la selección desde Actividades.">
                 @if ($tareas->isEmpty() && $quizzes->isEmpty())
                     <div class="p-4"><x-gestion.vacio icono="tarea" titulo="El curso todavía no tiene tareas ni quizzes" /></div>
                 @elseif ($estudiantes->isEmpty())

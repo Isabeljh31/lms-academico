@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Cursos;
 
+use App\Enums\ModoCalculo;
 use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
 use App\Models\EsquemaEvaluacion as EsquemaModel;
@@ -136,6 +137,12 @@ class EsquemaEvaluacion extends Component
 
         $id = $this->rubros[$indice]['id'] ?? null;
 
+        if ($id && $this->curso->esquemaEvaluacion?->rubros()->whereKey($id)->whereIn('modo_calculo', ModoCalculo::automaticos())->exists()) {
+            $this->addError("rubros.$indice.nombre", 'El profesor debe desactivar el cálculo automático de esta evaluación antes de eliminarla.');
+
+            return;
+        }
+
         if ($id && NotaRubro::where('rubro_id', $id)->whereNotNull('nota')->exists()) {
             $this->addError("rubros.$indice.nombre", 'Este rubro ya tiene notas registradas y no se puede eliminar.');
 
@@ -163,6 +170,12 @@ class EsquemaEvaluacion extends Component
         $esquema = EsquemaModel::firstOrCreate(['curso_id' => $this->curso->id]);
         $anterior = $esquema->rubros->map->only(['nombre', 'semana', 'peso'])->values()->all();
         $idsActuales = array_filter(array_column($this->rubros, 'id'));
+
+        if ($esquema->rubros()->whereNotIn('id', $idsActuales)->whereIn('modo_calculo', ModoCalculo::automaticos())->exists()) {
+            $this->addError('rubros', 'El profesor debe desactivar el cálculo automático de las evaluaciones antes de eliminarlas.');
+
+            return;
+        }
 
         $conNotas = $esquema->rubros()->whereNotIn('id', $idsActuales)
             ->whereHas('notas', fn ($q) => $q->whereNotNull('nota'))

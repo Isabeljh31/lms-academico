@@ -62,6 +62,8 @@ class Curso extends Model
         'horario_bloques',
         // ERS RF-73: asistencia opcional
         'usa_asistencia',
+        // ERS RF-74: integrantes por grupo (null = sin límite)
+        'tamano_maximo_grupo',
     ];
 
     protected $attributes = [
@@ -76,6 +78,7 @@ class Curso extends Model
             'fecha_inicio' => 'date',
             'fecha_fin' => 'date',
             'usa_asistencia' => 'boolean',
+            'tamano_maximo_grupo' => 'integer',
             'horario_bloques' => 'array',
         ];
     }

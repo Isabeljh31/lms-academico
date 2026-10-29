@@ -482,12 +482,12 @@ class CasosDeUsoTest extends TestCase
         $grupo = $escenario['curso']->grupos()->firstOrFail();
 
         $componente->call('empezarRenombrar', $grupo->id)->set('nombreRenombrar', 'Equipo Alfa')->call('renombrar');
-        $componente->set("seleccion.{$grupo->id}", (string) $escenario['estudiante']->id)->call('asignar', $grupo->id);
+        $componente->call('mover', [$escenario['estudiante']->id], $grupo->id);
 
         $this->assertSame('Equipo Alfa', $grupo->fresh()->nombre);
         $this->assertTrue($grupo->estudiantes()->whereKey($escenario['estudiante']->id)->exists());
 
-        $componente->set("seleccion.{$grupo->id}", (string) $ajeno->id)->call('asignar', $grupo->id)->assertForbidden();
+        $componente->call('mover', [$ajeno->id], $grupo->id)->assertForbidden();
     }
 
     // CU-08 / RF-80 a RF-83

@@ -143,7 +143,7 @@ class ExportadorLibroCalificaciones
         $tareas = $curso->tareas()->orderBy('fecha_entrega')->get();
         $quizzes = $curso->quizzes()->orderBy('id')->get();
 
-        $hoja->titulo('Tareas y quizzes de práctica', $subtitulo.' · No forman parte de la nota final (ERS RF-60)');
+        $hoja->titulo('Tareas y quizzes de práctica', $subtitulo.' · Participan en la nota final solo si fueron seleccionados en una evaluación automática');
 
         if ($tareas->isEmpty() && $quizzes->isEmpty()) {
             $hoja->fila(['El curso no tiene tareas ni quizzes.']);
