@@ -3,7 +3,6 @@
 use App\Http\Controllers\RecursoLeccionController;
 use App\Livewire\Asistencia\MiHistorial;
 use App\Livewire\Cursos\Actividades;
-use App\Livewire\Cursos\Formulario;
 use App\Livewire\Cursos\Index;
 use App\Livewire\Cursos\LibroCalificaciones;
 use App\Livewire\Cursos\Show;
@@ -14,6 +13,7 @@ use App\Livewire\Mensajeria\Bandeja;
 use App\Livewire\Quizzes\BancoPreguntas;
 use App\Livewire\Quizzes\Estadisticas;
 use App\Livewire\Quizzes\Resolver;
+use App\Livewire\Supervisor\Cursos\Formulario;
 use App\Livewire\Tareas\Detalle;
 use Illuminate\Support\Facades\Route;
 

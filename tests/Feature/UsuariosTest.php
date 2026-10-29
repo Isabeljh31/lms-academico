@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Enums\Rol;
 use App\Livewire\Auth\CambiarPasswordPrimerLogin;
 use App\Livewire\Cursos\GestionMatricula;
-use App\Livewire\Usuarios\Index;
+use App\Livewire\Supervisor\Estudiantes\Index;
 use App\Mail\BienvenidaMail;
 use App\Models\Curso;
 use App\Models\Inscripcion;
@@ -40,7 +40,7 @@ class UsuariosTest extends TestCase
         $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
 
         $this->actingAs($admin)
-            ->get(route('admin.usuarios.index'))
+            ->get(route('supervisor.estudiantes.index'))
             ->assertOk();
     }
 
@@ -178,7 +178,7 @@ class UsuariosTest extends TestCase
         $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
 
         $this->actingAs($profesor)
-            ->get(route('admin.usuarios.index'))
+            ->get(route('supervisor.estudiantes.index'))
             ->assertForbidden();
     }
 
@@ -187,13 +187,13 @@ class UsuariosTest extends TestCase
         $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
 
         $this->actingAs($estudiante)
-            ->get(route('admin.usuarios.index'))
+            ->get(route('supervisor.estudiantes.index'))
             ->assertForbidden();
     }
 
     public function test_invitado_es_redirigido_a_login(): void
     {
-        $this->get(route('admin.usuarios.index'))
+        $this->get(route('supervisor.estudiantes.index'))
             ->assertRedirect(route('login'));
     }
 
@@ -582,7 +582,7 @@ class UsuariosTest extends TestCase
         Inscripcion::factory()->deBaja()->create(['curso_id' => $cursoConBaja->id, 'estudiante_id' => $estudiante->id, 'dado_de_baja_por' => $admin->id]);
 
         $this->actingAs($admin)
-            ->get(route('admin.usuarios.show', $estudiante))
+            ->get(route('supervisor.estudiantes.show', $estudiante))
             ->assertOk()
             ->assertSee('Curso finalizado')
             ->assertSee('Finalizado')
@@ -598,7 +598,7 @@ class UsuariosTest extends TestCase
         $estudiante->update(['apoderado_nombre' => 'Rosa Vela', 'apoderado_celular' => '912345678']);
 
         $this->actingAs($admin)
-            ->get(route('admin.usuarios.show', $estudiante))
+            ->get(route('supervisor.estudiantes.show', $estudiante))
             ->assertOk()
             ->assertSee('Rosa Vela')
             ->assertSee('912345678');

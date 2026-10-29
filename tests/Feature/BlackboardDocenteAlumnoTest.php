@@ -5,7 +5,7 @@ namespace Tests\Feature;
 use App\Enums\Rol;
 use App\Livewire\Cursos\LibroCalificaciones;
 use App\Livewire\Cursos\Show;
-use App\Livewire\Docente\PorCalificar\Index as PorCalificarIndex;
+use App\Livewire\Profesor\PorCalificar\Index as PorCalificarIndex;
 use App\Livewire\Tareas\Detalle;
 use App\Models\Comunicado;
 use App\Models\Curso;
@@ -91,7 +91,7 @@ class BlackboardDocenteAlumnoTest extends TestCase
         [, $estudiante] = $this->prepararEscenario();
 
         $this->actingAs($estudiante)
-            ->get(route('docente.por-calificar'))
+            ->get(route('profesor.por-calificar'))
             ->assertStatus(403);
     }
 

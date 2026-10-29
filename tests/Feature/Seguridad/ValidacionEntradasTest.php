@@ -3,10 +3,10 @@
 namespace Tests\Feature\Seguridad;
 
 use App\Enums\Rol;
-use App\Livewire\Admin\Comunicados\Index as Comunicados;
-use App\Livewire\Admin\Profesores\Index as ProfesoresIndex;
 use App\Livewire\Cursos\Index as CursosIndex;
-use App\Livewire\Usuarios\Index as UsuariosIndex;
+use App\Livewire\Supervisor\Comunicados\Index as Comunicados;
+use App\Livewire\Supervisor\Estudiantes\Index as UsuariosIndex;
+use App\Livewire\Supervisor\Profesores\Index as ProfesoresIndex;
 use App\Models\User;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -51,7 +51,7 @@ class ValidacionEntradasTest extends TestCase
         $this->usuarioConRol(Rol::Estudiante->value, ['name' => 'Ana '.self::SCRIPT]);
 
         $this->actingAs($supervisor)
-            ->get(route('admin.usuarios.index'))
+            ->get(route('supervisor.estudiantes.index'))
             ->assertOk()
             ->assertDontSee(self::SCRIPT, false);
     }
@@ -84,13 +84,13 @@ class ValidacionEntradasTest extends TestCase
     {
         // {!! !!} solo se permite en estos archivos, cada uno revisado a mano:
         // - components/icono.blade.php: rutas SVG fijas del propio componente, no imprime datos del usuario.
-        // - livewire/admin/profesores/_modal-confirmar.blade.php y livewire/usuarios/_modal-confirmar.blade.php:
+        // - livewire/supervisor/profesores/_modal-confirmar.blade.php y livewire/supervisor/estudiantes/_modal-confirmar.blade.php:
         //   el texto es fijo en PHP (GestionaProfesor / GestionaEstudiante); los únicos valores dinámicos
         //   (nombre, curso) pasan por e() antes de envolverse en <strong>, así que llegan ya escapados.
         $permitidos = [
             'components/icono.blade.php',
-            'livewire/admin/profesores/_modal-confirmar.blade.php',
-            'livewire/usuarios/_modal-confirmar.blade.php',
+            'livewire/supervisor/profesores/_modal-confirmar.blade.php',
+            'livewire/supervisor/estudiantes/_modal-confirmar.blade.php',
         ];
 
         $sinEscapar = collect(File::allFiles(resource_path('views')))

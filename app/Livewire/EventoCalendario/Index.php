@@ -291,7 +291,7 @@ class Index extends Component
                 'id' => 'comunicado-'.$c->id,
                 'title' => 'Comunicado: '.$c->titulo,
                 'start' => $c->publicar_en->format('Y-m-d\TH:i:s'),
-                'url' => route('admin.comunicados.index'),
+                'url' => route('supervisor.comunicados.index'),
                 'backgroundColor' => '#57534E',
                 'borderColor' => 'transparent',
                 'textColor' => '#ffffff',

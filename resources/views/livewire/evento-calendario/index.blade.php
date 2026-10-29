@@ -330,7 +330,7 @@
                             <li class="py-3 text-sm {{ $suave }}">No hay comunicados programados.</li>
                         @endforelse
                     </ul>
-                    <a href="{{ route('admin.comunicados.index') }}" wire:navigate class="mt-2 inline-block text-xs font-semibold {{ $acento }} hover:underline">Gestionar comunicados</a>
+                    <a href="{{ route('supervisor.comunicados.index') }}" wire:navigate class="mt-2 inline-block text-xs font-semibold {{ $acento }} hover:underline">Gestionar comunicados</a>
                 </section>
             @endif
         </div>
