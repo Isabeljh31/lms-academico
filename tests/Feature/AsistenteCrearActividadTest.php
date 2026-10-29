@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\ModoCalculo;
-use App\Livewire\Cursos\Actividades;
+use App\Livewire\Profesor\Actividades;
 use App\Livewire\Quizzes\Formulario as FormularioQuiz;
 use App\Livewire\Tareas\Formulario as FormularioTarea;
 use App\Models\Curso;

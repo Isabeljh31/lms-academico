@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\BotSugerencias;
+namespace App\Livewire\Estudiante;
 
 use App\Models\PropuestaBot;
 use App\Models\Tarea;
@@ -26,7 +26,7 @@ use Livewire\Component;
  * Calendario centrado en la fecha que referencia.
  */
 #[Layout('layouts.app')]
-class Bandeja extends Component
+class PropuestasBot extends Component
 {
     /** @var array<int, string> propuesta_id => fecha del recordatorio (Y-m-d\TH:i) */
     public array $fechasAjustadas = [];
@@ -144,7 +144,7 @@ class Bandeja extends Component
         $colores = app(ColoresCursos::class)->paraUsuario(auth()->user());
         $tarjetas = $propuestas->map(fn (PropuestaBot $propuesta) => $this->tarjeta($propuesta, $tareas, $colores));
 
-        return view('livewire.bot-sugerencias.bandeja', [
+        return view('livewire.estudiante.propuestas-bot', [
             'pendientes' => $tarjetas->filter(fn (array $t) => $t['propuesta']->estado === 'pendiente')->values(),
             'resueltas' => $tarjetas->reject(fn (array $t) => $t['propuesta']->estado === 'pendiente')
                 ->sortByDesc(fn (array $t) => $t['propuesta']->fecha_respuesta)->values(),

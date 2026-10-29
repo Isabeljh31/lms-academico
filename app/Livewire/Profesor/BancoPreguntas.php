@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Quizzes;
+namespace App\Livewire\Profesor;
 
 use App\Models\BancoPregunta;
 use App\Models\Curso;
@@ -547,7 +547,7 @@ class BancoPreguntas extends Component
         $temasPorUnidad = $this->curso->bancoPreguntasCurso()->select(['unidad', 'tema'])->distinct()->orderBy('tema')->get();
         $visibles = $this->unidadesVisibles();
 
-        return view('livewire.quizzes.banco-preguntas', [
+        return view('livewire.profesor.banco-preguntas', [
             'preguntas' => $preguntas,
             // Marcada solo si están seleccionadas todas las preguntas que se ven en esta página.
             'paginaSeleccionada' => $idsPagina !== [] && array_diff($idsPagina, array_map('intval', $this->seleccionadas)) === [],

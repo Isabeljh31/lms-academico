@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Asistencia;
+namespace App\Livewire\Estudiante;
 
 use App\Models\Curso;
 use App\Services\Asistencia\CalculadoraAsistencia;
@@ -13,7 +13,7 @@ use Livewire\Component;
  * curso, con su porcentaje acumulado (RF-71). Solo ve sus propios registros.
  */
 #[Layout('layouts.app')]
-class MiHistorial extends Component
+class MiAsistencia extends Component
 {
     public Curso $curso;
 
@@ -29,7 +29,7 @@ class MiHistorial extends Component
     {
         $historial = $calculadora->historial(auth()->user(), $this->curso);
 
-        return view('livewire.asistencia.mi-historial', [
+        return view('livewire.estudiante.mi-asistencia', [
             'historial' => $historial,
             'porcentaje' => $calculadora->porcentaje($historial->pluck('estado')),
             'conteo' => $historial->countBy('estado'),

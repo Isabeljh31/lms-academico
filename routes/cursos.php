@@ -1,16 +1,16 @@
 <?php
 
 use App\Http\Controllers\RecursoLeccionController;
-use App\Livewire\Asistencia\MiHistorial;
-use App\Livewire\Cursos\Actividades;
 use App\Livewire\Cursos\Index;
 use App\Livewire\Cursos\LibroCalificaciones;
 use App\Livewire\Cursos\Show;
 use App\Livewire\Debates\Index as DebatesIndex;
 use App\Livewire\Debates\Show as DebatesShow;
+use App\Livewire\Estudiante\MiAsistencia;
 use App\Livewire\Grupos\Index as GruposIndex;
 use App\Livewire\Mensajeria\Bandeja;
-use App\Livewire\Quizzes\BancoPreguntas;
+use App\Livewire\Profesor\Actividades;
+use App\Livewire\Profesor\BancoPreguntas;
 use App\Livewire\Quizzes\Estadisticas;
 use App\Livewire\Quizzes\Resolver;
 use App\Livewire\Supervisor\Cursos\Formulario;
@@ -55,7 +55,7 @@ Route::middleware(['auth', 'verified'])
             ->middleware('role:profesor')
             ->name('banco-preguntas');
         // ERS RF-72: historial de asistencia del propio estudiante
-        Route::get('/{curso}/mi-asistencia', MiHistorial::class)
+        Route::get('/{curso}/mi-asistencia', MiAsistencia::class)
             ->middleware('role:estudiante')
             ->name('mi-asistencia');
         Route::get('/{curso}/grupos', GruposIndex::class)
