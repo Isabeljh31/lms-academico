@@ -122,7 +122,7 @@
                         @endisset
                     </div>
 
-                    <livewire:notificaciones.campanita />
+                    <livewire:compartido.notificaciones.campanita />
 
                     <x-dropdown align="right" width="48">
                         <x-slot name="trigger">

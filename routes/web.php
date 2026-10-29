@@ -3,10 +3,10 @@
 use App\Http\Controllers\LeccionesSemanaController;
 use App\Livewire\Actions\Logout;
 use App\Livewire\Auth\CambiarPasswordPrimerLogin;
-use App\Livewire\Cursos\GestionMatricula;
+use App\Livewire\Compartido\Calendario\Index;
+use App\Livewire\Compartido\Cursos\GestionMatricula;
+use App\Livewire\Compartido\Mensajeria\Selector as MensajeriaSelector;
 use App\Livewire\Estudiante\BoletaCurso;
-use App\Livewire\EventoCalendario\Index;
-use App\Livewire\Mensajeria\Selector as MensajeriaSelector;
 use App\Livewire\Profesor\PorCalificar\Index as PorCalificarIndex;
 use App\Livewire\Supervisor\Cursos\EsquemaEvaluacion;
 use Illuminate\Http\Request;
@@ -71,7 +71,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('lecciones.index');
 
     // ERS RF-70, RF-71, RF-73: registro de asistencia (Profesor del curso)
-    Route::get('cursos/{curso}/asistencia', App\Livewire\Asistencia\Index::class)
+    Route::get('cursos/{curso}/asistencia', App\Livewire\Compartido\Asistencia\Index::class)
         ->middleware('role:profesor|supervisor')
         ->name('asistencia.index');
 

@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\Quizzes\Formulario;
-use App\Livewire\Quizzes\Index;
-use App\Livewire\Quizzes\Resolver;
+use App\Livewire\Compartido\Quizzes\Formulario;
+use App\Livewire\Compartido\Quizzes\Index;
+use App\Livewire\Compartido\Quizzes\Resolver;
 use App\Models\Curso;
 use App\Models\Modulo;
 use App\Models\Quiz;

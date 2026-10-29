@@ -3,16 +3,16 @@
 namespace Tests\Feature\Flujos;
 
 use App\Enums\Rol;
-use App\Livewire\Asistencia\Index as AsistenciaIndex;
-use App\Livewire\Cursos\Show;
-use App\Livewire\EventoCalendario\Index as Calendario;
-use App\Livewire\Grupos\Index as GruposIndex;
-use App\Livewire\Mensajeria\Bandeja;
-use App\Livewire\Quizzes\Formulario as QuizFormulario;
-use App\Livewire\Quizzes\Resolver;
+use App\Livewire\Compartido\Asistencia\Index as AsistenciaIndex;
+use App\Livewire\Compartido\Calendario\Index as Calendario;
+use App\Livewire\Compartido\Cursos\Show;
+use App\Livewire\Compartido\Grupos\Index as GruposIndex;
+use App\Livewire\Compartido\Mensajeria\Bandeja;
+use App\Livewire\Compartido\Quizzes\Formulario as QuizFormulario;
+use App\Livewire\Compartido\Quizzes\Resolver;
+use App\Livewire\Compartido\Tareas\Detalle;
 use App\Livewire\Supervisor\Comunicados\Index as Comunicados;
 use App\Livewire\Supervisor\Estudiantes\ImportarCSV;
-use App\Livewire\Tareas\Detalle;
 use App\Models\Comunicado;
 use App\Models\Curso;
 use App\Models\Entrega;

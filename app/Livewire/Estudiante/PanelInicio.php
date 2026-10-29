@@ -26,7 +26,7 @@ class PanelInicio extends Component
      * Todos los eventos propios + fechas de entrega de tareas de los
      * cursos inscritos, dentro del mes en curso (sin filtrar por fecha
      * futura: el mini-calendario muestra el mes completo). Igual criterio
-     * de datos que App\Livewire\EventoCalendario\Index, pero de solo
+     * de datos que App\Livewire\Compartido\Calendario\Index, pero de solo
      * lectura y sin su lógica de creación/borrado — no se duplica esa.
      */
     protected function eventosDelMes(): Collection

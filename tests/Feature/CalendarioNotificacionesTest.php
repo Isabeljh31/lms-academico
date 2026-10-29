@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\EventoCalendario\Index;
-use App\Livewire\Tareas\Detalle;
-use App\Livewire\Tareas\Formulario;
+use App\Livewire\Compartido\Calendario\Index;
+use App\Livewire\Compartido\Tareas\Detalle;
+use App\Livewire\Compartido\Tareas\Formulario;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Models\EventoCalendario;

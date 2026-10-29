@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\Grupos\Index as GruposIndex;
-use App\Livewire\Tareas\Detalle;
+use App\Livewire\Compartido\Grupos\Index as GruposIndex;
+use App\Livewire\Compartido\Tareas\Detalle;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Models\Grupo;

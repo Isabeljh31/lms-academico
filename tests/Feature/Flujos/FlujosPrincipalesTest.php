@@ -4,9 +4,9 @@ namespace Tests\Feature\Flujos;
 
 use App\Enums\Rol;
 use App\Livewire\Auth\CambiarPasswordPrimerLogin;
-use App\Livewire\Cursos\GestionMatricula;
-use App\Livewire\Cursos\LibroCalificaciones;
-use App\Livewire\Cursos\Show;
+use App\Livewire\Compartido\Cursos\GestionMatricula;
+use App\Livewire\Compartido\Cursos\LibroCalificaciones;
+use App\Livewire\Compartido\Cursos\Show;
 use App\Livewire\Estudiante\BoletaCurso;
 use App\Livewire\Supervisor\Configuracion;
 use App\Livewire\Supervisor\Cursos\EsquemaEvaluacion;

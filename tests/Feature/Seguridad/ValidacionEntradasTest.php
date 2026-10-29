@@ -3,7 +3,7 @@
 namespace Tests\Feature\Seguridad;
 
 use App\Enums\Rol;
-use App\Livewire\Cursos\Index as CursosIndex;
+use App\Livewire\Compartido\Cursos\Index as CursosIndex;
 use App\Livewire\Supervisor\Comunicados\Index as Comunicados;
 use App\Livewire\Supervisor\Estudiantes\Index as UsuariosIndex;
 use App\Livewire\Supervisor\Profesores\Index as ProfesoresIndex;
