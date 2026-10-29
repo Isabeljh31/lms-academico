@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
+use App\Livewire\Compartido\Quizzes\Formulario as FormularioQuiz;
+use App\Livewire\Compartido\Quizzes\Resolver;
+use App\Livewire\Compartido\Tareas\Formulario as FormularioTarea;
 use App\Livewire\Profesor\Actividades;
-use App\Livewire\Quizzes\Formulario as FormularioQuiz;
-use App\Livewire\Quizzes\Resolver;
-use App\Livewire\Tareas\Formulario as FormularioTarea;
 use App\Models\Entrega;
 use App\Models\Quiz;
 use App\Models\Tarea;

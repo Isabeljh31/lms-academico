@@ -10,7 +10,7 @@
     $formulario = $this->formularioLeccion;
     $opcionesCompletitud = $this->opcionesCompletitud;
     $nombreSeccion = $esForo ? 'Foro de preguntas' : \App\Models\Leccion::SECCIONES[$seccionLeccion]['etiqueta'];
-    $nombreSemana = $semanaLeccion === \App\Livewire\Cursos\Show::CLAVE_PRACTICAS ? 'Prácticas de campo' : 'Semana '.$semanaLeccion;
+    $nombreSemana = $semanaLeccion === \App\Livewire\Compartido\Cursos\Show::CLAVE_PRACTICAS ? 'Prácticas de campo' : 'Semana '.$semanaLeccion;
     $claseError = 'flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-400';
     $claseSegmento = 'cursor-pointer rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-[#F4F0E8] has-[:checked]:bg-[#1D1C19] has-[:checked]:text-white has-[:checked]:shadow-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#1D1C19] has-[:focus-visible]:ring-offset-1 dark:text-slate-300 dark:has-[:checked]:bg-[#1D1C19]';
 @endphp
@@ -69,7 +69,7 @@
                     <label wire:key="fuente-{{ $valor }}" class="{{ $claseSegmento }}">
                         <input type="radio" name="leccion_fuente" value="{{ $valor }}" wire:model.live="fuente" @checked($fuente === $valor)
                             class="sr-only" x-data x-on:keydown.enter.prevent="$el.click()">
-                        {{ \App\Livewire\Cursos\Show::FUENTES_LECCION[$valor] }}
+                        {{ \App\Livewire\Compartido\Cursos\Show::FUENTES_LECCION[$valor] }}
                     </label>
                 @endforeach
             </div>

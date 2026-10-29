@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Cursos\Show;
+use App\Livewire\Compartido\Cursos\Show;
 use App\Livewire\Profesor\Cursos\EncabezadoCurso;
 use App\Livewire\Profesor\Cursos\EvaluacionesCurso;
 use App\Livewire\Profesor\Cursos\ListaCursos;
@@ -708,7 +708,7 @@ class CursosProfesorTest extends TestCase
 
         // El supervisor sigue viendo la vista compartida.
         Livewire::actingAs($escenario['supervisor'])->test(Show::class, ['curso' => $curso])
-            ->assertViewIs('livewire.cursos.show');
+            ->assertViewIs('livewire.compartido.cursos.show');
     }
 
     public function test_el_numero_de_consultas_de_la_lista_no_crece_con_la_cantidad_de_cursos(): void

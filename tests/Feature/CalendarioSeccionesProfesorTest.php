@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\EventoCalendario\Index as Calendario;
+use App\Livewire\Compartido\Calendario\Index as Calendario;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Models\EsquemaEvaluacion;

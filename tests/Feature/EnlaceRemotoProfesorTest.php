@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Cursos\Show;
+use App\Livewire\Compartido\Cursos\Show;
 use App\Livewire\Profesor\Asistencia\EnlaceClase;
 use App\Livewire\Profesor\Asistencia\Tablero;
 use App\Models\Curso;

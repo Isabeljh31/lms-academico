@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Cursos\Show;
+use App\Livewire\Compartido\Cursos\Show;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Models\Modulo;
@@ -214,10 +214,10 @@ class DetalleCursoProfesorTest extends TestCase
 
     public function test_supervisor_y_estudiante_conservan_la_vista_compartida(): void
     {
-        Livewire::actingAs($this->usuarioConRol('supervisor'))->test(Show::class, ['curso' => $this->curso])->assertViewIs('livewire.cursos.show');
+        Livewire::actingAs($this->usuarioConRol('supervisor'))->test(Show::class, ['curso' => $this->curso])->assertViewIs('livewire.compartido.cursos.show');
 
         $estudiante = User::role('estudiante')->first();
-        Livewire::actingAs($estudiante)->test(Show::class, ['curso' => $this->curso])->assertViewIs('livewire.cursos.show')->assertDontSee('Contenido por semanas');
+        Livewire::actingAs($estudiante)->test(Show::class, ['curso' => $this->curso])->assertViewIs('livewire.compartido.cursos.show')->assertDontSee('Contenido por semanas');
     }
 
     public function test_el_numero_de_consultas_no_crece_con_las_semanas(): void

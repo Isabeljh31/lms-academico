@@ -3,14 +3,14 @@
 namespace Tests\Feature\Seguridad;
 
 use App\Enums\Rol;
-use App\Livewire\Asistencia\Index as AsistenciaIndex;
-use App\Livewire\Cursos\GestionMatricula;
-use App\Livewire\Cursos\LibroCalificaciones;
-use App\Livewire\Cursos\Show as CursoShow;
-use App\Livewire\Mensajeria\Bandeja;
+use App\Livewire\Compartido\Asistencia\Index as AsistenciaIndex;
+use App\Livewire\Compartido\Cursos\GestionMatricula;
+use App\Livewire\Compartido\Cursos\LibroCalificaciones;
+use App\Livewire\Compartido\Cursos\Show as CursoShow;
+use App\Livewire\Compartido\Mensajeria\Bandeja;
+use App\Livewire\Compartido\Tareas\Detalle;
 use App\Livewire\Profesor\PorCalificar\Index as PorCalificar;
 use App\Livewire\Supervisor\Cursos\EsquemaEvaluacion;
-use App\Livewire\Tareas\Detalle;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Models\Mensaje;

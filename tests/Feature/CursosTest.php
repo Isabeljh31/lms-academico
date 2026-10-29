@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\Cursos\GestionMatricula;
-use App\Livewire\Cursos\Index;
-use App\Livewire\Cursos\Show;
+use App\Livewire\Compartido\Cursos\GestionMatricula;
+use App\Livewire\Compartido\Cursos\Index;
+use App\Livewire\Compartido\Cursos\Show;
 use App\Livewire\Supervisor\Cursos\Formulario;
 use App\Models\Curso;
 use App\Models\EsquemaEvaluacion;

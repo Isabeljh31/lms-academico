@@ -225,7 +225,7 @@
                 </ul>
 
                 @if ($curso->tienePracticasCampo())
-                    <livewire:cursos.practicas-evaluaciones :curso="$curso" :editable="$editable" :key="'practicas-evaluaciones-'.$curso->id" />
+                    <livewire:compartido.cursos.practicas-evaluaciones :curso="$curso" :editable="$editable" :key="'practicas-evaluaciones-'.$curso->id" />
                 @endif
             </section>
         @else

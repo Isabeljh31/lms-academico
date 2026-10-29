@@ -177,7 +177,7 @@
                                 @if ($editable)
                                     <div class="flex shrink-0 flex-wrap items-center gap-0.5">
                                         {{-- Visibilidad y "Editar contenido" en el mismo menú; la clave cambia con el valor para que Alpine empiece de nuevo tras guardar. --}}
-                                        @php $visibilidad = \App\Livewire\Cursos\Show::visibilidadDe($leccion); @endphp
+                                        @php $visibilidad = \App\Livewire\Compartido\Cursos\Show::visibilidadDe($leccion); @endphp
                                         <x-docente.visibilidad wire:key="visibilidad-{{ $leccion->id }}-{{ $visibilidad }}" :leccion="$leccion->id" :valor="$visibilidad" :titulo="$leccion->titulo" editar />
                                         <button type="button" wire:click="confirmarEliminarLeccion({{ $leccion->id }})" aria-label="Eliminar {{ $leccion->titulo }}"
                                             class="{{ $claseAccion }} text-[var(--err700)] hover:bg-[var(--err100)]">

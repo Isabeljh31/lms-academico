@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\ModoCalculo;
-use App\Livewire\Cursos\LibroCalificaciones;
+use App\Livewire\Compartido\Cursos\LibroCalificaciones;
 use App\Livewire\Estudiante\BoletaCurso;
 use App\Livewire\Profesor\Actividades;
 use App\Livewire\Supervisor\Cursos\EsquemaEvaluacion;

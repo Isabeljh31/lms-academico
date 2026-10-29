@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use App\Enums\ModoCalculo;
 use App\Livewire\Profesor\Actividades;
-use App\Livewire\Quizzes\Formulario as FormularioQuiz;
-use App\Livewire\Tareas\Formulario as FormularioTarea;
+use App\Livewire\Compartido\Quizzes\Formulario as FormularioQuiz;
+use App\Livewire\Compartido\Tareas\Formulario as FormularioTarea;
 use App\Models\Curso;
 use App\Models\EsquemaEvaluacion;
 use App\Models\Grupo;

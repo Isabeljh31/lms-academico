@@ -17,7 +17,7 @@ use Livewire\WithPagination;
  * Asistencia del Profesor (maquetas «Asistencia»): indicadores, pestañas
  * «Por semana» y «Resumen por estudiante». Solo lectura: «Pasar lista»,
  * «Ver lista» y «Eliminar» llaman a las acciones existentes del componente
- * padre (App\Livewire\Asistencia\Index) con $parent, sin duplicarlas.
+ * padre (App\Livewire\Compartido\Asistencia\Index) con $parent, sin duplicarlas.
  *
  * La semana elegida, la pestaña, la búsqueda y el filtro van en la URL
  * (?semana=11) para poder compartirla y que sobreviva al recargar.

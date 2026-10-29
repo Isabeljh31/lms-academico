@@ -70,7 +70,7 @@
                 <div class="ml-auto flex shrink-0 items-center gap-2.5">
                     {{-- Campana: el componente de notificaciones existente (con su único polling); solo se ajusta su botón. --}}
                     <div class="relative flex items-center [&>div>button]:flex [&>div>button]:h-10 [&>div>button]:w-10 [&>div>button]:items-center [&>div>button]:justify-center [&>div>button]:rounded-xl [&>div>button]:bg-[var(--sec2)]/70 [&>div>button]:!text-[var(--ink)] [&>div>button]:transition-colors [&>div>button:hover]:bg-[var(--sec2)] [&>div>button>svg]:h-[18px] [&>div>button>svg]:w-[18px] [&>div>div]:max-w-[calc(100vw-1rem)]">
-                        <livewire:notificaciones.campanita />
+                        <livewire:compartido.notificaciones.campanita />
                     </div>
 
                     <div class="relative" x-data="{ abierto: false }" x-on:keydown.escape.window="if (abierto) { abierto = false; $refs.botonUsuario.focus() }" x-on:click.outside="abierto = false" x-on:focusout="if (! $el.contains($event.relatedTarget)) abierto = false">

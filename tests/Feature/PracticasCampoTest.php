@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Livewire\Supervisor\Cursos\Formulario as FormularioCurso;
-use App\Livewire\Cursos\Show;
-use App\Livewire\Tareas\Formulario as FormularioTarea;
+use App\Livewire\Compartido\Cursos\Show;
+use App\Livewire\Compartido\Tareas\Formulario as FormularioTarea;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Models\Modulo;

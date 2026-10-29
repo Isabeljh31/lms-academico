@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
+use App\Livewire\Compartido\Calendario\Index as Calendario;
 use App\Livewire\Estudiante\PropuestasBot;
-use App\Livewire\EventoCalendario\Index as Calendario;
 use App\Models\Curso;
 use App\Models\EventoCalendario;
 use App\Models\Modulo;

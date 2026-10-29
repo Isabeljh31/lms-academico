@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Asistencia\Index;
+use App\Livewire\Compartido\Asistencia\Index;
 use App\Livewire\Profesor\Asistencia\Tablero;
 use App\Models\Asistencia;
 use App\Models\Curso;

@@ -6,7 +6,7 @@
 --}}
 @php
     $carpeta = $secciones['practicas'];
-    $abiertaInicial = in_array(\App\Livewire\Cursos\Show::CLAVE_PRACTICAS, $semanasAbiertas, true);
+    $abiertaInicial = in_array(\App\Livewire\Compartido\Cursos\Show::CLAVE_PRACTICAS, $semanasAbiertas, true);
     $enfoque = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--p700)]';
     $pastilla = 'inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold';
     $botonFila = "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-3 text-sm font-semibold transition motion-reduce:transition-none {$enfoque}";

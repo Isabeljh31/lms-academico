@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * Lectura de la asistencia para la pantalla rediseñada del Profesor
  * (/cursos/{id}/asistencia). Solo lee: el pase de lista y su guardado siguen
- * en App\Livewire\Asistencia\Index.
+ * en App\Livewire\Compartido\Asistencia\Index.
  *
  * Replica con agregados SQL el criterio oficial de
  * App\Services\Asistencia\CalculadoraAsistencia (que no se modifica):

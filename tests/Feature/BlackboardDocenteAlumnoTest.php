@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\Cursos\LibroCalificaciones;
-use App\Livewire\Cursos\Show;
+use App\Livewire\Compartido\Cursos\LibroCalificaciones;
+use App\Livewire\Compartido\Cursos\Show;
+use App\Livewire\Compartido\Tareas\Detalle;
 use App\Livewire\Profesor\PorCalificar\Index as PorCalificarIndex;
-use App\Livewire\Tareas\Detalle;
 use App\Models\Comunicado;
 use App\Models\Curso;
 use App\Models\Entrega;

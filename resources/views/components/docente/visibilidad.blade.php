@@ -18,7 +18,7 @@
      * - variante "campo": desplegable enlazado con wire:model (p. ej. "estado"),
      *   con la descripción de la opción elegida debajo.
      */
-    $opciones = \App\Livewire\Cursos\Show::VISIBILIDAD_LECCION;
+    $opciones = \App\Livewire\Compartido\Cursos\Show::VISIBILIDAD_LECCION;
     $esCampo = $variante === 'campo';
     $modelo = $attributes->wire('model');
     $id = $esCampo ? 'visibilidad-'.\Illuminate\Support\Str::slug((string) $modelo->value()) : 'visibilidad-leccion-'.$leccion;

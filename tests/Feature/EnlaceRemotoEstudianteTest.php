@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Livewire\Admin\SolicitudesCambioClase\Index as BandejaSupervisor;
-use App\Livewire\EventoCalendario\Index as Calendario;
+use App\Livewire\Compartido\Calendario\Index as Calendario;
 use App\Models\SesionClase;
 use App\Models\SolicitudCambioClase;
 use App\Models\User;

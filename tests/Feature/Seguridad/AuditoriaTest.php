@@ -3,7 +3,7 @@
 namespace Tests\Feature\Seguridad;
 
 use App\Enums\Rol;
-use App\Livewire\Cursos\LibroCalificaciones;
+use App\Livewire\Compartido\Cursos\LibroCalificaciones;
 use App\Livewire\Supervisor\Auditoria;
 use App\Models\BitacoraAuditoria;
 use Illuminate\Foundation\Testing\RefreshDatabase;

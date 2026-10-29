@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\Rol;
 use App\Livewire\Auth\CambiarPasswordPrimerLogin;
-use App\Livewire\Cursos\GestionMatricula;
+use App\Livewire\Compartido\Cursos\GestionMatricula;
 use App\Livewire\Supervisor\Estudiantes\Index;
 use App\Mail\BienvenidaMail;
 use App\Models\Curso;
