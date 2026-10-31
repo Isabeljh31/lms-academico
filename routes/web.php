@@ -6,7 +6,9 @@ use App\Livewire\Auth\CambiarPasswordPrimerLogin;
 use App\Livewire\Compartido\Calendario\Index;
 use App\Livewire\Compartido\Cursos\GestionMatricula;
 use App\Livewire\Compartido\Mensajeria\Selector as MensajeriaSelector;
+use App\Livewire\Compartido\Notificaciones\Index as NotificacionesIndex;
 use App\Livewire\Estudiante\BoletaCurso;
+use App\Livewire\Estudiante\MisCalificaciones;
 use App\Livewire\Profesor\PorCalificar\Index as PorCalificarIndex;
 use App\Livewire\Supervisor\Cursos\EsquemaEvaluacion;
 use App\Livewire\Supervisor\Estudiantes\ImportarCSV as EstudiantesImportarCsv;
@@ -34,6 +36,11 @@ Route::get('/evento-calendario', Index::class)
     ->middleware(['auth', 'verified'])
     ->name('evento-calendario.index');
 
+// Extensión fuera del ERS: historial completo de notificaciones (la campanita solo muestra las últimas 8).
+Route::get('/notificaciones', NotificacionesIndex::class)
+    ->middleware(['auth', 'verified'])
+    ->name('notificaciones.index');
+
 // ERS RF-49: bandeja de entregas por calificar del profesor
 Route::get('/por-calificar', PorCalificarIndex::class)
     ->middleware(['auth', 'verified', 'role:profesor'])
@@ -49,6 +56,11 @@ Route::get('/docente/por-calificar', PorCalificarIndex::class)
 Route::get('/usuarios/importar', EstudiantesImportarCsv::class)
     ->middleware(['auth', 'verified', 'role:supervisor'])
     ->name('usuarios.importar');
+
+// Extensión fuera del ERS: resumen de notas de todos los cursos matriculados del estudiante.
+Route::get('/mis-calificaciones', MisCalificaciones::class)
+    ->middleware(['auth', 'verified', 'role:estudiante'])
+    ->name('mis-calificaciones');
 
 require __DIR__.'/auth.php';
 require __DIR__.'/admin.php';
