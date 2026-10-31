@@ -92,7 +92,7 @@ class AccesoPorRolTest extends TestCase
      * @param  array<int, string>  $parametros
      */
     #[DataProvider('rutas')]
-    public function test_un_invitado_es_redirigido_al_login(string $ruta, array $parametros): void
+    public function test_un_invitado_es_redirigido_al_login(string $ruta, array $parametros, array $esperados): void
     {
         $escenario = $this->escenario();
 
