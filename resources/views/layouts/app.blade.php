@@ -39,15 +39,15 @@
         ['ruta' => 'dashboard', 'etiqueta' => 'Panel', 'icono' => 'inicio', 'visible' => true],
         ['ruta' => 'cursos.index', 'etiqueta' => 'Cursos', 'icono' => 'libro', 'visible' => true],
         ['ruta' => 'mensajeria.selector', 'etiqueta' => 'Mensajería', 'icono' => 'usuarios', 'visible' => $rol !== 'supervisor'],
-        ['ruta' => 'docente.por-calificar', 'etiqueta' => 'Por Calificar', 'icono' => 'tarea', 'visible' => $rol === 'profesor'],
-        ['ruta' => 'admin.usuarios.index', 'etiqueta' => 'Estudiantes', 'icono' => 'usuarios', 'visible' => $rol === 'supervisor'],
-        ['ruta' => 'admin.profesores.index', 'etiqueta' => 'Profesores', 'icono' => 'birrete', 'visible' => $rol === 'supervisor'],
-        ['ruta' => 'admin.comunicados.index', 'etiqueta' => 'Comunicados', 'icono' => 'megafono', 'visible' => $rol === 'supervisor'],
-        ['ruta' => 'admin.metricas', 'etiqueta' => 'Dashboard institucional', 'icono' => 'grafico', 'visible' => $rol === 'supervisor'],
-        ['ruta' => 'admin.analitica-riesgo', 'etiqueta' => 'Riesgo de abandono', 'icono' => 'alerta', 'visible' => $rol === 'supervisor'],
-        ['ruta' => 'admin.integraciones', 'etiqueta' => 'Integración API', 'icono' => 'enlace', 'visible' => $rol === 'supervisor'],
-        ['ruta' => 'admin.configuracion', 'etiqueta' => 'Configuración', 'icono' => 'engranaje', 'visible' => $rol === 'supervisor'],
-        ['ruta' => 'admin.auditoria', 'etiqueta' => 'Auditoría', 'icono' => 'escudo', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'profesor.por-calificar', 'etiqueta' => 'Por Calificar', 'icono' => 'tarea', 'visible' => $rol === 'profesor'],
+        ['ruta' => 'supervisor.estudiantes.index', 'etiqueta' => 'Estudiantes', 'icono' => 'usuarios', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'supervisor.profesores.index', 'etiqueta' => 'Profesores', 'icono' => 'birrete', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'supervisor.comunicados.index', 'etiqueta' => 'Comunicados', 'icono' => 'megafono', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'supervisor.dashboard-institucional', 'etiqueta' => 'Dashboard institucional', 'icono' => 'grafico', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'supervisor.riesgo-abandono', 'etiqueta' => 'Riesgo de abandono', 'icono' => 'alerta', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'supervisor.integraciones', 'etiqueta' => 'Integración API', 'icono' => 'enlace', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'supervisor.configuracion', 'etiqueta' => 'Configuración', 'icono' => 'engranaje', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'supervisor.auditoria', 'etiqueta' => 'Auditoría', 'icono' => 'escudo', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'evento-calendario.index', 'etiqueta' => 'Calendario', 'icono' => 'calendario', 'visible' => true],
         ['ruta' => 'reportes.dashboard', 'etiqueta' => 'Reportes', 'icono' => 'grafico', 'visible' => true],
         ['ruta' => 'bot.propuestas', 'etiqueta' => 'Propuestas del bot', 'icono' => 'bombilla', 'visible' => $rol === 'estudiante'],
@@ -122,7 +122,7 @@
                         @endisset
                     </div>
 
-                    <livewire:notificaciones.campanita />
+                    <livewire:compartido.notificaciones.campanita />
 
                     <x-dropdown align="right" width="48">
                         <x-slot name="trigger">

@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Quizzes\BancoPreguntas;
-use App\Livewire\Quizzes\Formulario;
+use App\Livewire\Compartido\Quizzes\Formulario;
+use App\Livewire\Profesor\BancoPreguntas;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;

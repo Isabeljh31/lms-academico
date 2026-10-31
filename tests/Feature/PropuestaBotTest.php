@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\BotSugerencias\Bandeja;
-use App\Livewire\EventoCalendario\Index as Calendario;
+use App\Livewire\Compartido\Calendario\Index as Calendario;
+use App\Livewire\Estudiante\PropuestasBot;
 use App\Models\Curso;
 use App\Models\EventoCalendario;
 use App\Models\Modulo;
@@ -88,7 +88,7 @@ class PropuestaBotTest extends TestCase
         $propuesta = PropuestaBot::where('usuario_id', $estudiante->id)->firstOrFail();
 
         Livewire::actingAs($estudiante)
-            ->test(Bandeja::class)
+            ->test(PropuestasBot::class)
             ->call('rechazar', $propuesta->id)
             ->assertHasNoErrors();
 
@@ -105,7 +105,7 @@ class PropuestaBotTest extends TestCase
         $propuesta = PropuestaBot::where('usuario_id', $estudiante->id)->firstOrFail();
 
         Livewire::actingAs($estudiante)
-            ->test(Bandeja::class)
+            ->test(PropuestasBot::class)
             ->call('aceptar', $propuesta->id)
             ->assertHasNoErrors();
 
@@ -133,7 +133,7 @@ class PropuestaBotTest extends TestCase
         // de otro estudiante ni siquiera existe (404), no solo está prohibida.
         try {
             Livewire::actingAs($intruso)
-                ->test(Bandeja::class)
+                ->test(PropuestasBot::class)
                 ->call('aceptar', $propuesta->id);
 
             $this->fail('Se esperaba una ModelNotFoundException.');
@@ -168,11 +168,11 @@ class PropuestaBotTest extends TestCase
         app(PropuestaBotService::class)->detectarAtrasos();
         $propuesta = PropuestaBot::where('usuario_id', $estudiante->id)->firstOrFail();
 
-        Livewire::actingAs($estudiante)->test(Bandeja::class)->call('aceptar', $propuesta->id);
+        Livewire::actingAs($estudiante)->test(PropuestasBot::class)->call('aceptar', $propuesta->id);
 
         // Ya está "aprobado": un segundo intento de responder debe fallar (policy exige "pendiente").
         Livewire::actingAs($estudiante)
-            ->test(Bandeja::class)
+            ->test(PropuestasBot::class)
             ->call('rechazar', $propuesta->id)
             ->assertForbidden();
 
@@ -188,7 +188,7 @@ class PropuestaBotTest extends TestCase
         $colorDelCalendario = Livewire::actingAs($estudiante)->test(Calendario::class)->instance()->coloresCursos[$curso->id];
 
         Livewire::actingAs($estudiante)
-            ->test(Bandeja::class)
+            ->test(PropuestasBot::class)
             ->assertSet("fechasAjustadas.{$propuesta->id}", $fechaPropuesta)
             ->assertSee('Por revisar')
             ->assertSee('Atraso detectado')
@@ -207,7 +207,7 @@ class PropuestaBotTest extends TestCase
         $propuesta = PropuestaBot::where('usuario_id', $estudiante->id)->firstOrFail();
 
         Livewire::actingAs($estudiante)
-            ->test(Bandeja::class)
+            ->test(PropuestasBot::class)
             ->set("fechasAjustadas.{$propuesta->id}", '2026-12-01T09:30')
             ->call('aceptar', $propuesta->id)
             ->assertHasNoErrors()
@@ -219,7 +219,7 @@ class PropuestaBotTest extends TestCase
         $this->assertSame($evento->id, $propuesta->fresh()->datos_propuesta['evento_calendario_id']);
 
         Livewire::actingAs($estudiante)
-            ->test(Bandeja::class)
+            ->test(PropuestasBot::class)
             ->assertSee(route('evento-calendario.index', ['fecha' => '2026-12-01', 'evento' => 'evento-'.$evento->id, 'desde' => 'propuestas']));
     }
 
@@ -230,7 +230,7 @@ class PropuestaBotTest extends TestCase
         $propuesta = PropuestaBot::where('usuario_id', $estudiante->id)->firstOrFail();
 
         Livewire::actingAs($estudiante)
-            ->test(Bandeja::class)
+            ->test(PropuestasBot::class)
             ->set("fechasAjustadas.{$propuesta->id}", 'no-es-una-fecha')
             ->call('aceptar', $propuesta->id)
             ->assertHasErrors("fechasAjustadas.{$propuesta->id}");

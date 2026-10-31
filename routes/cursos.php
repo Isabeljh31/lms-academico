@@ -1,20 +1,20 @@
 <?php
 
 use App\Http\Controllers\RecursoLeccionController;
-use App\Livewire\Asistencia\MiHistorial;
-use App\Livewire\Cursos\Actividades;
-use App\Livewire\Cursos\Formulario;
-use App\Livewire\Cursos\Index;
-use App\Livewire\Cursos\LibroCalificaciones;
-use App\Livewire\Cursos\Show;
-use App\Livewire\Debates\Index as DebatesIndex;
-use App\Livewire\Debates\Show as DebatesShow;
-use App\Livewire\Grupos\Index as GruposIndex;
-use App\Livewire\Mensajeria\Bandeja;
-use App\Livewire\Quizzes\BancoPreguntas;
-use App\Livewire\Quizzes\Estadisticas;
-use App\Livewire\Quizzes\Resolver;
-use App\Livewire\Tareas\Detalle;
+use App\Livewire\Compartido\Cursos\Index;
+use App\Livewire\Compartido\Cursos\LibroCalificaciones;
+use App\Livewire\Compartido\Cursos\Show;
+use App\Livewire\Compartido\Debates\Index as DebatesIndex;
+use App\Livewire\Compartido\Debates\Show as DebatesShow;
+use App\Livewire\Compartido\Grupos\Index as GruposIndex;
+use App\Livewire\Compartido\Mensajeria\Bandeja;
+use App\Livewire\Compartido\Quizzes\Estadisticas;
+use App\Livewire\Compartido\Quizzes\Resolver;
+use App\Livewire\Compartido\Tareas\Detalle;
+use App\Livewire\Estudiante\MiAsistencia;
+use App\Livewire\Profesor\Actividades;
+use App\Livewire\Profesor\BancoPreguntas;
+use App\Livewire\Supervisor\Cursos\Formulario;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])
@@ -29,9 +29,9 @@ Route::middleware(['auth', 'verified'])
             ->name('tareas.')
             ->scopeBindings()
             ->group(function () {
-                Route::get('/', App\Livewire\Tareas\Index::class)->name('index');
-                Route::get('/crear', App\Livewire\Tareas\Formulario::class)->name('crear');
-                Route::get('/{tarea}/editar', App\Livewire\Tareas\Formulario::class)->name('editar');
+                Route::get('/', App\Livewire\Compartido\Tareas\Index::class)->name('index');
+                Route::get('/crear', App\Livewire\Compartido\Tareas\Formulario::class)->name('crear');
+                Route::get('/{tarea}/editar', App\Livewire\Compartido\Tareas\Formulario::class)->name('editar');
                 Route::get('/{tarea}', Detalle::class)->name('show');
             });
 
@@ -39,9 +39,9 @@ Route::middleware(['auth', 'verified'])
             ->name('quizzes.')
             ->scopeBindings()
             ->group(function () {
-                Route::get('/', App\Livewire\Quizzes\Index::class)->name('index');
-                Route::get('/crear', App\Livewire\Quizzes\Formulario::class)->name('crear');
-                Route::get('/{quiz}/editar', App\Livewire\Quizzes\Formulario::class)->name('editar');
+                Route::get('/', App\Livewire\Compartido\Quizzes\Index::class)->name('index');
+                Route::get('/crear', App\Livewire\Compartido\Quizzes\Formulario::class)->name('crear');
+                Route::get('/{quiz}/editar', App\Livewire\Compartido\Quizzes\Formulario::class)->name('editar');
                 Route::get('/{quiz}/estadisticas', Estadisticas::class)->name('estadisticas');
                 Route::get('/{quiz}', Resolver::class)->name('show');
             });
@@ -55,7 +55,7 @@ Route::middleware(['auth', 'verified'])
             ->middleware('role:profesor')
             ->name('banco-preguntas');
         // ERS RF-72: historial de asistencia del propio estudiante
-        Route::get('/{curso}/mi-asistencia', MiHistorial::class)
+        Route::get('/{curso}/mi-asistencia', MiAsistencia::class)
             ->middleware('role:estudiante')
             ->name('mi-asistencia');
         Route::get('/{curso}/grupos', GruposIndex::class)

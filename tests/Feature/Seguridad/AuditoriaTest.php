@@ -3,8 +3,8 @@
 namespace Tests\Feature\Seguridad;
 
 use App\Enums\Rol;
-use App\Livewire\Cursos\LibroCalificaciones;
-use App\Livewire\PanelAdmin\Auditoria;
+use App\Livewire\Compartido\Cursos\LibroCalificaciones;
+use App\Livewire\Supervisor\Auditoria;
 use App\Models\BitacoraAuditoria;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -50,7 +50,7 @@ class AuditoriaTest extends TestCase
         $this->crearRoles();
 
         foreach ([Rol::Profesor, Rol::Estudiante] as $rol) {
-            $this->actingAs($this->usuarioConRol($rol->value))->get(route('admin.auditoria'))->assertForbidden();
+            $this->actingAs($this->usuarioConRol($rol->value))->get(route('supervisor.auditoria'))->assertForbidden();
         }
     }
 

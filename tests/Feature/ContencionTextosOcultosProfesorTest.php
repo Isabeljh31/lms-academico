@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Asistencia\Index as Asistencia;
-use App\Livewire\Grupos\Index as Grupos;
-use App\Livewire\Quizzes\Formulario as FormularioQuiz;
+use App\Livewire\Compartido\Asistencia\Index as Asistencia;
+use App\Livewire\Compartido\Grupos\Index as Grupos;
+use App\Livewire\Compartido\Quizzes\Formulario as FormularioQuiz;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\Concerns\PreparaEscenarioAcademico;
