@@ -37,5 +37,10 @@
         @empty
             <p class="px-4 py-6 text-sm {{ $paletaFria ? 'text-slate-400' : 'text-stone-400' }} text-center">Sin notificaciones todavía.</p>
         @endforelse
+
+        <a href="{{ route('notificaciones.index') }}" wire:navigate
+            class="block px-4 py-2.5 text-center text-xs font-semibold border-t {{ $paletaFria ? 'border-celeste dark:border-azul-borde-oscuro text-azul-oscuro dark:text-azul-fondo hover:bg-celeste/30 dark:hover:bg-azul-borde-oscuro/40' : 'border-arena-medio dark:border-stone-700 text-menta-oscuro dark:text-menta-base hover:bg-arena-claro dark:hover:bg-stone-700' }}">
+            Ver todas
+        </a>
     </div>
 </div>
