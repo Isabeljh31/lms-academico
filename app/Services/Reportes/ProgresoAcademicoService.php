@@ -78,17 +78,30 @@ class ProgresoAcademicoService
             'promedio_tareas' => $sumaPesos > 0
                 ? round($tareasCalificadas->sum(fn ($t) => $t['nota'] * $t['peso']) / $sumaPesos, 2)
                 : null,
-            'promedio_quizzes' => $quizzesCalificados->isNotEmpty() ? round($quizzesCalificados->avg('puntaje'), 2) : null,
+            'promedio_quizzes' => $quizzesCalificados->isNotEmpty()
+                ? round($quizzesCalificados->avg('puntaje'), 2)
+                : null,
         ];
     }
 
     /**
      * ERS RF-66: porcentaje de avance (0–100) del estudiante en el curso.
      */
+    
     public function avance(User $estudiante, Curso $curso): int
     {
-        $tareas = $curso->tareas()->visiblesParaEstudiante()->pluck('id');
-        $quizzes = $curso->quizzes()->visiblesParaEstudiante()->pluck('id');
+        $tareas = $curso->tareas()
+            ->visiblesParaEstudiante()
+            ->get()
+            ->filter(
+                fn ($tarea) => Gate::forUser($estudiante)->allows('ver', $tarea)
+        )
+            ->pluck('id');
+
+        $quizzes = $curso->quizzes()
+            ->visiblesParaEstudiante()
+            ->pluck('id');
+
         $lecciones = $this->leccionesVisibles($curso);
 
         $total = $tareas->count() + $quizzes->count() + $lecciones->count();
@@ -97,9 +110,22 @@ class ProgresoAcademicoService
             return 0;
         }
 
-        $completos = $estudiante->entregas()->whereIn('tarea_id', $tareas)->count()
-            + $quizzes->intersect(ResultadoQuiz::where('estudiante_id', $estudiante->id)->whereIn('quiz_id', $quizzes)->distinct()->pluck('quiz_id'))->count()
-            + LeccionCompletada::where('estudiante_id', $estudiante->id)->whereIn('leccion_id', $lecciones)->count();
+        $entregasCompletadas = $estudiante->entregas()
+            ->whereIn('tarea_id', $tareas)
+            ->count();
+
+        $quizzesCompletados = $quizzes->intersect(
+            ResultadoQuiz::where('estudiante_id', $estudiante->id)
+                ->whereIn('quiz_id', $quizzes)
+                ->distinct()
+                ->pluck('quiz_id')
+        )->count();
+
+        $leccionesCompletadas = LeccionCompletada::where('estudiante_id', $estudiante->id)
+            ->whereIn('leccion_id', $lecciones)
+            ->count();
+
+        $completos = $entregasCompletadas + $quizzesCompletados + $leccionesCompletadas;
 
         return (int) round(min($completos, $total) / $total * 100);
     }
@@ -140,21 +166,29 @@ class ProgresoAcademicoService
 
         foreach ($modulos as $modulo) {
             $condicion = $modulo->condicion_completitud ?: 'actividades';
-            $cumplidos = $modulo->lecciones->map(fn ($leccion) => isset($leccionesCompletadas[$leccion->id]));
+            $cumplidos = $modulo->lecciones->map(
+                fn ($leccion) => isset($leccionesCompletadas[$leccion->id])
+            );
 
             if ($condicion !== 'lecciones') {
                 foreach ($tareas[$modulo->id] ?? [] as $tarea) {
                     $entrega = $tarea->entregas->first();
-                    $cumplidos->push($condicion === 'aprobacion'
-                        ? $entrega?->nota !== null && (float) $entrega->nota >= $notaMinima
-                        : $entrega !== null);
+
+                    $cumplidos->push(
+                        $condicion === 'aprobacion'
+                            ? $entrega?->nota !== null && (float) $entrega->nota >= $notaMinima
+                            : $entrega !== null
+                    );
                 }
 
                 foreach ($quizzes[$modulo->id] ?? [] as $quiz) {
                     $mejor = $quiz->resultados->max('puntaje');
-                    $cumplidos->push($condicion === 'aprobacion'
-                        ? $mejor !== null && (float) $mejor >= $notaMinima
-                        : $quiz->resultados->isNotEmpty());
+
+                    $cumplidos->push(
+                        $condicion === 'aprobacion'
+                            ? $mejor !== null && (float) $mejor >= $notaMinima
+                            : $quiz->resultados->isNotEmpty()
+                    );
                 }
             }
 
@@ -176,43 +210,64 @@ class ProgresoAcademicoService
      */
     public function resumenCurso(Curso $curso): array
     {
-        $estudiantes = $curso->inscripcionesActivas()->with('estudiante')->get()->pluck('estudiante')->filter();
+        $estudiantes = $curso->inscripcionesActivas()
+            ->with('estudiante')
+            ->get()
+            ->pluck('estudiante')
+            ->filter();
+
         $tareas = $curso->tareas()->with('entregas')->get();
-        $entregas = $tareas->flatMap->entregas->whereIn('estudiante_id', $estudiantes->pluck('id'));
+        $entregas = $tareas->flatMap->entregas
+            ->whereIn('estudiante_id', $estudiantes->pluck('id'));
+
         $calificadas = $entregas->where('estado', 'calificado');
         $totalEsperado = $tareas->count() * max($estudiantes->count(), 1);
 
-        // Durante el periodo se evalúa el rendimiento a la fecha (rubros ya calificados).
+        // Durante el periodo se evalúa el rendimiento a la fecha.
         $notas = collect($this->calculadora->resumenDelCurso($curso, $estudiantes->pluck('id')));
         $rendimientos = $notas->pluck('rendimiento')->filter(fn ($nota) => $nota !== null);
-        $avances = $estudiantes->mapWithKeys(fn (User $e) => [$e->id => $this->avance($e, $curso)]);
 
-        // Bajo rendimiento (RF-89): rendimiento a la fecha bajo la nota mínima, o tareas vencidas
-        // sin entregar. El avance total solo cuenta al cerrar el curso: a mitad del periodo
-        // incluye contenido que todavía no toca y marcaría a casi todos.
-        $tareasVencidas = $tareas->filter(fn ($tarea) => $tarea->esVisibleParaEstudiante() && $tarea->fecha_entrega->isPast());
-        $vencidasSinEntregar = $estudiantes->mapWithKeys(fn (User $e) => [
-            $e->id => $tareasVencidas->filter(fn ($tarea) => ! $tarea->entregas->contains('estudiante_id', $e->id))->count(),
+        $avances = $estudiantes->mapWithKeys(
+            fn (User $estudiante) => [$estudiante->id => $this->avance($estudiante, $curso)]
+        );
+
+        // El avance total solo cuenta para bajo rendimiento al cerrar el curso.
+        $tareasVencidas = $tareas->filter(
+            fn ($tarea) => $tarea->esVisibleParaEstudiante()
+                && $tarea->fecha_entrega->isPast()
+        );
+
+        $vencidasSinEntregar = $estudiantes->mapWithKeys(fn (User $estudiante) => [
+            $estudiante->id => $tareasVencidas->filter(
+                fn ($tarea) => ! $tarea->entregas->contains('estudiante_id', $estudiante->id)
+            )->count(),
         ]);
 
         $bajoRendimiento = $estudiantes
-            ->filter(fn (User $e) => ($notas[$e->id]['rendimiento'] !== null && $notas[$e->id]['rendimiento'] < $this->calculadora->notaMinima())
-                || $vencidasSinEntregar[$e->id] >= self::TAREAS_VENCIDAS_MAXIMAS
-                || ($curso->estaFinalizado() && $avances[$e->id] < self::AVANCE_MINIMO))
-            ->map(fn (User $e) => [
-                'estudiante' => $e,
-                'nota_final' => $notas[$e->id]['rendimiento'],
-                'avance' => $avances[$e->id],
-                'vencidas' => $vencidasSinEntregar[$e->id],
+            ->filter(fn (User $estudiante) => (
+                $notas[$estudiante->id]['rendimiento'] !== null
+                && $notas[$estudiante->id]['rendimiento'] < $this->calculadora->notaMinima()
+            )
+                || $vencidasSinEntregar[$estudiante->id] >= self::TAREAS_VENCIDAS_MAXIMAS
+                || ($curso->estaFinalizado() && $avances[$estudiante->id] < self::AVANCE_MINIMO))
+            ->map(fn (User $estudiante) => [
+                'estudiante' => $estudiante,
+                'nota_final' => $notas[$estudiante->id]['rendimiento'],
+                'avance' => $avances[$estudiante->id],
+                'vencidas' => $vencidasSinEntregar[$estudiante->id],
             ])
             ->values();
 
         return [
             'curso' => $curso,
             'inscritos' => $estudiantes->count(),
-            // Promedio de tareas calificadas (práctica), se conserva por compatibilidad.
-            'promedio' => $calificadas->isNotEmpty() ? round((float) $calificadas->avg('nota'), 2) : null,
-            'tasa_entrega' => $totalEsperado > 0 ? round(($entregas->count() / $totalEsperado) * 100, 1) : 0.0,
+            // Promedio de tareas calificadas (práctica), conservado por compatibilidad.
+            'promedio' => $calificadas->isNotEmpty()
+                ? round((float) $calificadas->avg('nota'), 2)
+                : null,
+            'tasa_entrega' => $totalEsperado > 0
+                ? round(($entregas->count() / $totalEsperado) * 100, 1)
+                : 0.0,
             'entregas' => $entregas->count(),
             'por_calificar' => $entregas->where('estado', 'entregado')->count(),
             'progreso_promedio' => $avances->isNotEmpty() ? (int) round($avances->avg()) : 0,
@@ -229,7 +284,10 @@ class ProgresoAcademicoService
     public function resumenDashboardEstudiante(User $estudiante): array
     {
         // El panel muestra los cursos en marcha; los archivados siguen disponibles en "Mis cursos".
-        $cursos = Curso::whereHas('inscripcionesActivas', fn ($q) => $q->where('estudiante_id', $estudiante->id))
+        $cursos = Curso::whereHas(
+            'inscripcionesActivas',
+            fn ($q) => $q->where('estudiante_id', $estudiante->id)
+        )
             ->visiblesParaEstudiantes()
             ->where('estado', '!=', 'archivado')
             ->with('modulos')
@@ -241,16 +299,19 @@ class ProgresoAcademicoService
             $tareas = $curso->tareas()
                 ->visiblesParaEstudiante()
                 ->with(['entregas' => fn ($q) => $q->where('estudiante_id', $estudiante->id)])
-                ->get();
+                ->get()
+                ->filter(
+                    fn ($tarea) => Gate::forUser($estudiante)->allows('ver', $tarea)
+                );
 
             $quizzes = $curso->quizzes()
                 ->visiblesParaEstudiante()
                 ->with(['resultados' => fn ($q) => $q->where('estudiante_id', $estudiante->id)])
                 ->get();
 
-            // "Próxima" entrega = la siguiente fecha límite futura sin entregar (no una ya vencida).
+            // La próxima entrega es la siguiente fecha futura sin entregar.
             $proximaTarea = $tareas
-                ->filter(fn ($t) => $t->entregas->isEmpty() && $t->fecha_entrega->isFuture())
+                ->filter(fn ($tarea) => $tarea->entregas->isEmpty() && $tarea->fecha_entrega->isFuture())
                 ->sortBy('fecha_entrega')
                 ->first();
 
@@ -288,15 +349,17 @@ class ProgresoAcademicoService
         });
 
         return [
-            'progreso_general' => $filas->isNotEmpty() ? (int) round($filas->avg('progreso')) : 0,
+            'progreso_general' => $filas->isNotEmpty()
+                ? (int) round($filas->avg('progreso'))
+                : 0,
             'cursos' => $filas,
             'proximas_entregas' => $pendientes
-                ->sortBy(fn ($p) => $p['fecha'] ?? Carbon::now()->addYears(10))
+                ->sortBy(fn ($pendiente) => $pendiente['fecha'] ?? Carbon::now()->addYears(10))
                 ->take(5)
                 ->values(),
             'total_pendientes' => $pendientes->count(),
             'proxima_entrega' => $pendientes
-                ->filter(fn ($p) => $p['fecha'] !== null && $p['fecha']->isFuture())
+                ->filter(fn ($pendiente) => $pendiente['fecha'] !== null && $pendiente['fecha']->isFuture())
                 ->sortBy('fecha')
                 ->first()['fecha'] ?? null,
         ];
@@ -331,8 +394,11 @@ class ProgresoAcademicoService
             'filas' => $rubros->map(fn ($rubro) => [
                 'rubro' => $rubro,
                 'nota' => $notas[$rubro->id] ?? null,
-                'aprobado' => ($notas[$rubro->id] ?? null) !== null && $notas[$rubro->id] >= $notaMinima,
-                'aporte' => ($notas[$rubro->id] ?? null) !== null ? round($notas[$rubro->id] * ((float) $rubro->peso / 100), 2) : null,
+                'aprobado' => ($notas[$rubro->id] ?? null) !== null
+                    && $notas[$rubro->id] >= $notaMinima,
+                'aporte' => ($notas[$rubro->id] ?? null) !== null
+                    ? round($notas[$rubro->id] * ((float) $rubro->peso / 100), 2)
+                    : null,
             ]),
             'nota_final' => $notaFinal,
             'rendimiento' => $this->calculadora->rendimiento($rubros, $notas),
@@ -347,7 +413,10 @@ class ProgresoAcademicoService
     protected function leccionesVisibles(Curso $curso): Collection
     {
         return Leccion::publicadas()
-            ->whereHas('modulo', fn ($q) => $q->where('curso_id', $curso->id)->visiblesParaEstudiante())
+            ->whereHas(
+                'modulo',
+                fn ($q) => $q->where('curso_id', $curso->id)->visiblesParaEstudiante()
+            )
             ->pluck('id');
     }
 }

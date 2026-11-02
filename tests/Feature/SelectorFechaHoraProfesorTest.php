@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Quizzes\Formulario as FormularioQuiz;
-use App\Livewire\Tareas\Formulario as FormularioTarea;
+use App\Livewire\Compartido\Quizzes\Formulario as FormularioQuiz;
+use App\Livewire\Compartido\Tareas\Formulario as FormularioTarea;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\Concerns\PreparaEscenarioAcademico;

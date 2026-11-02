@@ -2,7 +2,7 @@
 
 namespace Tests\Feature\Seguridad;
 
-use App\Livewire\Tareas\Detalle;
+use App\Livewire\Compartido\Tareas\Detalle;
 use App\Models\Entrega;
 use App\Services\Multimedia\SubidorArchivos;
 use Illuminate\Foundation\Testing\RefreshDatabase;

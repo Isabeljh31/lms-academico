@@ -46,7 +46,7 @@
     @else
         {{-- Profesor / Supervisor: ERS RF-88 y RF-90 --}}
         @if (auth()->user()->hasAnyRole(['profesor', 'supervisor']))
-            <livewire:reportes.panel-gestion />
+            <livewire:compartido.reportes.panel-gestion />
         @else
             <div class="py-8">
                 <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

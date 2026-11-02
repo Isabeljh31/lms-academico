@@ -2,10 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Asistencia\Index as AsistenciaIndex;
 use App\Livewire\Auth\CambiarPasswordPrimerLogin;
-use App\Livewire\Cursos\Show as CursosShow;
-use App\Livewire\Mensajeria\Bandeja;
+use App\Livewire\Compartido\Asistencia\Index as AsistenciaIndex;
+use App\Livewire\Compartido\Cursos\Show as CursosShow;
+use App\Livewire\Compartido\Mensajeria\Bandeja;
 use App\Models\Curso;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -54,7 +54,7 @@ class RolesYFuncionalidadTest extends TestCase
         $curso = Curso::create(['nombre' => 'Matematica', 'codigo' => 'MAT1', 'descripcion' => 'A', 'profesor_id' => $admin->id]);
 
         // Puede ver metricas
-        $this->actingAs($admin)->get('/admin/metricas')->assertStatus(200);
+        $this->actingAs($admin)->get('/supervisor/dashboard-institucional')->assertStatus(200);
 
         // Puede ver panel de curso
         $this->actingAs($admin)->get(route('cursos.show', $curso))->assertStatus(200);

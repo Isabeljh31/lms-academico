@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\PanelAdmin\Configuracion;
+use App\Livewire\Supervisor\Configuracion;
 use App\Notifications\NuevaTareaAsignada;
 use App\Services\ConfiguracionPlataforma;
 use App\Services\HojasCalculo\LibroXlsx;

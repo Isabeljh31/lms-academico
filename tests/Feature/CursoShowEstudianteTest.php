@@ -3,7 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\Cursos\Show;
+use App\Livewire\Compartido\Cursos\Show;
 use App\Models\Curso;
 use App\Models\Modulo;
 use App\Models\Tarea;

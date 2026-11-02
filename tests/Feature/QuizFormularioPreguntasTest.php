@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Quizzes\Formulario;
+use App\Livewire\Compartido\Quizzes\Formulario;
 use App\Models\BancoPregunta;
 use App\Models\Curso;
 use Illuminate\Foundation\Testing\RefreshDatabase;

@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\Rol;
 use App\Livewire\BotSugerencias\Widget;
-use App\Livewire\Cursos\Show;
+use App\Livewire\Compartido\Cursos\Show;
 use App\Livewire\Estudiante\PanelInicio;
 use App\Models\Curso;
 use App\Models\EventoCalendario;

@@ -6,14 +6,12 @@ use App\Models\EventoCalendario;
 use App\Models\Tarea;
 use App\Services\Reportes\ProgresoAcademicoService;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 
 /**
- * Panel de inicio del rol estudiante (rediseño visual, no toca lógica de
- * otros módulos): hero con progreso general, widgets de cursos, próximas
- * entregas, mini-calendario del mes y accesos rápidos. Solo se embebe
- * desde resources/views/dashboard.blade.php cuando el usuario es
- * estudiante.
+ * Panel de inicio del estudiante: cursos, progreso, próximas entregas,
+ * minicalendario y accesos rápidos.
  */
 class PanelInicio extends Component
 {
@@ -23,11 +21,8 @@ class PanelInicio extends Component
     }
 
     /**
-     * Todos los eventos propios + fechas de entrega de tareas de los
-     * cursos inscritos, dentro del mes en curso (sin filtrar por fecha
-     * futura: el mini-calendario muestra el mes completo). Igual criterio
-     * de datos que App\Livewire\EventoCalendario\Index, pero de solo
-     * lectura y sin su lógica de creación/borrado — no se duplica esa.
+     * Obtiene los eventos personales y las fechas de tareas autorizadas
+     * para el estudiante durante el mes actual.
      */
     protected function eventosDelMes(): Collection
     {
@@ -38,10 +33,10 @@ class PanelInicio extends Component
         $propios = $usuario->eventosCalendario()
             ->whereBetween('fecha', [$inicioMes, $finMes])
             ->get()
-            ->map(fn (EventoCalendario $e) => [
-                'titulo' => $e->titulo,
-                'fecha' => $e->fecha,
-                'tipo' => $e->tipo,
+            ->map(fn (EventoCalendario $evento) => [
+                'titulo' => $evento->titulo,
+                'fecha' => $evento->fecha,
+                'tipo' => $evento->tipo,
             ]);
 
         $cursoIds = $usuario->inscripciones()->pluck('curso_id');
@@ -51,9 +46,12 @@ class PanelInicio extends Component
             ->whereBetween('fecha_entrega', [$inicioMes, $finMes])
             ->with('curso')
             ->get()
-            ->map(fn (Tarea $t) => [
-                'titulo' => $t->titulo.' — '.$t->curso->nombre,
-                'fecha' => $t->fecha_entrega,
+            ->filter(
+                fn (Tarea $tarea) => Gate::forUser($usuario)->allows('ver', $tarea)
+            )
+            ->map(fn (Tarea $tarea) => [
+                'titulo' => $tarea->titulo.' — '.$tarea->curso->nombre,
+                'fecha' => $tarea->fecha_entrega,
                 'tipo' => 'tarea',
             ]);
 
@@ -61,9 +59,7 @@ class PanelInicio extends Component
     }
 
     /**
-     * Estructura lista para pintar una grilla de mes con Alpine (sin
-     * FullCalendar): día de hoy, offset del primer día y los eventos
-     * agrupados por día del mes.
+     * Prepara los datos del minicalendario del mes actual.
      */
     protected function calendarioMes(Collection $eventosDelMes): array
     {
@@ -74,10 +70,10 @@ class PanelInicio extends Component
             'nombre_mes' => $inicioMes->translatedFormat('F Y'),
             'hoy' => $hoy->day,
             'total_dias' => $inicioMes->daysInMonth,
-            // Lunes = 0 ... Domingo = 6, para alinear la grilla de 7 columnas.
-            'offset_primer_dia' => ($inicioMes->dayOfWeekIso - 1),
+            // Lunes = 0 ... Domingo = 6.
+            'offset_primer_dia' => $inicioMes->dayOfWeekIso - 1,
             'dias_con_evento' => $eventosDelMes
-                ->groupBy(fn ($e) => $e['fecha']->day)
+                ->groupBy(fn ($evento) => $evento['fecha']->day)
                 ->map(fn ($grupo) => $grupo->pluck('titulo')->all())
                 ->all(),
         ];
@@ -90,7 +86,9 @@ class PanelInicio extends Component
 
         return view('livewire.estudiante.panel-inicio', [
             ...$resumen,
-            'proximosEventos' => $eventosDelMes->filter(fn ($e) => $e['fecha']->isFuture())->take(5),
+            'proximosEventos' => $eventosDelMes
+                ->filter(fn ($evento) => $evento['fecha']->isFuture())
+                ->take(5),
             'calendario' => $this->calendarioMes($eventosDelMes),
         ]);
     }

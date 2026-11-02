@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Debates\Index as DebatesIndex;
+use App\Livewire\Compartido\Debates\Index as DebatesIndex;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\Concerns\PreparaEscenarioAcademico;

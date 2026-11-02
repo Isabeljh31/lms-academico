@@ -41,5 +41,11 @@
   "description": "Impeccable design detector: immediate-tier checks after Edit/Write on UI files, full-rule deep pass on Stop.",
   "enabledMcpjsonServers": [
     "laravel-boost"
-  ]
+  ],
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/USUARIO/Documents/GitHub/Lms-academico/**)",
+      "Bash(composer install *)"
+    ]
+  }
 }

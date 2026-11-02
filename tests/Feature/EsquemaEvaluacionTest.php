@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Cursos\EsquemaEvaluacion;
+use App\Livewire\Supervisor\Cursos\EsquemaEvaluacion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\Concerns\PreparaEscenarioAcademico;

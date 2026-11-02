@@ -3,7 +3,7 @@
 namespace Tests\Feature\Seguridad;
 
 use App\Enums\Rol;
-use App\Livewire\PanelAdmin\Integraciones;
+use App\Livewire\Supervisor\Integraciones;
 use App\Mail\BienvenidaMail;
 use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
@@ -205,7 +205,7 @@ class ApiIntegracionTest extends TestCase
     {
         $profesor = $this->usuarioConRol(Rol::Profesor->value);
 
-        $this->actingAs($profesor)->get(route('admin.integraciones'))->assertForbidden();
+        $this->actingAs($profesor)->get(route('supervisor.integraciones'))->assertForbidden();
         $this->assertSame(0, BitacoraAuditoria::where('tipo_evento', 'integracion_api')->count());
     }
 }

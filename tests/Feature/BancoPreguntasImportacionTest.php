@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\Quizzes\BancoPreguntas;
-use App\Livewire\Quizzes\Formulario as FormularioQuiz;
+use App\Livewire\Compartido\Quizzes\Formulario as FormularioQuiz;
+use App\Livewire\Profesor\BancoPreguntas;
 use App\Models\BancoPregunta;
 use App\Models\Curso;
 use App\Services\Evaluacion\ImportadorBancoPreguntas;
