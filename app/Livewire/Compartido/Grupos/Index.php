@@ -31,6 +31,43 @@ class Index extends Component
 
     public string $nuevoGrupoNombre = '';
 
+    public string $motivoEliminacion = '';
+
+    #[Locked]
+    public ?int $grupoAEliminarId = null;
+
+    public function prepararEliminacion(int $grupoId): void
+    {
+        $this->autorizar();
+
+        $grupo = $this->curso->grupos()->findOrFail($grupoId);
+        Gate::authorize('gestionar', $grupo);
+
+        $this->resetErrorBag('motivoEliminacion');
+        $this->motivoEliminacion = '';
+        $this->grupoAEliminarId = $grupo->id;
+    }
+
+    public function cancelarEliminacion(): void
+    {
+        $this->reset(['grupoAEliminarId', 'motivoEliminacion']);
+        $this->resetErrorBag('motivoEliminacion');
+    }
+
+    public function confirmarEliminacion(): void
+    {
+        abort_if($this->grupoAEliminarId === null, 404);
+
+        $this->eliminarGrupo($this->grupoAEliminarId);
+
+        // Si la validación del motivo falla, Laravel interrumpe la ejecución
+        // antes de llegar aquí y mantiene el formulario abierto.
+        $this->cancelarEliminacion();
+    }
+
+    /** @var list<int|string> */
+    public array $integrantesIniciales = [];
+
     public int $tamanoGrupoAuto = 4;
 
     /** Máximo de integrantes por grupo; vacío = sin límite. */
@@ -83,15 +120,70 @@ class Index extends Component
         $this->autorizar();
 
         $this->validate([
-            'nuevoGrupoNombre' => ['required', 'string', 'max:255', Rule::unique('grupos', 'nombre')->where('curso_id', $this->curso->id)],
+            'nuevoGrupoNombre' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('grupos', 'nombre')->where('curso_id', $this->curso->id),
+            ],
+            'integrantesIniciales' => ['required', 'array', 'min:1'],
+            'integrantesIniciales.*' => ['required', 'integer', 'distinct'],
         ], [
             'nuevoGrupoNombre.required' => 'Escribe el nombre del grupo.',
             'nuevoGrupoNombre.unique' => 'Ya existe un grupo con ese nombre en el curso.',
+            'integrantesIniciales.required' => 'Selecciona al menos un estudiante.',
+            'integrantesIniciales.min' => 'Selecciona al menos un estudiante.',
         ]);
 
-        $this->curso->grupos()->create(['nombre' => trim($this->nuevoGrupoNombre)]);
+        $ids = collect($this->integrantesIniciales)
+            ->map(fn ($id) => (int) $id)
+            ->values();
+
+        $matriculados = $this->curso->inscripcionesActivas()
+            ->whereIn('estudiante_id', $ids)
+            ->pluck('estudiante_id');
+
+        if ($matriculados->count() !== $ids->count()) {
+            $this->addError(
+                'integrantesIniciales',
+                'Todos los integrantes deben tener una matrícula activa en este curso.'
+            );
+
+            return;
+        }
+
+        $gruposActuales = $this->gruposActualesDe($ids);
+
+        if ($ids->contains(fn ($id) => ($gruposActuales[$id] ?? null) !== null)) {
+            $this->addError(
+                'integrantesIniciales',
+                'Uno o más estudiantes seleccionados ya pertenecen a un grupo.'
+            );
+
+            return;
+        }
+
+        $maximo = $this->curso->tamano_maximo_grupo;
+
+        if ($maximo !== null && $ids->count() > $maximo) {
+            $this->addError(
+                'integrantesIniciales',
+                "El grupo admite como máximo {$maximo} integrantes."
+            );
+
+            return;
+        }
+
+        DB::transaction(function () use ($ids) {
+            $grupo = $this->curso->grupos()->create([
+                'nombre' => trim($this->nuevoGrupoNombre),
+            ]);
+
+            $grupo->estudiantes()->attach($ids->all());
+        });
+
         $this->avisar("Grupo «{$this->nuevoGrupoNombre}» creado.");
-        $this->nuevoGrupoNombre = '';
+        $this->reset(['nuevoGrupoNombre', 'integrantesIniciales']);
     }
 
     public function empezarRenombrar(int $grupoId): void
@@ -131,19 +223,76 @@ class Index extends Component
     public function eliminarGrupo(int $grupoId): void
     {
         $this->autorizar();
-        $grupo = $this->curso->grupos()->with('estudiantes')->findOrFail($grupoId);
+
+        $grupo = $this->curso->grupos()
+            ->with('estudiantes')
+            ->findOrFail($grupoId);
+
         Gate::authorize('gestionar', $grupo);
 
         $estudiantes = $grupo->estudiantes->modelKeys();
         $entregas = Entrega::where('grupo_id', $grupo->id)->pluck('id')->all();
-        $grupo->delete();
+
+        if ($entregas !== []) {
+            $this->validate([
+                'motivoEliminacion' => ['required', 'string', 'min:5', 'max:1000'],
+            ], [
+                'motivoEliminacion.required' => 'Indica por qué se elimina el grupo con entregas.',
+                'motivoEliminacion.min' => 'El motivo debe tener al menos 5 caracteres.',
+                'motivoEliminacion.max' => 'El motivo no puede superar los 1000 caracteres.',
+            ]);
+        }
+
+        $motivo = trim($this->motivoEliminacion);
+
+        if ($entregas !== [] && mb_strlen($motivo) < 5) {
+            $this->addError(
+                'motivoEliminacion',
+                'Escribe un motivo de al menos 5 caracteres.'
+            );
+
+            return;
+        }
+
+        DB::transaction(function () use ($grupo, $estudiantes, $entregas, $motivo) {
+            if ($entregas !== []) {
+                \App\Models\BitacoraAuditoria::create([
+                    'ejecutado_por' => auth()->id(),
+                    'tipo_evento' => 'eliminacion_grupo',
+                    'curso_id' => $this->curso->id,
+                    'entidad' => 'grupo',
+                    'entidad_id' => $grupo->id,
+                    'valor_anterior' => json_encode([
+                        'nombre' => $grupo->nombre,
+                        'estudiantes' => $estudiantes,
+                        'entregas' => $entregas,
+                    ], JSON_THROW_ON_ERROR),
+                    'motivo' => $motivo,
+                    'descripcion' => 'Eliminación de grupo con entregas asociadas.',
+                    'ip' => request()->ip(),
+                ]);
+            }
+
+            $grupo->delete();
+        });
 
         $cantidad = count($estudiantes);
-        $this->avisar("Grupo «{$grupo->nombre}» eliminado.".match ($cantidad) {
-            0 => '',
-            1 => ' Su integrante volvió a Sin grupo.',
-            default => " Sus {$cantidad} integrantes volvieron a Sin grupo.",
-        }, deshacer: ['tipo' => 'eliminar', 'nombre' => $grupo->nombre, 'estudiantes' => $estudiantes, 'entregas' => $entregas]);
+
+        $this->avisar(
+            "Grupo «{$grupo->nombre}» eliminado.".match ($cantidad) {
+                0 => '',
+                1 => ' Su integrante volvió a Sin grupo.',
+                default => " Sus {$cantidad} integrantes volvieron a Sin grupo.",
+            },
+            deshacer: [
+                'tipo' => 'eliminar',
+                'nombre' => $grupo->nombre,
+                'estudiantes' => $estudiantes,
+                'entregas' => $entregas,
+            ],
+        );
+
+        $this->reset('motivoEliminacion');
     }
 
     /**
@@ -332,14 +481,36 @@ class Index extends Component
     public function render()
     {
         /** @var Collection<int, Grupo> $grupos */
-        $grupos = $this->curso->grupos()->with(['estudiantes' => fn ($q) => $q->orderBy('name')])->get()
-            ->sortBy('nombre', SORT_NATURAL | SORT_FLAG_CASE)->values();
-        $grupoDe = $grupos->mapWithKeys(fn (Grupo $g) => $g->estudiantes->mapWithKeys(fn ($e) => [$e->id => $g->id])->all());
-        $matriculados = $this->curso->inscripcionesActivas()->with('estudiante')->get()->pluck('estudiante')->filter()->sortBy('name')->values();
+        $grupos = $this->curso->grupos()
+            ->with(['estudiantes' => fn ($q) => $q->orderBy('name')])
+            ->get()
+            ->sortBy('nombre', SORT_NATURAL | SORT_FLAG_CASE)
+            ->values();
+
+        $grupoDe = $grupos->mapWithKeys(
+            fn (Grupo $grupo) => $grupo->estudiantes
+                ->mapWithKeys(fn ($estudiante) => [$estudiante->id => $grupo->id])
+                ->all()
+        );
+
+        $matriculados = $this->curso->inscripcionesActivas()
+            ->with('estudiante')
+            ->get()
+            ->pluck('estudiante')
+            ->filter()
+            ->unique('id')
+            ->sortBy('name')
+            ->values();
+
+        $sinGrupo = $matriculados
+            ->reject(fn ($estudiante) => $grupoDe->has($estudiante->id))
+            ->values();
 
         return view('livewire.compartido.grupos.index', [
             'grupos' => $grupos,
-            'sinGrupo' => $matriculados->reject(fn ($estudiante) => $grupoDe->has($estudiante->id))->values(),
+            'sinGrupo' => $sinGrupo,
+            'totalMatriculados' => $matriculados->count(),
+            'totalEnGrupos' => $matriculados->count() - $sinGrupo->count(),
             'maximo' => $this->curso->tamano_maximo_grupo,
         ])->title("Grupos — {$this->curso->nombre}");
     }
