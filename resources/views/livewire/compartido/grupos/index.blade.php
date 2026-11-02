@@ -23,18 +23,93 @@
 
         <x-gestion.alertas />
 
+        <div class="flex flex-wrap gap-3 text-sm">
+            <span class="rounded-lg bg-slate-100 px-3 py-2 dark:bg-slate-800">
+                Matriculados:
+                <strong>{{ $totalMatriculados }}</strong>
+            </span>
+
+            <span class="rounded-lg bg-slate-100 px-3 py-2 dark:bg-slate-800">
+                En grupos:
+                <strong>{{ $totalEnGrupos }}</strong>
+            </span>
+
+            <span class="rounded-lg bg-slate-100 px-3 py-2 dark:bg-slate-800">
+                Sin grupo:
+                <strong>{{ $sinGrupo->count() }}</strong>
+            </span>
+        </div>
+
         @unless ($soloLectura)
             <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <x-gestion.tarjeta titulo="Nuevo grupo">
-                    <form wire:submit="crearGrupo" class="flex gap-2">
-                        <div class="min-w-0 flex-1">
-                            <label for="nuevoGrupoNombre" class="sr-only">Nombre del grupo</label>
-                            <x-gestion.control id="nuevoGrupoNombre" wire:model="nuevoGrupoNombre" placeholder="Nombre del grupo" />
-                            @error('nuevoGrupoNombre') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                <x-gestion.tarjeta
+                    titulo="Nuevo grupo"
+                    descripcion="Selecciona al menos un estudiante matriculado que no tenga grupo."
+                >
+                    <form wire:submit="crearGrupo" class="space-y-4">
+                        <div>
+                            <label for="nuevoGrupoNombre" class="block text-sm font-medium">
+                                Nombre del grupo
+                             </label>
+
+                            <x-gestion.control
+                                id="nuevoGrupoNombre"
+                                wire:model="nuevoGrupoNombre"
+                                placeholder="Por ejemplo: Grupo A"
+                            />
+
+                            @error('nuevoGrupoNombre')
+                                <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                            @enderror
                         </div>
-                        <x-gestion.boton type="submit" icono="mas">Crear</x-gestion.boton>
-                    </form>
-                </x-gestion.tarjeta>
+
+                        <fieldset>
+                            <legend class="text-sm font-medium">
+                                Integrantes disponibles
+                            </legend>
+
+                            @if ($sinGrupo->isEmpty())
+                                <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                                    No hay estudiantes disponibles sin grupo.
+                                </p>
+                            @else
+                                <div class="mt-2 max-h-48 space-y-2 overflow-y-auto rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                                    @foreach ($sinGrupo as $estudiante)
+                                    <label
+                                        wire:key="integrante-inicial-{{ $estudiante->id }}"
+                                        class="flex items-center gap-2 text-sm"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            wire:model="integrantesIniciales"
+                                            value="{{ $estudiante->id }}"
+                                            class="rounded border-slate-300"
+                                        >
+
+                                        <span>{{ $estudiante->name }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        @endif
+
+                    @error('integrantesIniciales')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @enderror
+
+                    @error('integrantesIniciales.*')
+                        <p class="mt-1 text-xs text-red-600">{{ $message }}</p>
+                    @enderror
+                </fieldset>
+
+                <x-gestion.boton
+                    type="submit"
+                    icono="mas"
+                    :disabled="$sinGrupo->isEmpty()"
+                >
+                    Crear grupo
+                </x-gestion.boton>
+                </form>
+            </x-gestion.tarjeta>
 
                 <x-gestion.tarjeta titulo="Generar automáticamente" descripcion="Reparte solo a quienes aún no tienen grupo.">
                     <form wire:submit="generarAutomatico" class="flex gap-2">
@@ -167,13 +242,82 @@
                                         </div>
                                         @unless ($soloLectura)
                                             <div class="flex shrink-0">
-                                                <x-gestion.boton variante="fantasma" tamano="sm" icono="lapiz" wire:click="empezarRenombrar({{ $grupo->id }})" aria-label="Renombrar {{ $grupo->nombre }}" title="Renombrar" />
-                                                <x-gestion.boton variante="fantasma-peligro" tamano="sm" icono="papelera" wire:click="eliminarGrupo({{ $grupo->id }})" aria-label="Eliminar {{ $grupo->nombre }}" title="Eliminar"
-                                                    wire:confirm="{{ $cantidad > 0 ? '¿Eliminar '.$grupo->nombre.'? '.($cantidad === 1 ? 'Su integrante volverá' : 'Sus '.$cantidad.' integrantes volverán').' a Sin grupo. Podrás deshacerlo.' : '¿Eliminar '.$grupo->nombre.'?' }}" />
+                                                <x-gestion.boton
+                                                variante="fantasma"
+                                                tamano="sm"
+                                                icono="lapiz"
+                                                wire:click="empezarRenombrar({{ $grupo->id }})"
+                                                aria-label="Renombrar {{ $grupo->nombre }}"
+                                                title="Renombrar"
+                                                />
+                                                <x-gestion.boton
+                                                variante="fantasma-peligro"
+                                                tamano="sm"
+                                                icono="papelera"
+                                                wire:click="prepararEliminacion({{ $grupo->id }})"
+                                                aria-label="Eliminar {{ $grupo->nombre }}"
+                                                title="Eliminar"
+                                                />
                                             </div>
                                         @endunless
                                     </div>
                                 @endif
+                                
+                                @unless ($soloLectura)
+                                    @if ($grupoAEliminarId === $grupo->id)
+                                        <form
+                                            wire:submit="confirmarEliminacion"
+                                            class="mt-4 space-y-3 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-950/30"
+                                        >
+                                            <p class="text-sm font-semibold text-red-800 dark:text-red-200">
+                                                ¿Eliminar {{ $grupo->nombre }}?
+                                            </p>
+
+                                            <p class="text-xs text-red-700 dark:text-red-300">
+                                                Sus integrantes volverán a «Sin grupo». Si existen entregas,
+                                                se conservarán y deberás indicar el motivo.
+                                            </p>
+
+                                            <div>
+                                                <label
+                                                    for="motivo-eliminacion-{{ $grupo->id }}"
+                                                    class="block text-sm font-medium"
+                                                >
+                                                    Motivo
+                                                </label>
+
+                                                <textarea
+                                                    id="motivo-eliminacion-{{ $grupo->id }}"
+                                                    wire:model="motivoEliminacion"
+                                                    rows="3"
+                                                    maxlength="1000"
+                                                    class="mt-1 w-full rounded-lg border border-slate-300 p-2 text-sm dark:border-slate-600 dark:bg-slate-900"
+                                                    placeholder="Explica el motivo si el grupo tiene entregas"
+                                                ></textarea>
+
+                                                @error('motivoEliminacion')
+                                                    <p class="mt-1 text-xs text-red-600">
+                                                        {{ $message }}
+                                                    </p>
+                                                @enderror
+                                            </div>
+
+                                            <div class="flex flex-wrap gap-2">
+                                                <x-gestion.boton type="submit" variante="peligro">
+                                                    Confirmar eliminación
+                                                </x-gestion.boton>
+
+                                                <x-gestion.boton
+                                                    type="button"
+                                                    variante="secundario"
+                                                    wire:click="cancelarEliminacion"
+                                                >
+                                                    Cancelar
+                                                </x-gestion.boton>
+                                            </div>
+                                        </form>
+                                    @endif
+                                @endunless
 
                                 <ul @unless ($soloLectura) data-zona="{{ $zona }}" data-grupo="{{ $grupo->id }}" data-nombre="{{ $grupo->nombre }}" data-cuenta="{{ $cantidad }}" data-maximo="{{ $maximo }}" x-init="montar($el)" @endunless
                                     aria-label="Integrantes de {{ $grupo->nombre }}"
