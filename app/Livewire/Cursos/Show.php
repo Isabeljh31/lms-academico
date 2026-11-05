@@ -10,19 +10,20 @@ use App\Models\Grupo;
 use App\Models\Leccion;
 use App\Models\LeccionCompletada;
 use App\Models\Modulo;
+use App\Models\Tarea;
 use App\Models\User;
 use App\Notifications\NuevoComunicado;
 use App\Rules\TieneRol;
 use App\Services\Matricula\GestorMatriculas;
 use App\Services\Multimedia\SubidorArchivos;
 use App\Services\Reportes\ProgresoAcademicoService;
+use App\View\Components\PanelProfesorLayout;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
-use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -33,8 +34,9 @@ use Livewire\WithFileUploads;
  * - Profesor / Supervisor: contenido por semanas y prácticas de campo (RF-34, RF-37) y anuncios (RF-81).
  * - Profesor del curso: gestiona el contenido de cada semana en la misma página (GestionaContenidoSemanal).
  * - Supervisor: clonación (RF-20, RF-21).
+ * - Profesor (solo ese rol): misma lógica con su vista rediseñada (livewire/docente/cursos/detalle)
+ *   y el layout de barra inferior; render() solo elige la vista y el layout.
  */
-#[Layout('layouts.app')]
 class Show extends Component
 {
     use GestionaContenidoSemanal;
@@ -476,19 +478,18 @@ class Show extends Component
     // ==========================================
 
     /**
-     * Prepara la semana N (o las prácticas de campo, con $semana = null) para
-     * cargarle contenido: crea su contenedor si aún no existe y abre su edición.
+     * Prepara la semana N para cargarle contenido: crea su contenedor si aún
+     * no existe y abre su edición. Las prácticas de campo no se crean aquí:
+     * las activa el Supervisor (una por semana).
      */
-    public function prepararSeccion(?int $semana = null): void
+    public function prepararSeccion(int $semana): void
     {
         Gate::authorize('gestionar', $this->curso);
         $this->asegurarCursoEditable();
 
-        abort_if($semana !== null && ($semana < 1 || $semana > $this->curso->totalSemanas()), 404);
+        abort_if($semana < 1 || $semana > $this->curso->totalSemanas(), 404);
 
-        $modulo = $semana === null
-            ? $this->curso->modulos()->firstOrCreate(['tipo_seccion' => Modulo::TIPO_PRACTICAS], ['titulo' => 'Prácticas de campo', 'materiales' => []])
-            : $this->curso->modulos()->firstOrCreate(['semana' => $semana], ['titulo' => 'Semana '.$semana, 'materiales' => []]);
+        $modulo = $this->curso->modulos()->firstOrCreate(['semana' => $semana], ['titulo' => 'Semana '.$semana, 'materiales' => []]);
 
         $this->curso->unsetRelation('modulos');
         $this->abrirEditarModulo($modulo->id);
@@ -498,7 +499,7 @@ class Show extends Component
     {
         Gate::authorize('gestionar', $this->curso);
 
-        $modulo = $this->curso->modulos()->findOrFail($moduloId);
+        $modulo = $this->curso->modulos()->where('tipo_seccion', Modulo::TIPO_SEMANA)->findOrFail($moduloId);
         $this->resetErrorBag();
         $this->moduloEditarId = $modulo->id;
         $this->moduloTitulo = $modulo->tema() ?? '';
@@ -514,7 +515,7 @@ class Show extends Component
         Gate::authorize('gestionar', $this->curso);
         $this->asegurarCursoEditable();
 
-        $modulo = $this->curso->modulos()->findOrFail($this->moduloEditarId);
+        $modulo = $this->curso->modulos()->where('tipo_seccion', Modulo::TIPO_SEMANA)->findOrFail($this->moduloEditarId);
 
         $this->validate([
             'moduloTitulo' => ['nullable', 'string', 'max:255'],
@@ -549,13 +550,13 @@ class Show extends Component
         session()->flash('estado', "{$modulo->etiqueta()} actualizada.");
     }
 
-    /** Vacía una semana (o las prácticas de campo): elimina su contenido si no tiene historial académico. */
+    /** Vacía una semana: elimina su contenido si no tiene historial académico. Las prácticas de campo solo las quita el Supervisor. */
     public function eliminarModulo(int $moduloId): void
     {
         Gate::authorize('gestionar', $this->curso);
         $this->asegurarCursoEditable();
 
-        $modulo = $this->curso->modulos()->findOrFail($moduloId);
+        $modulo = $this->curso->modulos()->where('tipo_seccion', Modulo::TIPO_SEMANA)->findOrFail($moduloId);
 
         if ($modulo->tieneHistorialAcademico()) {
             session()->flash('error', "{$modulo->etiqueta()} tiene entregas o resultados de estudiantes y no se puede vaciar. Pásala a Borrador para ocultarla.");
@@ -671,7 +672,9 @@ class Show extends Component
                 ->get();
         }
 
-        return view('livewire.cursos.show', [
+        $vistaProfesor = PanelProfesorLayout::aplicaA(auth()->user());
+
+        return view($vistaProfesor ? 'livewire.docente.cursos.detalle' : 'livewire.cursos.show', [
             'modulos' => $modulos,
             'secciones' => $esEstudiante ? $this->seccionesDelEstudiante($modulos) : $this->seccionesDeGestion($modulos),
             'profesores' => $this->puedeAdministrar ? User::role('profesor')->where('activo', true)->orderBy('name')->get() : collect(),
@@ -680,7 +683,7 @@ class Show extends Component
             'carpetas' => $this->curso->carpetas,
             'estudiantesBusquedaRapida' => $estudiantesBusquedaRapida,
             'totalEstudiantesActivos' => $this->puedeGestionar ? $this->curso->inscripcionesActivas()->count() : 0,
-        ])->title("{$this->curso->nombre} — LearnUp");
+        ])->layout($vistaProfesor ? 'layouts.panel-profesor' : 'layouts.app')->title("{$this->curso->nombre} — LearnUp");
     }
 
     // ==========================================
@@ -693,9 +696,9 @@ class Show extends Component
     }
 
     /**
-     * Profesor/Supervisor: el bloque de prácticas de campo (solo si el curso
-     * lo tiene) y TODAS las semanas del curso (1..N), con o sin contenido,
-     * para prepararlas.
+     * Profesor/Supervisor: la carpeta de prácticas de campo (solo si el
+     * Supervisor las activó) y TODAS las semanas del curso (1..N), con o sin
+     * contenido, para prepararlas.
      *
      * @param  Collection<int, Modulo>  $modulos
      * @return array{practicas: ?array, semanas: list<array>}
@@ -704,18 +707,16 @@ class Show extends Component
     {
         $porSemana = $modulos->whereNotNull('semana')->keyBy('semana');
         $sesiones = $this->curso->sesionesClase()->pluck('fecha');
-        $practicas = $modulos->first(fn (Modulo $m) => $m->esPracticas());
+
+        $practicas = null;
+
+        if ($this->curso->tienePracticasCampo()) {
+            $tareas = $this->curso->tareas()->whereNotNull('practica')->withCount('entregas')->get()->keyBy('practica');
+            $practicas = $this->carpetaPracticas(fn (int $numero) => ['tarea' => $tareas->get($numero)]);
+        }
 
         return [
-            'practicas' => $practicas ? [
-                ...$this->seccion(null, $practicas, $sesiones),
-                // Mismo criterio que la vista del estudiante: el bloque aparece solo con contenido visible (RF-38).
-                'visibleParaEstudiantes' => $practicas->esVisibleParaEstudiante() && (
-                    $practicas->leccionesVisibles()->exists()
-                    || $practicas->tareas()->visiblesParaEstudiante()->exists()
-                    || $practicas->quizzes()->visiblesParaEstudiante()->exists()
-                ),
-            ] : null,
+            'practicas' => $practicas,
             'semanas' => array_map(
                 fn (int $semana) => $this->seccion($semana, $porSemana->get($semana), $sesiones),
                 range(1, $this->curso->totalSemanas()),
@@ -750,18 +751,46 @@ class Show extends Component
             return $seccion;
         };
 
-        $practicas = $modulos->first(fn (Modulo $m) => $m->esPracticas());
-        $practicas = $practicas ? $conContenido(null, $practicas) : null;
         $porSemana = $modulos->whereNotNull('semana')->keyBy('semana');
 
+        // Prácticas de campo: la carpeta aparece si el Supervisor las activó; cada
+        // práctica sin entrega visible (sin preparar, en borrador o programada) queda "Aún no disponible".
+        $practicas = null;
+
+        if ($this->curso->tienePracticasCampo()) {
+            $filas = $this->resumenTareasEstudiante->filter(fn (array $fila) => $fila['tarea']->practica !== null)->keyBy(fn (array $fila) => $fila['tarea']->practica);
+            $practicas = $this->carpetaPracticas(fn (int $numero) => ['tarea' => $filas->get($numero)['tarea'] ?? null, 'fila' => $filas->get($numero)]);
+        }
+
         return [
-            'practicas' => $practicas && $practicas['elementos'] > 0 ? $practicas : null,
+            'practicas' => $practicas,
             'semanas' => array_map(function (int $semana) use ($conContenido, $porSemana) {
                 $seccion = $conContenido($semana, $porSemana->get($semana));
 
                 // Sin nada visible, la semana queda como "Aún no disponible".
                 return $seccion['elementos'] > 0 ? $seccion : [...$seccion, 'modulo' => null];
             }, range(1, $this->curso->totalSemanas())),
+        ];
+    }
+
+    /**
+     * Carpeta "Prácticas de campo": Práctica 01..N (una por semana del curso),
+     * cada una con los datos que arma $datosDePractica (su tarea, si existe).
+     *
+     * @param  \Closure(int): array{tarea: ?Tarea}  $datosDePractica
+     * @return array{total: int, preparadas: int, items: list<array{numero: int, etiqueta: string, tarea: ?Tarea}>}
+     */
+    protected function carpetaPracticas(\Closure $datosDePractica): array
+    {
+        $items = array_map(
+            fn (int $numero) => ['numero' => $numero, 'etiqueta' => Tarea::etiquetaPractica($numero), ...$datosDePractica($numero)],
+            range(1, $this->curso->totalPracticasCampo()),
+        );
+
+        return [
+            'total' => count($items),
+            'preparadas' => count(array_filter($items, fn (array $item) => $item['tarea'] !== null)),
+            'items' => $items,
         ];
     }
 

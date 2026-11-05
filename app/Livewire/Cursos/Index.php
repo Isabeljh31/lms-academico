@@ -3,8 +3,8 @@
 namespace App\Livewire\Cursos;
 
 use App\Models\Curso;
+use App\View\Components\PanelProfesorLayout;
 use Illuminate\Support\Facades\Gate;
-use Livewire\Attributes\Layout;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -15,7 +15,6 @@ use Livewire\WithPagination;
  * - Estudiante: solo los cursos en los que tiene matrícula activa y que están
  *   publicados o archivados (no existe catálogo público, ERS 1.2.2).
  */
-#[Layout('layouts.app')]
 class Index extends Component
 {
     use WithPagination;
@@ -34,6 +33,12 @@ class Index extends Component
     public function render()
     {
         $usuario = auth()->user();
+
+        // Profesor: su pantalla Cursos rediseñada, con el layout de barra inferior (solo elige la vista).
+        if (PanelProfesorLayout::aplicaA($usuario)) {
+            return view('livewire.docente.cursos.pagina')->layout('layouts.panel-profesor')->title('Cursos - LearnUp');
+        }
+
         $esEstudiante = $usuario->hasRole('estudiante');
 
         $cursos = Curso::query()
@@ -60,6 +65,6 @@ class Index extends Component
             'cursos' => $cursos,
             'inscritos' => $inscritos,
             'puedeCrear' => Gate::allows('crear', Curso::class),
-        ])->title('Cursos - LearnUp');
+        ])->layout('layouts.app')->title('Cursos - LearnUp');
     }
 }

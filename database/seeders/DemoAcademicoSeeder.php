@@ -374,7 +374,9 @@ class DemoAcademicoSeeder extends Seeder
     }
 
     /**
-     * Sección "Prácticas de campo": actividades que no siguen la numeración semanal.
+     * Prácticas de campo: el Supervisor las activa (una por semana del curso)
+     * y cada una es una tarea con entrega de archivos (Práctica 1..N), fuera
+     * de la numeración semanal. Aquí se preparan las primeras.
      *
      * @param  list<array{0: string, 1: string, 2: string}>  $practicas  [título, descripción, tipo de recurso]
      */
@@ -384,23 +386,27 @@ class DemoAcademicoSeeder extends Seeder
             return;
         }
 
-        $seccion = $curso->modulos()->create([
-            'titulo' => 'Prácticas de campo',
-            'tipo_seccion' => Modulo::TIPO_PRACTICAS,
-            'materiales' => [],
-            'estado_contenido' => 'publicado',
-            'condicion_completitud' => 'lecciones',
-        ]);
+        $curso->update(['tiene_practicas_campo' => true]);
+        $seccion = $curso->moduloPracticas();
+        $inicio = ($curso->fecha_inicio ?? now())->copy();
 
-        foreach ($practicas as $indice => [$titulo, $descripcion, $tipo]) {
-            $seccion->lecciones()->create([
+        foreach ($practicas as $indice => [$titulo, $descripcion]) {
+            $entrega = $inicio->copy()->addWeeks(2 * ($indice + 1))->setTime(23, 59);
+
+            $curso->tareas()->create([
+                'modulo_id' => $seccion->id,
+                'practica' => $indice + 1,
                 'titulo' => $titulo,
                 'descripcion' => $descripcion,
-                'material_url' => $tipo === 'lectura' ? 'https://es.wikipedia.org/wiki/Especial:Buscar?search='.Str::slug($titulo) : null,
-                'material_nombre' => $tipo === 'lectura' ? "{$titulo}.pdf" : null,
-                'estado' => 'publicado',
-                'orden' => $indice + 1,
-                'tipo_recurso' => $tipo,
+                'instrucciones' => "1. Realiza la práctica de campo indicada.\n2. Sube tu informe en PDF con evidencias (fotos, datos recogidos).\n3. Entrega antes de la fecha límite.",
+                'fecha_inicio' => $entrega->copy()->subWeeks(2)->setTime(8, 0),
+                'fecha_entrega' => $entrega,
+                'peso_nota' => 5,
+                'intentos_permitidos' => 1,
+                'formatos_permitidos' => ['pdf', 'docx', 'zip'],
+                'tipo_entrega' => 'individual',
+                'visible' => true,
+                'estado_contenido' => 'publicado',
             ]);
         }
     }

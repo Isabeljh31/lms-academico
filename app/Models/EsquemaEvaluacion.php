@@ -10,11 +10,11 @@ class EsquemaEvaluacion extends Model
 {
     protected $table = 'esquemas_evaluacion';
 
-    protected $fillable = ['curso_id', 'bloqueado'];
+    protected $fillable = ['curso_id', 'bloqueado', 'peso_practicas_campo'];
 
     protected function casts(): array
     {
-        return ['bloqueado' => 'boolean'];
+        return ['bloqueado' => 'boolean', 'peso_practicas_campo' => 'decimal:2'];
     }
 
     // ==========================================
@@ -28,6 +28,7 @@ class EsquemaEvaluacion extends Model
     public function pesosValidos(): bool
     {
         $suma = $this->rubros()->sum('peso');
+
         return abs($suma - 100.0) < 0.01;
     }
 

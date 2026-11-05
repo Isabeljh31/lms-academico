@@ -61,6 +61,8 @@ class Tarea extends Model
         'visible',
         'estado_contenido',
         'publicar_en',
+        // Número de práctica de campo (1..N) que representa; null en las tareas de las semanas.
+        'practica',
     ];
 
     protected function casts(): array
@@ -73,7 +75,19 @@ class Tarea extends Model
             'intentos_permitidos' => 'integer',
             'formatos_permitidos' => 'array',
             'visible' => 'boolean',
+            'practica' => 'integer',
         ];
+    }
+
+    /** "Práctica 03": nombre de la práctica de campo N, como las carpetas de Blackboard. */
+    public static function etiquetaPractica(int $numero): string
+    {
+        return 'Práctica '.str_pad((string) $numero, 2, '0', STR_PAD_LEFT);
+    }
+
+    public function esPracticaCampo(): bool
+    {
+        return $this->practica !== null;
     }
 
     protected function dependeDeVisibilidadYModulo(): bool

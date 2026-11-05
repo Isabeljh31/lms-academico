@@ -30,12 +30,20 @@ class EsquemaEvaluacion extends Component
     /** @var array<int, array{id: int|null, nombre: string, semana: int|string|null, peso: float|string}> */
     public array $rubros = [];
 
+    /**
+     * % de las evaluaciones que valen en total las prácticas de campo (solo si
+     * el curso las tiene). El profesor lo reparte entre una o varias
+     * evaluaciones (ServicesvaluacionPracticasEnEvaluaciones).
+     */
+    public string $pesoPracticas = '';
+
     public function mount(Curso $curso): void
     {
         Gate::authorize('administrar', $curso);
 
         $this->curso = $curso;
         $esquema = EsquemaModel::firstOrCreate(['curso_id' => $curso->id]);
+        $this->pesoPracticas = $esquema->peso_practicas_campo !== null ? rtrim(rtrim((string) $esquema->peso_practicas_campo, '0'), '.') : '';
 
         $this->rubros = $esquema->rubros->map(fn ($rubro) => [
             'id' => $rubro->id,
@@ -83,6 +91,7 @@ class EsquemaEvaluacion extends Component
             'rubros.*.nombre' => ['required', 'string', 'max:100', 'distinct:ignore_case'],
             'rubros.*.semana' => ['required', 'integer', 'min:1', 'max:'.$this->curso->totalSemanas()],
             'rubros.*.peso' => ['required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:100'],
+            'pesoPracticas' => $this->curso->tienePracticasCampo() ? ['required', 'numeric', 'decimal:0,2', 'min:0.01', 'max:100'] : ['nullable'],
         ];
     }
 
@@ -93,6 +102,9 @@ class EsquemaEvaluacion extends Component
     {
         return [
             'rubros.min' => 'Agrega al menos un rubro.',
+            'pesoPracticas.required' => 'Indica cuánto valen las prácticas de campo dentro de las evaluaciones.',
+            'pesoPracticas.min' => 'Las prácticas de campo deben valer más de 0 %.',
+            'pesoPracticas.max' => 'Las prácticas de campo no pueden valer más de 100 %.',
             'rubros.max' => 'El esquema admite como máximo 20 rubros.',
             'rubros.*.nombre.required' => 'Escribe el nombre del rubro.',
             'rubros.*.nombre.max' => 'El nombre del rubro no puede tener más de 100 caracteres.',
@@ -202,6 +214,8 @@ class EsquemaEvaluacion extends Component
                     ? $esquema->rubros()->whereKey($rubro['id'])->firstOrFail()->update($datos)
                     : $esquema->rubros()->create($datos);
             }
+
+            $esquema->update(['peso_practicas_campo' => $this->curso->tienePracticasCampo() ? round((float) $this->pesoPracticas, 2) : null]);
         });
 
         $esquema->refresh();

@@ -198,6 +198,20 @@
                             </span>
                         </label>
 
+                        {{-- Prácticas de campo: las decide el Supervisor (una por semana); el profesor solo prepara la entrega de cada una. --}}
+                        <div>
+                            <label class="flex items-start gap-3 text-sm text-stone-700 dark:text-stone-300">
+                                <input type="checkbox" wire:model.live="tiene_practicas_campo" class="mt-0.5 rounded border-arena-medio text-menta-oscuro focus:ring-menta-base">
+                                <span>
+                                    El curso tiene prácticas de campo
+                                    <span class="block text-xs text-stone-500">
+                                        Aparecen como una carpeta encima de las semanas, con una práctica por semana del curso{{ (int) $semanas_duracion > 0 ? ' ('.(int) $semanas_duracion.' en total)' : '' }}. El profesor prepara la entrega de cada una.
+                                    </span>
+                                </span>
+                            </label>
+                            <x-input-error :messages="$errors->get('tiene_practicas_campo')" class="mt-1 pl-7" />
+                        </div>
+
                         @if ($modalidad !== 'virtual' && $usa_asistencia)
                             <div class="rounded-xl border border-arena-medio p-4 dark:border-stone-600">
                                 <p class="text-sm font-medium text-stone-700 dark:text-stone-300">Horario de clase</p>

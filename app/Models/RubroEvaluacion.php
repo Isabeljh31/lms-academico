@@ -20,6 +20,10 @@ class RubroEvaluacion extends Model
         'peso',
         'orden',
         'modo_calculo',
+        // Tramo de prácticas de campo (Práctica desde..hasta) y su % dentro de la evaluación.
+        'practica_desde',
+        'practica_hasta',
+        'peso_practicas',
     ];
 
     protected function casts(): array
@@ -29,6 +33,9 @@ class RubroEvaluacion extends Model
             'peso' => 'decimal:2',
             'semana' => 'integer',
             'orden' => 'integer',
+            'practica_desde' => 'integer',
+            'practica_hasta' => 'integer',
+            'peso_practicas' => 'decimal:2',
         ];
     }
 
@@ -64,6 +71,24 @@ class RubroEvaluacion extends Model
     // ==========================================
     // CÁLCULO DE LA NOTA
     // ==========================================
+
+    /** El profesor asignó a esta evaluación un tramo de prácticas de campo. */
+    public function tienePracticas(): bool
+    {
+        return $this->practica_desde !== null && $this->practica_hasta !== null;
+    }
+
+    /** Cuántas prácticas de campo abarca el tramo (0 si no tiene). */
+    public function cantidadPracticas(): int
+    {
+        return $this->tienePracticas() ? $this->practica_hasta - $this->practica_desde + 1 : 0;
+    }
+
+    /** % de la evaluación que queda para las demás actividades (100 menos el tramo de prácticas). */
+    public function pesoParaActividades(): float
+    {
+        return round(100 - (float) ($this->peso_practicas ?? 0), 2);
+    }
 
     /** La nota sale de las actividades vinculadas (promedio ponderado o examen). */
     public function esAutomatico(): bool

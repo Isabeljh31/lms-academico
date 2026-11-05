@@ -64,12 +64,15 @@ class Curso extends Model
         'usa_asistencia',
         // ERS RF-74: integrantes por grupo (null = sin límite)
         'tamano_maximo_grupo',
+        // El Supervisor decide si el curso tiene prácticas de campo (una por semana).
+        'tiene_practicas_campo',
     ];
 
     protected $attributes = [
         'estado' => 'borrador',
         'usa_asistencia' => true,
         'modalidad' => 'presencial',
+        'tiene_practicas_campo' => false,
     ];
 
     protected function casts(): array
@@ -79,6 +82,7 @@ class Curso extends Model
             'fecha_fin' => 'date',
             'usa_asistencia' => 'boolean',
             'tamano_maximo_grupo' => 'integer',
+            'tiene_practicas_campo' => 'boolean',
             'horario_bloques' => 'array',
         ];
     }
@@ -322,6 +326,36 @@ class Curso extends Model
             (int) ($this->semanas_duracion ?: self::SEMANAS_PREDETERMINADAS),
             (int) $this->modulos()->max('semana'),
         );
+    }
+
+    /** El Supervisor activó prácticas de campo para este curso. */
+    public function tienePracticasCampo(): bool
+    {
+        return (bool) $this->tiene_practicas_campo;
+    }
+
+    /** Una práctica de campo por semana del curso (Práctica 1..N); 0 si no tiene. */
+    public function totalPracticasCampo(): int
+    {
+        return $this->tienePracticasCampo() ? $this->totalSemanas() : 0;
+    }
+
+    /**
+     * Contenedor de las prácticas de campo (sección fuera de la numeración
+     * semanal). Se crea al preparar la primera práctica.
+     */
+    public function moduloPracticas(): Modulo
+    {
+        return $this->modulos()->firstOrCreate(
+            ['tipo_seccion' => Modulo::TIPO_PRACTICAS],
+            ['titulo' => 'Prácticas de campo', 'materiales' => []],
+        );
+    }
+
+    /** Número más alto de práctica que ya tiene su tarea (0 si ninguna). */
+    public function ultimaPracticaConTarea(): int
+    {
+        return (int) $this->tareas()->max('practica');
     }
 
     /**

@@ -96,8 +96,8 @@ class ActividadesTest extends TestCase
 
         $this->componente($escenario)
             ->assertSee('Crear actividad')
-            ->assertSee('aria-haspopup="menu"', false)
-            ->assertSee('role="menuitem"', false)
+            ->assertSee('aria-haspopup="dialog"', false)
+            ->assertSee('role="dialog"', false)
             ->assertSee(e(route('cursos.tareas.crear', [$escenario['curso'], 'desde' => 'actividades'])), false)
             ->assertSee(e(route('cursos.quizzes.crear', [$escenario['curso'], 'desde' => 'actividades'])), false);
 

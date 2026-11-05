@@ -180,7 +180,7 @@
                                     <span class="min-w-0">
                                         <span class="flex items-center gap-1.5 truncate font-medium {{ $titulo }}">
                                             <span class="h-2 w-2 shrink-0 rounded-full" style="background-color: {{ $this->coloresCursos[$sesion->curso_id] ?? '#3C7A75' }}"></span>
-                                            {{ $sesion->curso->nombre }}
+                                            {{ $this->secciones->nombreVisible($sesion->curso_id) }}
                                         </span>
                                         <span class="text-xs {{ $suave }}">{{ $sesion->titulo }}</span>
                                     </span>
@@ -212,7 +212,7 @@
                                         <li>
                                             <a href="{{ route('cursos.tareas.show', [$item['tarea']->curso_id, $item['tarea']->id]) }}" wire:navigate
                                                 class="flex items-center justify-between gap-2 rounded-md px-2 py-1 text-sm {{ $esAdminVista ? 'hover:bg-arena-claro dark:hover:bg-stone-700' : 'hover:bg-celeste dark:hover:bg-azul-borde-oscuro' }}">
-                                                <span class="truncate {{ $titulo }}">{{ $item['tarea']->titulo }} <span class="text-xs {{ $suave }}">- {{ $item['tarea']->curso->codigo ?? $item['tarea']->curso->nombre }}</span></span>
+                                                <span class="truncate {{ $titulo }}">{{ $item['tarea']->titulo }} <span class="text-xs {{ $suave }}">- {{ $this->secciones->referenciaCorta($item['tarea']->curso_id) }}</span></span>
                                                 <span class="shrink-0 text-xs font-semibold text-amber-700 dark:text-amber-300">{{ $item['total'] }}</span>
                                             </a>
                                         </li>
@@ -236,7 +236,7 @@
                                 <a href="{{ route('cursos.libro-calificaciones', $item['curso']) }}" wire:navigate class="flex items-center justify-between gap-3 text-sm">
                                     <span class="min-w-0">
                                         <span class="block truncate font-medium {{ $titulo }}">{{ $item['rubro']->nombre }} ({{ (float) $item['rubro']->peso }} %)</span>
-                                        <span class="text-xs {{ $suave }}">{{ $item['curso']->nombre }} - semana {{ $item['rubro']->semana }}</span>
+                                        <span class="text-xs {{ $suave }}">{{ $this->secciones->nombreVisible($item['curso']->id) }} - semana {{ $item['rubro']->semana }}</span>
                                     </span>
                                     <span class="shrink-0 text-xs {{ $item['fecha']->isCurrentWeek() ? 'font-semibold '.$acento : $suave }}">
                                         {{ $item['fecha']->isCurrentWeek() ? 'Esta semana' : 'Sem. del '.$item['fecha']->translatedFormat('d M') }}
@@ -355,14 +355,39 @@
                 tiposSeleccionados: @js(array_keys($tipos)),
                 resaltado: @js($eventoResaltado),
                 fechaInicial: @js($fechaInicial),
+                {{-- Profesor: bloque "Actividades de la semana por curso" (null para los demás roles). --}}
+                bloque: @js($this->semanaPorCurso),
+                semanaInicio: '',
+                semanaFin: '',
+                rangoSemana: '',
+                abiertos: {},
+                expandidos: {},
+                // Resultado del bloque semanal, calculado una vez por cambio de semana o de filtros (no en cada fila).
+                vista: { grupos: [], primera: null, primerGrupo: null, conActividad: [] },
+                // Muchos cursos: búsqueda y materias abiertas en el filtro, y materias abiertas en el bloque.
+                busquedaCurso: '',
+                materiasFiltro: {},
+                materiasAbiertas: {},
+                seleccionRecordada: false,
                 init() {
+                    // Muchos cursos: se recupera la selección guardada en este navegador (si se puede leer).
+                    if (this.bloque?.muchos) {
+                        try {
+                            const guardada = JSON.parse(localStorage.getItem(this.bloque.claveSeleccion) ?? 'null');
+                            if (Array.isArray(guardada)) {
+                                const ids = this.bloque.cursos.map(c => c.id);
+                                this.cursosSeleccionados = guardada.filter(id => ids.includes(id));
+                                this.seleccionRecordada = true;
+                            }
+                        } catch (error) {}
+                    }
                     // Sin fecha en la URL pero con evento: se abre en la fecha de ese evento.
                     const destino = this.fechaInicial || (this.eventos.find(e => e.id === this.resaltado)?.start ?? '').slice(0, 10);
                     // El evento resaltado va primero en su día, para que no quede oculto en +N más.
                     this.eventos = this.eventos.map(e => e.id === this.resaltado ? { ...e, orden: 0 } : e);
                     this.calendar = new window.FullCalendar.Calendar(this.$refs.calendario, {
                         plugins: [window.FullCalendar.dayGridPlugin, window.FullCalendar.timeGridPlugin, window.FullCalendar.listPlugin, window.FullCalendar.interactionPlugin],
-                        initialView: window.innerWidth < 640 ? 'listWeek' : 'dayGridMonth',
+                        initialView: window.innerWidth < 640 ? 'listWeek' : (this.bloque ? 'dayGridWeek' : 'dayGridMonth'),
                         initialDate: destino || undefined,
                         eventDidMount: (info) => {
                             if (this.resaltado && info.event.id === this.resaltado) {
@@ -373,7 +398,15 @@
                         locale: window.FullCalendar.esLocale ?? 'es',
                         firstDay: 1,
                         buttonText: { today: 'Hoy', month: 'Mes', week: 'Semana', list: 'Agenda' },
-                        headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,listWeek' },
+                        headerToolbar: { left: 'prev,next today', center: 'title', right: this.bloque ? 'dayGridMonth,dayGridWeek,listWeek' : 'dayGridMonth,timeGridWeek,listWeek' },
+                        // Profesor: la semana en una fila (sin la grilla de 24 horas) y el rango «26 oct – 1 nov»; la hora de cada actividad se ve en el bloque por curso.
+                        views: this.bloque ? {
+                            // Con 3 o más cursos: máximo 3 actividades por día y «+N más» abre el resto en un recuadro (también en el mes).
+                            dayGridWeek: { titleFormat: { day: 'numeric', month: 'short' }, dayMaxEventRows: false, dayMaxEvents: this.bloque.cursos.length >= {{ \App\Services\Calendario\SeccionesProfesor::CURSOS_CON_REFERENCIA }} ? 3 : false },
+                            ...(this.bloque.cursos.length >= {{ \App\Services\Calendario\SeccionesProfesor::CURSOS_CON_REFERENCIA }} ? { dayGridMonth: { dayMaxEventRows: false, dayMaxEvents: 3 } } : {}),
+                            listWeek: { titleFormat: { day: 'numeric', month: 'short' } },
+                        } : {},
+                        datesSet: () => this.bloque && this.actualizarSemana(),
                         height: 'auto',
                         displayEventTime: false,
                         eventDisplay: 'block',
@@ -409,16 +442,176 @@
                 aplicar() {
                     this.calendar.removeAllEventSources();
                     this.calendar.addEventSource(this.visibles());
+                    if (this.bloque) {
+                        this.guardarSeleccion();
+                        this.recalcular();
+                    }
+                },
+                // Muchos cursos: la selección se recuerda en este navegador; si no se puede guardar, todo funciona igual.
+                guardarSeleccion() {
+                    if (! this.bloque.muchos) return;
+                    try {
+                        localStorage.setItem(this.bloque.claveSeleccion, JSON.stringify(this.cursosSeleccionados));
+                        this.seleccionRecordada = true;
+                    } catch (error) {}
+                },
+                restablecerSeleccion() {
+                    try { localStorage.removeItem(this.bloque.claveSeleccion); } catch (error) {}
+                    this.cursosSeleccionados = this.bloque.cursos.map(c => c.id);
+                    this.calendar.removeAllEventSources();
+                    this.calendar.addEventSource(this.visibles());
+                    this.seleccionRecordada = false;
+                    this.recalcular();
+                },
+                seleccionar(ids) {
+                    this.cursosSeleccionados = ids;
+                    this.aplicar();
+                },
+                // Marca o desmarca todas las secciones de una materia.
+                alternarMateria(ids) {
+                    const todas = ids.every(id => this.cursosSeleccionados.includes(id));
+                    this.seleccionar(todas ? this.cursosSeleccionados.filter(id => ! ids.includes(id)) : [...new Set([...this.cursosSeleccionados, ...ids])]);
+                },
+                normalizar(texto) {
+                    return String(texto ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+                },
+                // Filtro de muchos cursos: materias con las secciones que coinciden con la búsqueda (nombre o código).
+                materiasDelFiltro() {
+                    const buscado = this.normalizar(this.busquedaCurso);
+                    const grupos = [];
+                    for (const curso of this.bloque.cursos) {
+                        if (buscado && ! curso.busqueda.includes(buscado)) continue;
+                        let grupo = grupos.find(g => g.clave === curso.grupo);
+                        if (! grupo) {
+                            grupo = { clave: curso.grupo, nombre: curso.nombre, secciones: [] };
+                            grupos.push(grupo);
+                        }
+                        grupo.secciones.push(curso);
+                    }
+                    return grupos;
+                },
+                materiaFiltroAbierta(clave) {
+                    // Con búsqueda se ven todas las coincidencias; sin búsqueda, las materias empiezan colapsadas.
+                    return this.busquedaCurso.trim() !== '' || (this.materiasFiltro[clave] ?? this.bloque.cursos.length <= 8);
                 },
                 alternar(lista, valor) {
                     this[lista] = this[lista].includes(valor) ? this[lista].filter(v => v !== valor) : [...this[lista], valor];
                     this.aplicar();
+                },
+                // Bloque semanal del Profesor: todo se calcula con los eventos ya cargados, sin pedir nada al servidor.
+                fechaLocal(fecha) {
+                    return fecha.getFullYear() + '-' + String(fecha.getMonth() + 1).padStart(2, '0') + '-' + String(fecha.getDate()).padStart(2, '0');
+                },
+                actualizarSemana() {
+                    const inicio = new Date(this.calendar.getDate());
+                    inicio.setDate(inicio.getDate() - (inicio.getDay() + 6) % 7);
+                    const fin = new Date(inicio);
+                    fin.setDate(inicio.getDate() + 6);
+                    const formato = new Intl.DateTimeFormat('es', { day: 'numeric', month: 'short' });
+                    this.semanaInicio = this.fechaLocal(inicio);
+                    this.semanaFin = this.fechaLocal(fin);
+                    this.rangoSemana = formato.format(inicio) + ' – ' + formato.format(fin);
+                    this.recalcular();
+                },
+                numeroSemana(curso) {
+                    if (! curso.inicio || ! this.semanaInicio) return null;
+                    const numero = Math.round((Date.parse(this.semanaInicio) - Date.parse(curso.inicio)) / 604800000) + 1;
+                    return numero >= 1 && numero <= curso.totalSemanas ? numero : null;
+                },
+                actividadesDe(cursoId, deLaSemana = null) {
+                    const conFecha = (deLaSemana ? (deLaSemana[cursoId] ?? []) : this.eventos.filter(e => e.extendedProps.cursoId === cursoId && e.start.slice(0, 10) >= this.semanaInicio && e.start.slice(0, 10) <= this.semanaFin))
+                        .filter(e => e.extendedProps.tipo !== 'propio' && this.tiposSeleccionados.includes(e.extendedProps.tipo))
+                        .sort((a, b) => a.start.localeCompare(b.start) || a.orden - b.orden)
+                        .map(e => ({ id: e.id, tipo: e.extendedProps.tipo, titulo: e.extendedProps.titulo ?? e.title, fecha: e.extendedProps.fechaCorta ?? '', estado: e.extendedProps.estado ?? null, detalle: e.extendedProps.detalle ?? null, porCalificar: e.extendedProps.porCalificar ?? 0, url: e.url }));
+                    const sinFecha = this.tiposSeleccionados.includes('quiz')
+                        ? this.bloque.sinFecha.filter(q => q.cursoId === cursoId && q.inicioSemana === this.semanaInicio).map(q => ({ ...q, fecha: null, detalle: null, porCalificar: 0 }))
+                        : [];
+                    return { conFecha, sinFecha, total: conFecha.length + sinFecha.length };
+                },
+                // Calcula una sola vez el bloque de la semana: eventos de la semana por curso (una pasada), actividades de cada
+                // curso, materias con sus secciones y qué fila y qué materia empiezan abiertas.
+                recalcular() {
+                    if (! this.bloque || ! this.semanaInicio) return;
+                    const deLaSemana = {};
+                    for (const e of this.eventos) {
+                        const dia = e.start.slice(0, 10);
+                        if (e.extendedProps.cursoId !== null && dia >= this.semanaInicio && dia <= this.semanaFin) {
+                            (deLaSemana[e.extendedProps.cursoId] ??= []).push(e);
+                        }
+                    }
+                    const muchos = this.bloque.muchos;
+                    const todos = this.bloque.cursos.map(c => ({ ...c, numero: this.numeroSemana(c), actividades: this.actividadesDe(c.id, deLaSemana) }));
+                    const grupos = [];
+                    for (const curso of todos.filter(c => this.cursosSeleccionados.includes(c.id))) {
+                        let grupo = grupos.find(g => g.clave === curso.grupo);
+                        if (! grupo) {
+                            // Agrupado: con varias secciones, o con muchos cursos (cada materia en su propio grupo colapsable).
+                            grupo = { clave: curso.grupo, nombre: curso.nombre, varias: curso.variasSecciones, agrupado: curso.variasSecciones || muchos, secciones: [] };
+                            grupos.push(grupo);
+                        }
+                        grupo.secciones.push(curso);
+                    }
+                    const listos = grupos.map(g => ({
+                        ...g,
+                        total: g.secciones.reduce((suma, s) => suma + s.actividades.total, 0),
+                        items: g.agrupado ? g.secciones.filter(s => s.actividades.total > 0) : g.secciones,
+                        vacias: g.agrupado ? g.secciones.filter(s => s.actividades.total === 0) : [],
+                    }));
+                    const conActividades = listos.find(g => g.total > 0);
+                    this.vista = {
+                        grupos: listos,
+                        // Solo la primera fila empieza abierta (con muchos cursos, la primera con actividades).
+                        primera: (muchos ? conActividades?.items[0] : listos.flatMap(g => g.items)[0])?.id ?? null,
+                        primerGrupo: conActividades?.clave ?? null,
+                        conActividad: todos.filter(c => c.actividades.total > 0).map(c => c.id),
+                    };
+                },
+                cursosDeLaSemana() {
+                    return this.vista.grupos.flatMap(g => g.secciones);
+                },
+                gruposDeLaSemana() {
+                    return this.vista.grupos;
+                },
+                primeraAbierta() {
+                    return this.vista.primera;
+                },
+                estaAbierto(cursoId) {
+                    return this.abiertos[cursoId] ?? cursoId === this.vista.primera;
+                },
+                // Muchos cursos: cada materia del bloque es colapsable; empieza abierta solo la primera con actividades.
+                materiaAbierta(clave) {
+                    return ! this.bloque.muchos || (this.materiasAbiertas[clave] ?? clave === this.vista.primerGrupo);
+                },
+                alternarMateriaBloque(clave) {
+                    this.materiasAbiertas = { ...this.materiasAbiertas, [clave]: ! this.materiaAbierta(clave) };
+                },
+                expandirTodo(abrir) {
+                    this.materiasAbiertas = Object.fromEntries(this.vista.grupos.map(g => [g.clave, abrir]));
+                    this.abiertos = Object.fromEntries(this.vista.grupos.flatMap(g => g.items).map(s => [s.id, abrir]));
+                },
+                alternarCurso(cursoId) {
+                    this.abiertos = { ...this.abiertos, [cursoId]: ! this.estaAbierto(cursoId) };
+                },
+                visiblesDe(curso) {
+                    // Primero las que tienen fecha; si hay más de 5 en total, se muestran 5 hasta pulsar «Ver todas».
+                    const todas = [...curso.actividades.conFecha.map(a => ({ ...a, grupo: 'conFecha' })), ...curso.actividades.sinFecha.map(a => ({ ...a, grupo: 'sinFecha' }))];
+                    return this.expandidos[curso.id] ? todas : todas.slice(0, 5);
+                },
+                claseEstado(estado) {
+                    if (estado.startsWith('Publicado')) return 'bg-exito-base/15 text-exito-oscuro';
+                    if (estado.startsWith('Programado')) return 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300';
+                    return 'bg-celeste text-slate-700 dark:bg-azul-borde-oscuro dark:text-slate-200';
                 },
             }"
             class="grid grid-cols-1 gap-6 lg:grid-cols-4">
 
             <aside class="order-2 space-y-4 lg:order-1 lg:col-span-1">
                 <section class="{{ $tarjeta }} p-4">
+                    @if ($rol === 'profesor' && $this->secciones->hayMuchos())
+                        @include('livewire.evento-calendario._filtro-muchos-cursos')
+                    @elseif ($rol === 'profesor' && $this->secciones->haySecciones())
+                        @include('livewire.evento-calendario._filtro-secciones')
+                    @else
                     <h2 class="text-sm font-semibold {{ $titulo }}">{{ $rol === 'supervisor' ? 'Cursos publicados' : 'Mis cursos' }}</h2>
                     <p class="mt-0.5 text-xs {{ $suave }}">Muestra u oculta las actividades de cada curso.</p>
                     <ul class="mt-3 space-y-1">
@@ -443,6 +636,7 @@
                             <li class="text-sm {{ $suave }}">{{ $esEstudiante ? 'Aún no estás matriculado en cursos.' : 'No hay cursos para mostrar.' }}</li>
                         @endforelse
                     </ul>
+                    @endif
                 </section>
 
                 <section class="{{ $tarjeta }} p-4">
@@ -461,9 +655,20 @@
                 </section>
             </aside>
 
-            <div class="calendario-learnup order-1 {{ $tarjeta }} p-4 lg:order-2 lg:col-span-3 {{ $esEstudiante ? 'text-slate-700 dark:text-slate-200' : 'text-stone-700 dark:text-stone-200' }} {{ $variablesCalendario }}">
-                <div x-ref="calendario"></div>
-            </div>
+            @if ($rol === 'profesor')
+                {{-- Profesor: el bloque semanal va justo debajo del calendario, en la misma columna (sin hueco por la altura de los filtros). --}}
+                <div class="order-1 min-w-0 space-y-6 lg:order-2 lg:col-span-3">
+                    <div class="calendario-learnup calendario-profesor {{ $tarjeta }} p-4 text-stone-700 dark:text-stone-200 {{ $variablesCalendario }}">
+                        <div x-ref="calendario"></div>
+                    </div>
+
+                    @include('livewire.evento-calendario._semana-por-curso')
+                </div>
+            @else
+                <div class="calendario-learnup order-1 {{ $tarjeta }} p-4 lg:order-2 lg:col-span-3 {{ $esEstudiante ? 'text-slate-700 dark:text-slate-200' : 'text-stone-700 dark:text-stone-200' }} {{ $variablesCalendario }}">
+                    <div x-ref="calendario"></div>
+                </div>
+            @endif
         </div>
 
         {{-- Eventos propios --}}
@@ -573,6 +778,11 @@
         .calendario-learnup .fc-event-title { font-size: 0.72rem; font-weight: 500; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .calendario-learnup .evento-evaluacion { box-shadow: inset 3px 0 0 rgba(255, 255, 255, 0.85); font-weight: 700; }
         .calendario-learnup .fc-list-event-title a { font-size: 0.85rem; }
+        /* Profesor: el recuadro de «+N más» con fondo de tarjeta (el calendario usa fondo transparente). */
+        .calendario-profesor .fc-popover { background-color: #ffffff; border-radius: 0.75rem; box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15); max-width: 22rem; }
+        .dark .calendario-profesor .fc-popover { background-color: #12232F; }
+        .calendario-profesor .fc-popover-header { border-radius: 0.75rem 0.75rem 0 0; font-size: 0.8rem; font-weight: 600; }
+        .calendario-profesor .fc-popover-body { max-height: 18rem; overflow-y: auto; }
         @media (max-width: 640px) {
             .calendario-learnup .fc-toolbar { flex-direction: column; gap: 0.5rem; }
         }

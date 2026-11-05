@@ -15,30 +15,30 @@ use Tests\TestCase;
 
 /**
  * Contenido del curso organizado por semanas (Semana 1..N, N definido por el
- * Supervisor) y una sección "Prácticas de campo" fuera de la numeración.
+ * Supervisor) y la carpeta "Prácticas de campo" fuera de la numeración (ver PracticasCampoTest).
  */
 class ContenidoPorSemanasTest extends TestCase
 {
     use PreparaEscenarioAcademico, RefreshDatabase;
 
-    public function test_el_profesor_ve_todas_las_semanas_del_curso_y_las_practicas_de_campo(): void
+    public function test_el_profesor_ve_todas_las_semanas_del_curso_y_no_puede_crear_practicas_de_campo(): void
     {
         $escenario = $this->escenario();
         $escenario['curso']->update(['semanas_duracion' => 6]);
 
         Livewire::actingAs($escenario['profesor'])->test(Show::class, ['curso' => $escenario['curso']])
             ->assertSee('Contenido por semanas')
-            // Sin prácticas de campo no hay bloque, solo la acción para agregarlas.
+            // Sin prácticas definidas por el Supervisor no hay carpeta ni acción para crearlas.
             ->assertDontSee('Fuera de la numeración semanal')
-            ->assertSee('Agregar prácticas de campo')
+            ->assertDontSee('Agregar prácticas de campo')
             ->assertSee('Semana 6')
             ->assertDontSee('Semana 7')
             ->assertSee('Mensaje de inicio')
             ->assertDontSee('Preparar semana')
-            ->call('prepararSeccion', null)
-            ->assertSet('mostrarModalModulo', true);
+            ->call('prepararSeccion', Show::CLAVE_PRACTICAS)
+            ->assertNotFound();
 
-        $this->assertDatabaseHas('modulos', ['curso_id' => $escenario['curso']->id, 'tipo_seccion' => Modulo::TIPO_PRACTICAS, 'semana' => null]);
+        $this->assertDatabaseMissing('modulos', ['curso_id' => $escenario['curso']->id, 'tipo_seccion' => Modulo::TIPO_PRACTICAS]);
     }
 
     public function test_no_se_prepara_una_semana_fuera_de_la_duracion_del_curso(): void
@@ -57,13 +57,12 @@ class ContenidoPorSemanasTest extends TestCase
         $curso = $escenario['curso'];
         $escenario['modulo']->update(['semana' => 3, 'titulo' => 'La derivada']);
         $borrador = $curso->modulos()->create(['titulo' => 'Tema oculto', 'semana' => 2, 'estado_contenido' => 'borrador', 'materiales' => []]);
-        $practicas = $curso->modulos()->create(['titulo' => 'Prácticas de campo', 'tipo_seccion' => Modulo::TIPO_PRACTICAS, 'materiales' => []]);
+        $curso->update(['tiene_practicas_campo' => true]);
         $escenario['modulo']->lecciones()->create(['titulo' => 'Dudas de la semana', 'estado' => 'publicado', 'orden' => 1, 'tipo_recurso' => 'foro']);
-        $practicas->lecciones()->create(['titulo' => 'Salida al laboratorio', 'estado' => 'publicado', 'orden' => 1, 'tipo_recurso' => 'actividad']);
+        Tarea::factory()->create(['curso_id' => $curso->id, 'modulo_id' => $curso->moduloPracticas()->id, 'practica' => 1, 'titulo' => 'Salida al laboratorio', 'fecha_entrega' => now()->addWeek()]);
 
         Livewire::actingAs($escenario['estudiante'])->test(Show::class, ['curso' => $curso])
-            ->assertSeeInOrder(['Prácticas de campo', 'Salida al laboratorio', 'Semana 3', 'La derivada', 'Foro de preguntas', 'Dudas de la semana'])
-            ->assertSee('Actividad complementaria')
+            ->assertSeeInOrder(['Prácticas de campo', 'Práctica 01', 'Salida al laboratorio', 'Semana 3', 'La derivada', 'Foro de preguntas', 'Dudas de la semana'])
             // La tarea de la semana aparece dentro de ella.
             ->assertSee($escenario['tarea']->titulo)
             // RF-38: la semana en borrador no es visible.
@@ -144,31 +143,5 @@ class ContenidoPorSemanasTest extends TestCase
         $this->assertSame(7, Leccion::count());
         $this->assertSame('Tema 3', Modulo::where('curso_id', $conDuracion->id)->where('semana', 9)->first()->tema());
         $this->assertSame(['lectura' => 5, 'video' => 2], Leccion::query()->selectRaw('tipo_recurso, count(*) as total')->groupBy('tipo_recurso')->pluck('total', 'tipo_recurso')->map(fn ($n) => (int) $n)->all());
-    }
-
-    public function test_las_practicas_de_campo_son_un_bloque_propio_que_solo_aparece_con_contenido_visible(): void
-    {
-        $escenario = $this->escenario();
-        $curso = $escenario['curso'];
-        $practicas = $curso->modulos()->create(['titulo' => 'Prácticas de campo', 'tipo_seccion' => Modulo::TIPO_PRACTICAS, 'materiales' => []]);
-        $leccion = $practicas->lecciones()->create(['titulo' => 'Visita a la planta', 'estado' => 'borrador', 'orden' => 1, 'tipo_recurso' => 'actividad']);
-
-        // Solo contenido en borrador: el estudiante no ve el bloque (RF-38); el profesor sí, con su aviso.
-        Livewire::actingAs($escenario['estudiante'])->test(Show::class, ['curso' => $curso])
-            ->assertDontSee('Fuera de la numeración semanal')
-            ->assertDontSee('Visita a la planta');
-        Livewire::actingAs($escenario['profesor'])->test(Show::class, ['curso' => $curso])
-            ->assertSeeInOrder(['Fuera de la numeración semanal', 'Prácticas de campo', 'Contenido por semanas', 'Semana 1'])
-            ->assertSee('los estudiantes no ven este bloque')
-            ->assertDontSee('Agregar prácticas de campo');
-
-        $leccion->update(['estado' => 'publicado']);
-
-        // Publicado: bloque propio, antes de las semanas, sin número de semana ni rango de fechas.
-        Livewire::actingAs($escenario['estudiante'])->test(Show::class, ['curso' => $curso])
-            ->assertSeeInOrder(['Fuera de la numeración semanal', 'Prácticas de campo', 'Actividad complementaria', 'Visita a la planta', 'Semanas del curso', 'Semana 1']);
-        Livewire::actingAs($escenario['supervisor'])->test(Show::class, ['curso' => $curso])
-            ->assertSeeInOrder(['Prácticas de campo', 'Contenido por semanas'])
-            ->assertDontSee('Quitar');
     }
 }

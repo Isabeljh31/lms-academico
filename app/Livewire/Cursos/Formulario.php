@@ -84,6 +84,9 @@ class Formulario extends Component
 
     public bool $usa_asistencia = true;
 
+    /** El Supervisor decide si el curso tiene prácticas de campo: una por semana (Práctica 1..N, N = duración). */
+    public bool $tiene_practicas_campo = false;
+
     public function mount(?Curso $curso = null): void
     {
         if ($curso && $curso->exists) {
@@ -110,6 +113,7 @@ class Formulario extends Component
                 'aula' => $bloque['aula'] ?? '',
             ])->values()->all();
             $this->usa_asistencia = (bool) $curso->usa_asistencia;
+            $this->tiene_practicas_campo = $curso->tienePracticasCampo();
         } else {
             Gate::authorize('crear', Curso::class);
         }
@@ -330,7 +334,12 @@ class Formulario extends Component
             'fecha_inicio' => ['nullable', 'date'],
             'fecha_fin' => ['nullable', 'date', 'after_or_equal:fecha_inicio'],
             // No puede quedar por debajo de la última semana que ya tiene contenido.
-            'semanas_duracion' => ['required', 'integer', 'min:'.max(1, (int) $this->curso?->modulos()->max('semana')), 'max:104'],
+            // No puede quedar por debajo de la última semana con contenido ni (con prácticas de campo, una por semana) de la última práctica con entrega.
+            'semanas_duracion' => ['required', 'integer', 'min:'.max(
+                1,
+                (int) $this->curso?->modulos()->max('semana'),
+                $this->tiene_practicas_campo ? (int) $this->curso?->ultimaPracticaConTarea() : 0,
+            ), 'max:104'],
             'cupo_maximo' => ['nullable', 'integer', 'min:'.max(1, (int) $this->curso?->inscripcionesActivas()->count()), 'max:500'],
             'modalidad' => ['required', Rule::in(Curso::MODALIDADES)],
             'horarioBloques' => [
@@ -348,6 +357,11 @@ class Formulario extends Component
             'horarioBloques.*.hora_fin' => ['required', 'date_format:H:i', 'after:horarioBloques.*.hora_inicio'],
             'horarioBloques.*.aula' => [$this->modalidad === 'presencial' ? 'required' : 'nullable', 'string', 'max:50'],
             'usa_asistencia' => ['boolean'],
+            'tiene_practicas_campo' => ['boolean', function (string $atributo, mixed $valor, \Closure $fail): void {
+                if (! $valor && $this->curso?->ultimaPracticaConTarea()) {
+                    $fail('El profesor ya preparó entregas de prácticas de campo en este curso: no se pueden quitar.');
+                }
+            }],
         ], [
             'profesor_id.required' => 'Selecciona el profesor titular del curso.',
             'fecha_fin.after_or_equal' => 'La fecha de fin no puede ser anterior a la de inicio.',
@@ -355,7 +369,7 @@ class Formulario extends Component
             'codigo.regex' => 'El código solo puede tener letras (A-Z), números y guiones, sin espacios ni tildes. Ejemplo: MAT-201.',
             'codigo.max' => 'El código no puede tener más de 30 caracteres.',
             'semanas_duracion.required' => 'Indica cuántas semanas dura el curso.',
-            'semanas_duracion.min' => 'La semana :min ya tiene contenido: la duración no puede ser menor. Vacía o mueve esas semanas primero.',
+            'semanas_duracion.min' => 'La semana (o la práctica de campo) :min ya tiene contenido: la duración no puede ser menor. Vacía o mueve ese contenido primero.',
             'cupo_maximo.min' => 'Ya hay :min estudiantes matriculados: el cupo no puede ser menor a esa cantidad.',
             'horarioBloques.*.dia.required' => 'Elige el día de este bloque de horario.',
             'horarioBloques.*.hora_inicio.required' => 'Indica la hora de inicio de este bloque.',
@@ -415,6 +429,7 @@ class Formulario extends Component
                 ])->values()->all()
                 : null,
             'usa_asistencia' => $this->usa_asistencia,
+            'tiene_practicas_campo' => $this->tiene_practicas_campo,
         ];
 
         if ($editando) {

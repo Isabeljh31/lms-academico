@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Cursos\Concerns;
 
+use App\Models\Curso;
 use App\Models\Leccion;
 use App\Models\Modulo;
 use App\Notifications\NuevoContenidoPublicado;
@@ -156,7 +157,8 @@ trait GestionaContenidoSemanal
      */
     protected function inicializarSemanasAbiertas(Collection $modulos, ?int $semanaPedida): void
     {
-        $total = $this->curso->totalSemanas();
+        // Mismo cálculo que Curso::totalSemanas(), con los módulos ya cargados (todos los del curso) en lugar de otra consulta.
+        $total = max((int) ($this->curso->semanas_duracion ?: Curso::SEMANAS_PREDETERMINADAS), (int) $modulos->max('semana'));
 
         if ($semanaPedida !== null && $semanaPedida >= self::CLAVE_PRACTICAS && $semanaPedida <= $total) {
             $this->semanasAbiertas = [$semanaPedida];
@@ -426,11 +428,11 @@ trait GestionaContenidoSemanal
         );
     }
 
-    /** Pide confirmación antes de vaciar una semana o quitar las prácticas de campo, indicando qué se borra. */
+    /** Pide confirmación antes de vaciar una semana, indicando qué se borra. */
     public function confirmarVaciarModulo(int $moduloId): void
     {
         $this->autorizarContenido();
-        $modulo = $this->curso->modulos()->withCount(['lecciones', 'tareas', 'quizzes'])->findOrFail($moduloId);
+        $modulo = $this->curso->modulos()->where('tipo_seccion', Modulo::TIPO_SEMANA)->withCount(['lecciones', 'tareas', 'quizzes'])->findOrFail($moduloId);
 
         $contenido = collect([
             [$modulo->lecciones_count, 'elemento de contenido', 'elementos de contenido'],
@@ -441,10 +443,9 @@ trait GestionaContenidoSemanal
         $this->pedirConfirmacion(
             'vaciarModulo',
             $modulo->id,
-            $modulo->esPracticas() ? 'Quitar prácticas de campo' : "Vaciar {$modulo->etiqueta()}",
-            ($modulo->esPracticas() ? 'Se quitarán las prácticas de campo' : "Se vaciará {$modulo->etiqueta()}")
-                .": se eliminan {$contenido}. Si hay entregas o resultados de estudiantes, no se eliminará. Esta acción no se puede deshacer.",
-            $modulo->esPracticas() ? 'Quitar' : 'Vaciar',
+            "Vaciar {$modulo->etiqueta()}",
+            "Se vaciará {$modulo->etiqueta()}: se eliminan {$contenido}. Si hay entregas o resultados de estudiantes, no se eliminará. Esta acción no se puede deshacer.",
+            'Vaciar',
         );
     }
 
@@ -503,6 +504,40 @@ trait GestionaContenidoSemanal
         foreach (array_values($ordenadas) as $indice => $elemento) {
             if ($elemento->orden !== $indice + 1) {
                 $elemento->update(['orden' => $indice + 1]);
+            }
+        }
+
+        $this->curso->unsetRelation('modulos');
+    }
+
+    /**
+     * Fija el orden de los elementos de UNA sección de una semana (arrastrar y
+     * soltar). Recibe los ids de esa sección en el nuevo orden: deben ser
+     * exactamente sus elementos, así no se mueve nada a otra sección ni a otra
+     * semana. Las demás secciones conservan su lugar y solo cambia la columna
+     * orden (sin tocar fechas, estados ni updated_at).
+     *
+     * @param  array<int, int|string>  $ids
+     */
+    public function ordenarSeccion(array $ids): void
+    {
+        $this->autorizarContenido();
+        $ids = collect($ids)->map(fn ($id) => (int) $id)->values();
+        abort_if($ids->isEmpty() || $ids->duplicates()->isNotEmpty(), 422);
+
+        $primera = $this->leccionDelCurso($ids->first());
+        $seccion = $primera->seccion();
+        $lecciones = $primera->modulo->lecciones()->get()->values();
+        $deLaSeccion = $lecciones->filter(fn (Leccion $l) => $l->seccion() === $seccion)->keyBy('id');
+
+        abort_unless($deLaSeccion->keys()->sort()->values()->all() === $ids->sort()->values()->all(), 422);
+
+        $nuevoOrden = $ids->map(fn (int $id) => $deLaSeccion[$id]);
+        $ordenadas = $lecciones->map(fn (Leccion $l) => $l->seccion() === $seccion ? $nuevoOrden->shift() : $l);
+
+        foreach ($ordenadas->values() as $indice => $elemento) {
+            if ($elemento->orden !== $indice + 1) {
+                Leccion::whereKey($elemento->id)->toBase()->update(['orden' => $indice + 1]);
             }
         }
 
@@ -655,14 +690,12 @@ trait GestionaContenidoSemanal
         $this->semanasAbiertas = collect($this->semanasAbiertas)->map(fn ($s) => (int) $s)->push($semana)->unique()->values()->all();
     }
 
-    protected function validarSemana(int $semana): void
+    /**
+     * Solo las semanas 1..N reciben contenido aquí. Las prácticas de campo no
+     * tienen secciones fijas: cada práctica es una tarea (Tareasormulario ?practica=n).
+     */
+    protected function validarsemana(int $semana): void
     {
-        if ($semana === self::CLAVE_PRACTICAS) {
-            abort_unless($this->curso->modulos()->where('tipo_seccion', Modulo::TIPO_PRACTICAS)->exists(), 404);
-
-            return;
-        }
-
         abort_if($semana < 1 || $semana > $this->curso->totalSemanas(), 404);
     }
 
@@ -677,9 +710,7 @@ trait GestionaContenidoSemanal
     {
         $this->validarSemana($semana);
 
-        return $semana === self::CLAVE_PRACTICAS
-            ? $this->curso->modulos()->where('tipo_seccion', Modulo::TIPO_PRACTICAS)->firstOrFail()
-            : $this->curso->modulos()->firstOrCreate(['semana' => $semana], ['titulo' => 'Semana '.$semana, 'orden' => $semana, 'materiales' => []]);
+        return $this->curso->modulos()->firstOrCreate(['semana' => $semana], ['titulo' => 'Semana '.$semana, 'orden' => $semana, 'materiales' => []]);
     }
 
     protected function mensajeDeInicio(?Modulo $modulo): ?Leccion

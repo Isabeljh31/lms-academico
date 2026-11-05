@@ -228,7 +228,7 @@ class EvaluacionesAutomaticasTest extends TestCase
         $rubro->quizzes()->attach($e['quiz'], ['peso' => 100]);
 
         $componente = Livewire::actingAs($e['profesor'])->test(Actividades::class, ['curso' => $e['curso']])
-            ->assertSee('Parcial · 100 %')->assertSee('Sin evaluación · Asignar')
+            ->assertSee('Parcial · 100 %')->assertSee('No cuenta para la nota · Asignar')
             ->call('filtrar', 'sin_evaluacion')
             ->assertViewHas('actividades', fn ($actividades) => $actividades->pluck('id', 'tipo')->all() === ['tarea' => $e['tarea']->id]);
 

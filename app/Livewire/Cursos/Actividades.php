@@ -8,6 +8,7 @@ use App\Models\Curso;
 use App\Models\Quiz;
 use App\Models\RubroEvaluacion;
 use App\Models\Tarea;
+use App\Services\Evaluacion\AvanceEvaluaciones;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -41,7 +42,7 @@ class Actividades extends Component
     public const PESTANAS = ['actividades' => 'Actividades', 'banco' => 'Banco de preguntas'];
 
     /** @var array<string, string> */
-    public const FILTROS = ['todas' => 'Todas', 'tareas' => 'Tareas', 'quizzes' => 'Quizzes', 'sin_evaluacion' => 'Sin evaluación'];
+    public const FILTROS = ['todas' => 'Todas', 'tareas' => 'Tareas', 'quizzes' => 'Quizzes', 'sin_evaluacion' => 'No cuentan para la nota'];
 
     public Curso $curso;
 
@@ -82,7 +83,7 @@ class Actividades extends Component
 
     /**
      * Abre el panel de cálculo de una evaluación. Con $actividad («tarea-5»)
-     * la deja preseleccionada: viene de la insignia «Sin evaluación» de la lista.
+     * la deja preseleccionada: viene de la insignia «No cuenta para la nota · Asignar» de la lista.
      */
     public function configurarCalculo(int $rubroId, ?string $actividad = null): void
     {
@@ -92,13 +93,17 @@ class Actividades extends Component
         $this->resetErrorBag();
         $this->rubroCalculoId = $rubro->id;
         $this->modoCalculo = ($rubro->modo_calculo ?? ModoCalculo::Promedio)->value;
-        $this->tareasCalculo = $rubro->tareas->modelKeys();
+        // Las prácticas de campo se reparten en su propio panel (PracticasEnEvaluaciones): aquí solo las demás actividades.
+        $practicas = $rubro->tareas->whereNotNull('practica')->modelKeys();
+        $this->tareasCalculo = $rubro->tareas->whereNull('practica')->modelKeys();
         $this->quizzesCalculo = $rubro->quizzes->modelKeys();
         $this->pesosCalculo = $rubro->actividadesVinculadas()
+            ->reject(fn (array $vinculada) => $vinculada['tipo'] === 'tarea' && in_array($vinculada['id'], $practicas, true))
             ->mapWithKeys(fn (array $vinculada) => [$vinculada['tipo'].'-'.$vinculada['id'] => $this->formatearPeso($vinculada['peso'])])->all();
         $this->examenCalculo = $this->modoCalculo === ModoCalculo::Examen->value ? array_key_first($this->pesosCalculo) : null;
 
-        if ($actividad !== null && preg_match('/^(tarea|quiz)-(\d+)$/', $actividad, $partes)) {
+        if ($actividad !== null && preg_match('/^(tarea|quiz)-(\d+)$/', $actividad, $partes)
+            && ! ($partes[1] === 'tarea' && $this->curso->tareas()->whereKey((int) $partes[2])->whereNotNull('practica')->exists())) {
             if ($this->modoCalculo === ModoCalculo::Examen->value) {
                 $this->examenCalculo = $actividad;
             } else {
@@ -135,11 +140,17 @@ class Actividades extends Component
         $this->validate([
             'modoCalculo' => ['required', Rule::enum(ModoCalculo::class)],
             'tareasCalculo' => ['array', 'max:200'],
-            'tareasCalculo.*' => ['integer', 'distinct', Rule::exists('tareas', 'id')->where('curso_id', $this->curso->id)],
+            'tareasCalculo.*' => ['integer', 'distinct', Rule::exists('tareas', 'id')->where('curso_id', $this->curso->id)->whereNull('practica')],
             'quizzesCalculo' => ['array', 'max:200'],
             'quizzesCalculo.*' => ['integer', 'distinct', Rule::exists('quizzes', 'id')->where('curso_id', $this->curso->id)],
             'examenCalculo' => ['nullable', 'string', 'regex:/^(tarea|quiz)-\d+$/'],
         ]);
+
+        if ($rubro->tienePracticas() && $this->modoCalculo !== ModoCalculo::Promedio->value) {
+            $this->addError('modoCalculo', "{$rubro->nombre} incluye prácticas de campo: solo puede calcularse como promedio. Quítale las prácticas primero para cambiarla.");
+
+            return;
+        }
 
         $vinculos = match (ModoCalculo::from($this->modoCalculo)) {
             ModoCalculo::Manual => [],
@@ -153,7 +164,9 @@ class Actividades extends Component
         DB::transaction(function () use ($rubro, $vinculos) {
             $anterior = ['modo' => $rubro->modo_calculo?->value, 'actividades' => $rubro->load(['tareas', 'quizzes'])->actividadesVinculadas()->all()];
             $rubro->update(['modo_calculo' => $this->modoCalculo]);
-            $rubro->tareas()->sync(collect($vinculos)->where('tipo', 'tarea')->mapWithKeys(fn (array $vinculo) => [$vinculo['id'] => ['peso' => $vinculo['peso']]])->all());
+            // Las prácticas de campo vinculadas se conservan con su peso.
+            $practicas = $rubro->tareas->whereNotNull('practica')->mapWithKeys(fn (Tarea $tarea) => [$tarea->id => ['peso' => $tarea->pivot->peso]])->all();
+            $rubro->tareas()->sync(collect($vinculos)->where('tipo', 'tarea')->mapWithKeys(fn (array $vinculo) => [$vinculo['id'] => ['peso' => $vinculo['peso']]])->all() + $practicas);
             $rubro->quizzes()->sync(collect($vinculos)->where('tipo', 'quiz')->mapWithKeys(fn (array $vinculo) => [$vinculo['id'] => ['peso' => $vinculo['peso']]])->all());
             BitacoraAuditoria::registrarAccionAdmin(
                 ejecutor: auth()->user(), tipoEvento: 'modificacion_esquema',
@@ -175,6 +188,10 @@ class Actividades extends Component
     protected function vinculosDePromedio(): ?array
     {
         $claves = $this->clavesSeleccionadas();
+        // Las prácticas de campo ya ocupan el 100 % de la evaluación: no lleva otras actividades.
+        if ($claves === [] && $this->objetivoCalculo() <= 0) {
+            return [];
+        }
         if ($claves === []) {
             $this->addError('actividadesCalculo', 'Elige al menos una actividad.');
 
@@ -196,7 +213,7 @@ class Actividades extends Component
             return null;
         }
 
-        $faltante = round(100 - array_sum(array_column($vinculos, 'peso')), 2);
+        $faltante = round($this->objetivoCalculo() - array_sum(array_column($vinculos, 'peso')), 2);
         if ($faltante != 0) {
             $this->addError('pesosCalculo', $this->mensajeTotal($faltante));
 
@@ -273,7 +290,7 @@ class Actividades extends Component
         }
 
         $pesos = array_intersect_key($anteriores, array_flip($claves));
-        $restante = round(100 - array_sum(array_map(fn ($peso) => $this->pesoNumerico($peso) ?? 0, $pesos)), 2);
+        $restante = round($this->objetivoCalculo() - array_sum(array_map(fn ($peso) => $this->pesoNumerico($peso) ?? 0, $pesos)), 2);
         foreach (array_diff($claves, array_keys($pesos)) as $nueva) {
             $pesos[$nueva] = $restante > 0 ? $this->formatearPeso($restante) : '';
             $restante = 0;
@@ -291,9 +308,10 @@ class Actividades extends Component
             return [];
         }
 
-        $base = floor(10000 / count($claves)) / 100;
+        $objetivo = $this->objetivoCalculo();
+        $base = floor($objetivo * 100 / count($claves)) / 100;
         $pesos = array_fill_keys($claves, $this->formatearPeso($base));
-        $pesos[end($claves)] = $this->formatearPeso(100 - $base * (count($claves) - 1));
+        $pesos[end($claves)] = $this->formatearPeso($objetivo - $base * (count($claves) - 1));
 
         return $pesos;
     }
@@ -311,10 +329,23 @@ class Actividades extends Component
         return rtrim(rtrim(number_format(round($peso, 2), 2, '.', ''), '0'), '.');
     }
 
+    /**
+     * % que deben sumar las actividades elegidas en el panel: 100 menos el
+     * tramo de prácticas de campo que tenga la evaluación.
+     */
+    protected function objetivoCalculo(): float
+    {
+        if ($this->rubroCalculoId === null) {
+            return 100.0;
+        }
+
+        return $this->curso->esquemaEvaluacion?->rubros()->find($this->rubroCalculoId)?->pesoParaActividades() ?? 100.0;
+    }
+
     protected function mensajeTotal(float $faltante): string
     {
         return $faltante > 0
-            ? 'Faltan '.$this->formatearPeso($faltante).' % para llegar a 100 %.'
+            ? 'Faltan '.$this->formatearPeso($faltante).' % para llegar a '.$this->formatearPeso($this->objetivoCalculo()).' %.'
             : 'Te pasas por '.$this->formatearPeso(-$faltante).' %. Ajusta los pesos.';
     }
 
@@ -333,8 +364,8 @@ class Actividades extends Component
         return match (true) {
             $claves === [] => ['total' => 0.0, 'estado' => 'error', 'mensaje' => 'Elige al menos una actividad.'],
             in_array(null, $pesos, true) || min($pesos) < 1 || max($pesos) > 100 => ['total' => $total, 'estado' => 'error', 'mensaje' => 'Usa un valor entre 1 y 100 en cada peso.'],
-            abs($total - 100) >= 0.005 => ['total' => $total, 'estado' => $total < 100 ? 'aviso' : 'error', 'mensaje' => $this->mensajeTotal(round(100 - $total, 2))],
-            default => ['total' => $total, 'estado' => 'ok', 'mensaje' => 'Suma 100 %. Listo para guardar.'],
+            abs($total - $this->objetivoCalculo()) >= 0.005 => ['total' => $total, 'estado' => $total < $this->objetivoCalculo() ? 'aviso' : 'error', 'mensaje' => $this->mensajeTotal(round($this->objetivoCalculo() - $total, 2))],
+            default => ['total' => $total, 'estado' => 'ok', 'mensaje' => 'Suma '.$this->formatearPeso($this->objetivoCalculo()).' %. Listo para guardar.'],
         };
     }
 
@@ -521,17 +552,27 @@ class Actividades extends Component
             ['pageName' => 'pagina'],
         );
 
+        // Los cuatro contadores de los filtros en una sola consulta.
+        $conteos = Curso::query()->select('id')->whereKey($this->curso->getKey())->withCount([
+            'tareas',
+            'quizzes',
+            'tareas as tareas_sin_evaluacion_count' => fn ($q) => $q->whereDoesntHave('rubrosEvaluacion'),
+            'quizzes as quizzes_sin_evaluacion_count' => fn ($q) => $q->whereDoesntHave('rubrosEvaluacion'),
+        ])->first();
+
+        $rubros = $this->curso->esquemaEvaluacion()->with(['rubros.tareas', 'rubros.quizzes'])->first()?->rubros ?? collect();
+
         return view('livewire.cursos.actividades', [
-            'rubros' => $this->curso->esquemaEvaluacion()->with(['rubros.tareas', 'rubros.quizzes'])->first()?->rubros ?? collect(),
-            'tareasDisponibles' => $this->mostrarCalculo ? $this->curso->tareas()->with(['modulo', 'rubrosEvaluacion'])->orderBy('titulo')->get() : collect(),
+            'rubros' => $rubros,
+            'avances' => app(AvanceEvaluaciones::class)->deCurso($this->curso, $rubros),
+            'tareasDisponibles' => $this->mostrarCalculo ? $this->curso->tareas()->whereNull('practica')->with(['modulo', 'rubrosEvaluacion'])->orderBy('titulo')->get() : collect(),
             'quizzesDisponibles' => $this->mostrarCalculo ? $this->curso->quizzes()->with(['modulo', 'rubrosEvaluacion'])->orderBy('tema')->get() : collect(),
             'totalCalculo' => $this->mostrarCalculo && $this->modoCalculo === ModoCalculo::Promedio->value ? $this->totalDelPanel() : null,
             'actividades' => $actividades,
             'totales' => [
-                'tareas' => $this->curso->tareas()->count(),
-                'quizzes' => $this->curso->quizzes()->count(),
-                'sin_evaluacion' => $this->curso->tareas()->whereDoesntHave('rubrosEvaluacion')->count()
-                    + $this->curso->quizzes()->whereDoesntHave('rubrosEvaluacion')->count(),
+                'tareas' => (int) $conteos->tareas_count,
+                'quizzes' => (int) $conteos->quizzes_count,
+                'sin_evaluacion' => (int) $conteos->tareas_sin_evaluacion_count + (int) $conteos->quizzes_sin_evaluacion_count,
             ],
             'editable' => ! $this->curso->estaFinalizado(),
         ])->title("Actividades — {$this->curso->nombre}");
