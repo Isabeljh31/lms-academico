@@ -546,7 +546,8 @@ class CursosProfesorTest extends TestCase
 
         Livewire::actingAs($escenario['profesor'])->test(Show::class, ['curso' => $curso])
             ->assertViewIs('livewire.docente.cursos.detalle')
-            ->assertSee('aria-label="Agregar prácticas de campo"', false)
+            // Las prácticas de campo las decide el Supervisor: el profesor ya no las agrega.
+            ->assertDontSee('aria-label="Agregar prácticas de campo"', false)
             ->assertSee('Mensaje de inicio')
             ->call('agregarLeccion', 'recursos', 1)
             ->assertSet('mostrarFormularioLeccion', true)

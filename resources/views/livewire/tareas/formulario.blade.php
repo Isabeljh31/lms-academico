@@ -23,8 +23,13 @@
                         <x-gestion.control id="titulo" wire:model="titulo" autofocus />
                     </x-gestion.campo>
                     <x-gestion.campo etiqueta="Semana" nombre="modulo_id" requerido>
+                        {{-- La entrega de una práctica de campo va siempre a su carpeta: no se elige semana. --}}
+                        @if ($practica)
+                            <p id="modulo_id" class="flex min-h-11 items-center gap-2 rounded-lg border border-celeste bg-fondo px-3 text-sm font-medium text-texto">
+                                <x-icono nombre="maletin" class="h-4 w-4 text-azul-oscuro" /> Prácticas de campo · {{ \App\Models\Tarea::etiquetaPractica($practica) }}
+                            </p>
                         {{-- En las calificadas la semana se envía al momento para sugerir la evaluación. --}}
-                        @if ($evaluacion['mostrar'])
+                        @elseif ($evaluacion['mostrar'])
                             <x-gestion.desplegable id="modulo_id" etiqueta="Semana" wire:model.live="modulo_id" :seleccionado="$modulo_id"
                                 placeholder="Selecciona la semana (o prácticas de campo)"
                                 :opciones="$modulos->mapWithKeys(fn ($modulo) => [$modulo->id => $modulo->nombreCompleto()])->all()" />

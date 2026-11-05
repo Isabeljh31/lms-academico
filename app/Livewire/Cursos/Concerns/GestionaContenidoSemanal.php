@@ -428,11 +428,11 @@ trait GestionaContenidoSemanal
         );
     }
 
-    /** Pide confirmación antes de vaciar una semana o quitar las prácticas de campo, indicando qué se borra. */
+    /** Pide confirmación antes de vaciar una semana, indicando qué se borra. */
     public function confirmarVaciarModulo(int $moduloId): void
     {
         $this->autorizarContenido();
-        $modulo = $this->curso->modulos()->withCount(['lecciones', 'tareas', 'quizzes'])->findOrFail($moduloId);
+        $modulo = $this->curso->modulos()->where('tipo_seccion', Modulo::TIPO_SEMANA)->withCount(['lecciones', 'tareas', 'quizzes'])->findOrFail($moduloId);
 
         $contenido = collect([
             [$modulo->lecciones_count, 'elemento de contenido', 'elementos de contenido'],
@@ -443,10 +443,9 @@ trait GestionaContenidoSemanal
         $this->pedirConfirmacion(
             'vaciarModulo',
             $modulo->id,
-            $modulo->esPracticas() ? 'Quitar prácticas de campo' : "Vaciar {$modulo->etiqueta()}",
-            ($modulo->esPracticas() ? 'Se quitarán las prácticas de campo' : "Se vaciará {$modulo->etiqueta()}")
-                .": se eliminan {$contenido}. Si hay entregas o resultados de estudiantes, no se eliminará. Esta acción no se puede deshacer.",
-            $modulo->esPracticas() ? 'Quitar' : 'Vaciar',
+            "Vaciar {$modulo->etiqueta()}",
+            "Se vaciará {$modulo->etiqueta()}: se eliminan {$contenido}. Si hay entregas o resultados de estudiantes, no se eliminará. Esta acción no se puede deshacer.",
+            'Vaciar',
         );
     }
 
@@ -691,14 +690,12 @@ trait GestionaContenidoSemanal
         $this->semanasAbiertas = collect($this->semanasAbiertas)->map(fn ($s) => (int) $s)->push($semana)->unique()->values()->all();
     }
 
-    protected function validarSemana(int $semana): void
+    /**
+     * Solo las semanas 1..N reciben contenido aquí. Las prácticas de campo no
+     * tienen secciones fijas: cada práctica es una tarea (Tareasormulario ?practica=n).
+     */
+    protected function validarsemana(int $semana): void
     {
-        if ($semana === self::CLAVE_PRACTICAS) {
-            abort_unless($this->curso->modulos()->where('tipo_seccion', Modulo::TIPO_PRACTICAS)->exists(), 404);
-
-            return;
-        }
-
         abort_if($semana < 1 || $semana > $this->curso->totalSemanas(), 404);
     }
 
@@ -713,9 +710,7 @@ trait GestionaContenidoSemanal
     {
         $this->validarSemana($semana);
 
-        return $semana === self::CLAVE_PRACTICAS
-            ? $this->curso->modulos()->where('tipo_seccion', Modulo::TIPO_PRACTICAS)->firstOrFail()
-            : $this->curso->modulos()->firstOrCreate(['semana' => $semana], ['titulo' => 'Semana '.$semana, 'orden' => $semana, 'materiales' => []]);
+        return $this->curso->modulos()->firstOrCreate(['semana' => $semana], ['titulo' => 'Semana '.$semana, 'orden' => $semana, 'materiales' => []]);
     }
 
     protected function mensajeDeInicio(?Modulo $modulo): ?Leccion

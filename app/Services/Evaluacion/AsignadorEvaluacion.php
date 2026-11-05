@@ -37,7 +37,8 @@ class AsignadorEvaluacion
      */
     public function disponibles(Collection $rubros): Collection
     {
-        return $rubros->reject(fn (RubroEvaluacion $rubro) => $rubro->modo_calculo === ModoCalculo::Manual)->values();
+        // Tampoco una evaluación cuyo 100 % ya son prácticas de campo.
+        return $rubros->reject(fn (RubroEvaluacion $rubro) => $rubro->modo_calculo === ModoCalculo::Manual || $rubro->pesoParaActividades() <= 0)->values();
     }
 
     /**
@@ -72,17 +73,21 @@ class AsignadorEvaluacion
     {
         abort_if($rubro->modo_calculo === ModoCalculo::Manual, 422, 'Esta evaluación se califica a mano.');
         abort_if($actividad->rubrosEvaluacion()->exists(), 422, 'La actividad ya cuenta para una evaluación.');
+        abort_if($rubro->pesoParaActividades() <= 0, 422, 'Esta evaluación ya está ocupada por completo por las prácticas de campo.');
+        abort_if($actividad instanceof Tarea && $actividad->esPracticaCampo(), 422, 'Las prácticas de campo se asignan desde su reparto entre evaluaciones.');
 
         return DB::transaction(function () use ($curso, $rubro, $actividad, $esExamen, $profesor) {
             $rubro->load(['tareas', 'quizzes']);
-            $anteriores = $rubro->actividadesVinculadas();
+            // Las prácticas de campo conservan su tramo; las demás actividades reparten 100 % menos ese tramo.
+            $practicas = $rubro->tareas->whereNotNull('practica');
+            $anteriores = $rubro->actividadesVinculadas()->reject(fn (array $vinculada) => $vinculada['tipo'] === 'tarea' && $practicas->contains('id', $vinculada['id']))->values();
             $clave = ($actividad instanceof Tarea ? 'tarea-' : 'quiz-').$actividad->id;
-            $pesos = $this->repartir($anteriores->mapWithKeys(fn (array $vinculada) => [$vinculada['tipo'].'-'.$vinculada['id'] => $vinculada['peso']])->all(), $clave);
-            $modo = $anteriores->isEmpty() && $esExamen ? ModoCalculo::Examen : ModoCalculo::Promedio;
+            $pesos = $this->repartir($anteriores->mapWithKeys(fn (array $vinculada) => [$vinculada['tipo'].'-'.$vinculada['id'] => $vinculada['peso']])->all(), $clave, $rubro->pesoParaActividades());
+            $modo = $anteriores->isEmpty() && $practicas->isEmpty() && $esExamen ? ModoCalculo::Examen : ModoCalculo::Promedio;
             $modoAnterior = $rubro->modo_calculo?->value;
 
             $rubro->update(['modo_calculo' => $modo]);
-            $rubro->tareas()->sync($this->pivotes($pesos, 'tarea'));
+            $rubro->tareas()->sync($this->pivotes($pesos, 'tarea') + $practicas->mapWithKeys(fn (Tarea $tarea) => [$tarea->id => ['peso' => (float) $tarea->pivot->peso]])->all());
             $rubro->quizzes()->sync($this->pivotes($pesos, 'quiz'));
 
             BitacoraAuditoria::registrarAccionAdmin(
@@ -101,21 +106,22 @@ class AsignadorEvaluacion
     }
 
     /**
-     * @param  array<string, float>  $anteriores  clave => peso (suman 100)
+     * @param  array<string, float>  $anteriores  clave => peso (suman $objetivo)
+     * @param  float  $objetivo  100, o menos si la evaluación incluye prácticas de campo
      * @return array<string, float>
      */
-    protected function repartir(array $anteriores, string $nueva): array
+    protected function repartir(array $anteriores, string $nueva, float $objetivo = 100): array
     {
         $claves = [...array_keys($anteriores), $nueva];
 
         if ($anteriores === [] || count(array_unique(array_map('strval', $anteriores))) === 1) {
-            return $this->repartoIgual($claves);
+            return $this->repartoIgual($claves, $objetivo);
         }
 
         // El profesor había ajustado los pesos: se conservan sus proporciones.
-        $parteNueva = floor(10000 / count($claves)) / 100;
-        $pesos = array_map(fn (float $peso) => round($peso * (100 - $parteNueva) / 100, 2), $anteriores);
-        $pesos[$nueva] = round(100 - array_sum($pesos), 2);
+        $parteNueva = floor($objetivo * 100 / count($claves)) / 100;
+        $pesos = array_map(fn (float $peso) => round($peso * ($objetivo - $parteNueva) / $objetivo, 2), $anteriores);
+        $pesos[$nueva] = round($objetivo - array_sum($pesos), 2);
 
         return $pesos;
     }
@@ -124,11 +130,11 @@ class AsignadorEvaluacion
      * @param  list<string>  $claves
      * @return array<string, float>
      */
-    protected function repartoIgual(array $claves): array
+    protected function repartoIgual(array $claves, float $objetivo = 100): array
     {
-        $base = floor(10000 / count($claves)) / 100;
+        $base = floor($objetivo * 100 / count($claves)) / 100;
         $pesos = array_fill_keys($claves, $base);
-        $pesos[end($claves)] = round(100 - $base * (count($claves) - 1), 2);
+        $pesos[end($claves)] = round($objetivo - $base * (count($claves) - 1), 2);
 
         return $pesos;
     }

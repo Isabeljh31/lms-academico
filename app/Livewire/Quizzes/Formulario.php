@@ -7,6 +7,7 @@ use App\Livewire\Cursos\Concerns\FechasDeActividad;
 use App\Models\BancoPregunta;
 use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
+use App\Models\Modulo;
 use App\Models\Quiz;
 use App\Notifications\CambioFechaQuiz;
 use App\Notifications\NotaQuizModificada;
@@ -570,7 +571,7 @@ class Formulario extends Component
 
         $reglas = [
             'tema' => ['required', 'string', 'max:255'],
-            'modulo_id' => ['required', Rule::exists('modulos', 'id')->where('curso_id', $this->curso->id)],
+            'modulo_id' => ['required', Rule::exists('modulos', 'id')->where('curso_id', $this->curso->id)->where('tipo_seccion', Modulo::TIPO_SEMANA)],
             'preguntas' => ['required', 'array', 'min:1', 'max:100'],
             'preguntas.*.enunciado' => ['required', 'string', 'max:1000'],
             'preguntas.*.tipo' => ['required', Rule::in(array_keys(Quiz::TIPOS_PREGUNTA))],
@@ -800,7 +801,7 @@ class Formulario extends Component
     public function render()
     {
         return view('livewire.quizzes.formulario', [
-            'modulos' => $this->curso->modulos()->orderBy('orden')->get(),
+            'modulos' => $this->curso->modulos()->where('tipo_seccion', Modulo::TIPO_SEMANA)->orderBy('orden')->get(),
             'tipos' => Quiz::TIPOS_PREGUNTA,
             'estaEditada' => fn (array $pregunta) => $this->estaEditada($pregunta),
             'hayBanco' => $this->curso->bancoPreguntasCurso()->exists(),

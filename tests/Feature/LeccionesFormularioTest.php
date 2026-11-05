@@ -6,6 +6,7 @@ use App\Enums\Rol;
 use App\Livewire\Cursos\Show;
 use App\Models\Leccion;
 use App\Models\Modulo;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -448,7 +449,7 @@ class LeccionesFormularioTest extends TestCase
         $this->assertSame([1], $this->semanasDesplegadas($componente->html()));
     }
 
-    public function test_vaciar_una_semana_o_quitar_las_practicas_pide_confirmacion_con_su_contenido(): void
+    public function test_vaciar_una_semana_pide_confirmacion_y_las_practicas_de_campo_no_se_quitan(): void
     {
         $escenario = $this->escenarioEnSemana1();
         $escenario['modulo']->lecciones()->create(['titulo' => 'Guía', 'estado' => 'publicado', 'orden' => 1, 'tipo_recurso' => 'recursos']);
@@ -464,12 +465,10 @@ class LeccionesFormularioTest extends TestCase
         $componente->call('ejecutarConfirmacion');
         $this->assertNull($escenario['modulo']->fresh());
 
-        $componente->call('confirmarVaciarModulo', $practicas->id)
-            ->assertSet('confirmacionTitulo', 'Quitar prácticas de campo')
-            ->assertSet('confirmacionTextoBoton', 'Quitar');
+        // Las prácticas de campo las define el Supervisor: el profesor no puede quitarlas.
+        $this->assertThrows(fn () => $componente->call('confirmarVaciarModulo', $practicas->id), ModelNotFoundException::class);
+        $this->assertThrows(fn () => $this->componente($escenario)->call('eliminarModulo', $practicas->id), ModelNotFoundException::class);
         $this->assertNotNull($practicas->fresh());
-        $componente->call('ejecutarConfirmacion');
-        $this->assertNull($practicas->fresh());
     }
 
     public function test_solo_el_profesor_del_curso_gestiona_el_contenido(): void

@@ -29,57 +29,9 @@
 
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)] lg:items-start">
         <div class="flex min-w-0 flex-col gap-4">
-            {{-- Prácticas de campo: bloque propio, fuera de la numeración semanal. Solo aparece si el curso lo tiene. --}}
+            {{-- Prácticas de campo: carpeta propia encima de las semanas. Solo aparece si el Supervisor las activó en el curso. --}}
             @if ($secciones['practicas'])
-                @php
-                    $practicas = $secciones['practicas']['modulo'];
-                    $practicasAbiertas = in_array(\App\Livewire\Cursos\Show::CLAVE_PRACTICAS, $semanasAbiertas, true);
-                @endphp
-                <section aria-labelledby="titulo-practicas-gestion" wire:key="practicas-gestion-{{ $practicas->id }}"
-                    x-data="{
-                        get abierta() { return (this.$wire.semanasAbiertas ?? []).map(Number).includes(0) },
-                        alternar() {
-                            const otras = (this.$wire.semanasAbiertas ?? []).map(Number).filter(s => s !== 0);
-                            this.$wire.semanasAbiertas = this.abierta ? otras : [...otras, 0];
-                        },
-                    }"
-                    class="{{ $tarjeta }} overflow-hidden">
-                    <div class="flex flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3">
-                        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-azul-oscuro text-white">
-                            <x-icono nombre="maletin" class="h-6 w-6" />
-                        </span>
-                        <div class="min-w-0 flex-1 basis-56">
-                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Fuera de la numeración semanal</p>
-                            <div class="flex flex-wrap items-center gap-2">
-                                <h2 id="titulo-practicas-gestion" class="break-words text-base font-semibold text-texto">
-                                    {{ 'Prácticas de campo' }}@if ($practicas->tema() && $practicas->tema() !== 'Prácticas de campo')<span class="font-medium text-slate-600">: {{ $practicas->tema() }}</span>@endif
-                                </h2>
-                                <span class="{{ $pastilla }} {{ $practicas->esVisibleParaEstudiante() ? 'bg-exito-base/15 text-exito-oscuro' : 'bg-celeste text-slate-600' }}">{{ $practicas->etiquetaEstadoPublicacion() }}</span>
-                            </div>
-                            <p class="mt-0.5 text-[13px] text-slate-500">
-                                {{ $practicas->lecciones_count }} lecciones · {{ $practicas->tareas_count }} tareas · {{ $practicas->quizzes_count }} quizzes
-                                @unless ($secciones['practicas']['visibleParaEstudiantes'])
-                                    · los estudiantes no ven este bloque hasta que tenga contenido publicado
-                                @endunless
-                            </p>
-                        </div>
-                        <div class="flex items-center gap-1">
-                            <button type="button" x-on:click="alternar()" class="{{ $botonSecundario }}"
-                                aria-controls="practicas-contenido" aria-expanded="{{ $practicasAbiertas ? 'true' : 'false' }}" x-bind:aria-expanded="abierta.toString()">
-                                <x-icono nombre="flecha-abajo" class="h-4 w-4 transition-transform motion-reduce:transition-none {{ $practicasAbiertas ? 'rotate-180' : '' }}" x-bind:class="{ 'rotate-180': abierta }" />
-                                <span x-text="abierta ? 'Ocultar contenido' : 'Ver contenido'">{{ $practicasAbiertas ? 'Ocultar contenido' : 'Ver contenido' }}</span>
-                            </button>
-                            @if ($editable)
-                                @include('livewire.docente.cursos._menu-semana', ['modulo' => $practicas, 'numero' => \App\Livewire\Cursos\Show::CLAVE_PRACTICAS, 'etiqueta' => 'Prácticas de campo'])
-                            @endif
-                        </div>
-                    </div>
-                    <div id="practicas-contenido" role="region" aria-labelledby="titulo-practicas-gestion"
-                        x-show="abierta" @unless ($practicasAbiertas) style="display: none" @endunless
-                        class="border-t border-celeste bg-fondo/60 px-4 pb-3 sm:pl-20 sm:pr-5">
-                        @include('livewire.docente.cursos._secciones', ['modulo' => $practicas, 'semanaClave' => \App\Livewire\Cursos\Show::CLAVE_PRACTICAS])
-                    </div>
-                </section>
+                @include('livewire.docente.cursos._practicas')
             @endif
 
             <section aria-labelledby="titulo-contenido-semanas" class="{{ $tarjeta }} overflow-hidden">
@@ -91,11 +43,6 @@
                             Las semanas en borrador o programadas no son visibles para los estudiantes.
                         </p>
                     </div>
-                    @if (! $secciones['practicas'] && $editable)
-                        <button type="button" wire:click="prepararSeccion(null)" class="{{ $botonSecundario }}" aria-label="Agregar prácticas de campo">
-                            <x-icono nombre="maletin" class="h-4 w-4" /> Prácticas de campo
-                        </button>
-                    @endif
                 </div>
 
                 @include('livewire.docente.cursos._semanas')

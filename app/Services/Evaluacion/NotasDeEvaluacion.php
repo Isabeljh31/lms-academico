@@ -42,7 +42,9 @@ class NotasDeEvaluacion
                 $valores = $rubro->tareas->map(fn ($tarea) => ['nota' => $entregas[$estudianteId.'_'.$tarea->id]->nota ?? null, 'peso' => (float) $tarea->pivot->peso])
                     ->concat($rubro->quizzes->map(fn ($quiz) => ['nota' => $resultados[$estudianteId.'_'.$quiz->id] ?? null, 'peso' => (float) $quiz->pivot->peso]));
                 $pesoTotal = $valores->sum('peso');
-                $efectivas[$rubro->id] = $valores->isEmpty() || $pesoTotal <= 0 || $valores->contains(fn ($valor) => $valor['nota'] === null)
+                // Con prácticas de campo, la nota espera a que el profesor prepare todas las de su tramo (PracticasEnEvaluaciones).
+                $faltanPracticas = $rubro->tienePracticas() && $rubro->tareas->whereNotNull('practica')->count() < $rubro->cantidadPracticas();
+                $efectivas[$rubro->id] = $faltanPracticas || $valores->isEmpty() || $pesoTotal <= 0 || $valores->contains(fn ($valor) => $valor['nota'] === null)
                     ? null : round($valores->sum(fn ($valor) => (float) $valor['nota'] * $valor['peso']) / $pesoTotal, 1);
             }
 

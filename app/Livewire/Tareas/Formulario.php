@@ -5,9 +5,11 @@ namespace App\Livewire\Tareas;
 use App\Livewire\Cursos\Concerns\EligeTipoYEvaluacion;
 use App\Livewire\Cursos\Concerns\FechasDeActividad;
 use App\Models\Curso;
+use App\Models\Modulo;
 use App\Models\Tarea;
 use App\Notifications\CambioFechaTarea;
 use App\Notifications\NuevaTareaAsignada;
+use App\Services\Evaluacion\PracticasEnEvaluaciones;
 use App\Services\Multimedia\SubidorArchivos;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Gate;
@@ -40,6 +42,10 @@ class Formulario extends Component
     public bool $desdeActividades = false;
 
     public ?Tarea $tarea = null;
+
+    /** Práctica de campo (1..N) que representa la tarea; null en las tareas de las semanas. */
+    #[Locked]
+    public ?int $practica = null;
 
     public string $titulo = '';
 
@@ -81,6 +87,7 @@ class Formulario extends Component
             $this->descripcion = $tarea->descripcion ?? '';
             $this->instrucciones = $tarea->instrucciones ?? '';
             $this->modulo_id = $tarea->modulo_id;
+            $this->practica = $tarea->practica;
             $this->fecha_inicio = $tarea->fecha_inicio?->format('Y-m-d\TH:i') ?? '';
             $this->fecha_entrega = $tarea->fecha_entrega->format('Y-m-d\TH:i');
             $this->peso_nota = (float) $tarea->peso_nota;
@@ -92,7 +99,12 @@ class Formulario extends Component
             $this->publicar_en = $tarea->publicar_en?->format('Y-m-d\TH:i') ?? '';
         } else {
             Gate::authorize('crear', [Tarea::class, $curso]);
-            $this->iniciarTipoDeActividad();
+            $this->prepararPractica((int) request()->query('practica', 0));
+
+            // La evaluación de una práctica de campo la decide su tramo (PracticasEnEvaluaciones), no el asistente.
+            if ($this->practica === null) {
+                $this->iniciarTipoDeActividad();
+            }
             [$this->fecha_inicio, $this->fecha_entrega] = $this->fechasPorDefecto();
 
             // Las prácticas casi siempre son grupales: si el curso ya tiene grupos, se sugiere así.
@@ -102,6 +114,26 @@ class Formulario extends Component
         }
 
         abort_if($curso->estaFinalizado(), 403, 'El curso está archivado y no admite cambios.');
+    }
+
+    /**
+     * ?practica=N (desde la carpeta Prácticas de campo): la tarea es la
+     * entrega de esa práctica. Solo existe si el Supervisor activó las prácticas (una por semana) y aún
+     * no tiene su tarea; va al contenedor de prácticas y se titula "Práctica 0N".
+     */
+    protected function prepararPractica(int $numero): void
+    {
+        if ($numero === 0) {
+            return;
+        }
+
+        abort_unless($numero >= 1 && $numero <= $this->curso->totalPracticasCampo(), 404);
+        abort_if($this->curso->estaFinalizado(), 403, 'El curso está archivado y no admite cambios.');
+        abort_if($this->curso->tareas()->where('practica', $numero)->exists(), 409, 'Esta práctica ya tiene su entrega: edítala desde la carpeta Prácticas de campo.');
+
+        $this->practica = $numero;
+        $this->modulo_id = $this->curso->moduloPracticas()->id;
+        $this->titulo = Tarea::etiquetaPractica($numero);
     }
 
     public function guardar(): void
@@ -115,7 +147,9 @@ class Formulario extends Component
             'titulo' => ['required', 'string', 'max:255'],
             'descripcion' => ['nullable', 'string', 'max:5000'],
             'instrucciones' => ['nullable', 'string', 'max:5000'],
-            'modulo_id' => ['required', Rule::exists('modulos', 'id')->where('curso_id', $this->curso->id)],
+            // Las prácticas de campo solo se preparan desde su carpeta (una tarea por práctica).
+            'modulo_id' => ['required', Rule::exists('modulos', 'id')->where('curso_id', $this->curso->id)
+                ->where('tipo_seccion', $this->practica ? Modulo::TIPO_PRACTICAS : Modulo::TIPO_SEMANA)],
             'fecha_inicio' => ['nullable', 'date'],
             'fecha_entrega' => array_values(array_filter(['required', 'date', $this->fecha_inicio !== '' ? 'after_or_equal:fecha_inicio' : null,
                 $this->reglaLimiteNoPasado($this->tarea?->fecha_entrega?->format('Y-m-d\TH:i'))])),
@@ -145,18 +179,29 @@ class Formulario extends Component
             'visible' => $this->estado_contenido !== 'borrador',
             'estado_contenido' => $this->estado_contenido === 'borrador' ? 'publicado' : $this->estado_contenido,
             'publicar_en' => $this->estado_contenido === 'programado' ? $this->publicar_en : null,
+            'practica' => $this->practica,
         ];
 
         $eraVisible = $this->tarea?->esVisibleParaEstudiante() ?? false;
         $avisoEvaluacion = '';
         $fechaAnterior = $this->tarea?->fecha_entrega?->copy();
 
+        if (! $this->tarea && $this->practica && $this->curso->tareas()->where('practica', $this->practica)->exists()) {
+            $this->addError('titulo', 'Esta práctica ya tiene su entrega. Vuelve a la carpeta Prácticas de campo y edítala desde allí.');
+
+            return;
+        }
+
         if ($this->tarea) {
             $this->tarea->update($datos);
             $tarea = $this->tarea->fresh();
         } else {
             $tarea = $this->curso->tareas()->create($datos)->fresh();
-            $avisoEvaluacion = $this->asignarEvaluacionElegida($tarea);
+            $avisoEvaluacion = $this->practica === null ? $this->asignarEvaluacionElegida($tarea) : '';
+
+            if ($this->practica !== null) {
+                app(PracticasEnEvaluaciones::class)->sincronizar($this->curso);
+            }
         }
 
         $estudiantes = $this->curso->inscripcionesActivas()->with('estudiante')->get()->pluck('estudiante')->filter();
@@ -185,6 +230,10 @@ class Formulario extends Component
 
     public function rutaVolver(): string
     {
+        if ($this->practica) {
+            return route('cursos.show', $this->curso);
+        }
+
         return $this->desdeActividades
             ? route('cursos.actividades', [$this->curso, 'tipo' => 'tareas'])
             : route('cursos.tareas.index', $this->curso);
@@ -193,12 +242,12 @@ class Formulario extends Component
     public function render()
     {
         return view('livewire.tareas.formulario', [
-            'modulos' => $this->curso->modulos()->orderBy('orden')->get(),
+            'modulos' => $this->curso->modulos()->where('tipo_seccion', Modulo::TIPO_SEMANA)->orderBy('orden')->get(),
             'grupos' => $this->curso->grupos()->orderBy('nombre')->get(),
             'extensiones' => SubidorArchivos::extensionesPermitidas(),
             'tipo' => $this->tipoElegido(),
             // Peso del resumen del alumno: solo en el formulario completo de una tarea que no cuenta para una evaluación.
-            'mostrarPeso' => $this->tipoElegido() === null && ! ($this->tarea?->rubrosEvaluacion()->exists() ?? false),
+            'mostrarPeso' => $this->tipoElegido() === null && $this->practica === null && ! ($this->tarea?->rubrosEvaluacion()->exists() ?? false),
             'evaluacion' => $this->datosDeEvaluacion(),
         ])->title(($this->tarea ? 'Editar tarea' : 'Nueva '.($this->tipoElegido()['titulo'] ?? 'tarea')).' — LearnUp');
     }

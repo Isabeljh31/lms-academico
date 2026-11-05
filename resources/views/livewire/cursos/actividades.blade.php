@@ -142,7 +142,9 @@
                             $color = $colorDeEvaluacion($rubro->id);
                             $avance = $avances[$rubro->id];
                             $faltaDefinir = $avance['estado'] === 'falta_definir';
-                            $vinculadas = $rubro->actividadesVinculadas();
+                            // Las prácticas de campo se muestran agrupadas en una línea (su tramo), no una por una.
+                            $idsPracticas = $rubro->tareas->whereNotNull('practica')->modelKeys();
+                            $vinculadas = $rubro->actividadesVinculadas()->reject(fn (array $vinculada) => $vinculada['tipo'] === 'tarea' && in_array($vinculada['id'], $idsPracticas, true))->values();
                             $siguiente = match (true) {
                                 $faltaDefinir && $vinculadas->isNotEmpty() => 'Ajusta los pesos de sus actividades para que sumen 100 %.',
                                 $faltaDefinir => 'Asigna una práctica o un examen para que esta evaluación tenga nota. Sin eso, no aparecerá en la nota final.',
@@ -171,6 +173,19 @@
                                 </p>
                             </div>
 
+                            @if ($rubro->tienePracticas())
+                                <div class="space-y-1">
+                                    <div class="flex items-center gap-2 text-sm">
+                                        <span class="shrink-0 rounded-md bg-exito-base/15 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-exito-oscuro">Campo</span>
+                                        <span class="min-w-0 flex-1 truncate text-texto dark:text-slate-100">Prácticas de campo {{ $rubro->practica_desde }}{{ $rubro->practica_hasta !== $rubro->practica_desde ? '–'.$rubro->practica_hasta : '' }}</span>
+                                        <span class="shrink-0 font-semibold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso((float) $rubro->peso_practicas) }} %</span>
+                                    </div>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                                        Cada práctica vale {{ $formatoPeso((float) $rubro->peso_practicas / $rubro->cantidadPracticas()) }} % · {{ count($idsPracticas) }} de {{ $rubro->cantidadPracticas() }} con entrega preparada
+                                    </p>
+                                </div>
+                            @endif
+
                             @if ($vinculadas->isNotEmpty())
                                 <ul class="space-y-2.5" aria-label="Actividades de {{ $rubro->nombre }}">
                                     @foreach ($vinculadas as $vinculada)
@@ -189,7 +204,7 @@
                                         </li>
                                     @endforeach
                                 </ul>
-                            @else
+                            @elseif (! $rubro->tienePracticas())
                                 <p class="rounded-lg border border-dashed border-celeste px-3 py-2.5 text-sm text-slate-600 dark:border-azul-borde-oscuro dark:text-slate-300">
                                     {{ $faltaDefinir ? 'Aún no hay actividades que cuenten para esta evaluación.' : 'Su nota la escribes tú en el libro de calificaciones.' }}
                                 </p>
@@ -215,6 +230,10 @@
                         </li>
                     @endforeach
                 </ul>
+
+                @if ($curso->tienePracticasCampo())
+                    <livewire:cursos.practicas-evaluaciones :curso="$curso" :editable="$editable" :key="'practicas-evaluaciones-'.$curso->id" />
+                @endif
             </section>
         @else
             <x-gestion.tarjeta titulo="Nota final del curso">

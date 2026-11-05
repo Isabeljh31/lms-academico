@@ -1,12 +1,11 @@
 {{--
-    Menú "⋯" de una semana (o de las prácticas de campo) en el detalle del
+    Menú "⋯" de una semana en el detalle del
     curso del Profesor: las mismas acciones que livewire/cursos/_menu-semana
     (editar y vaciar), con área táctil de 44 px. Recibe $modulo (null si la
-    semana aún no tiene contenido), $numero (0 = prácticas) y $etiqueta.
+    semana aún no tiene contenido), $numero y $etiqueta.
     Teclado: Enter/Espacio abre, flechas recorren, Esc cierra.
 --}}
 @php
-    $esPracticas = $numero === \App\Livewire\Cursos\Show::CLAVE_PRACTICAS;
     $claseItem = 'flex min-h-11 w-full items-center gap-2 px-3 text-left text-sm focus:outline-none';
 @endphp
 <div class="relative shrink-0" x-data="{ abierto: false }"
@@ -26,12 +25,12 @@
         <button type="button" role="menuitem" x-on:click="abierto = false"
             wire:click="{{ $modulo ? 'abrirEditarModulo('.$modulo->id.')' : 'prepararSeccion('.$numero.')' }}"
             class="{{ $claseItem }} rounded-lg text-texto hover:bg-fondo focus:bg-fondo">
-            <x-icono nombre="lapiz" class="h-4 w-4 text-slate-500" /> {{ $esPracticas ? 'Editar prácticas de campo' : 'Editar semana' }}
+            <x-icono nombre="lapiz" class="h-4 w-4 text-slate-500" /> Editar semana
         </button>
         @if ($modulo)
             <button type="button" role="menuitem" x-on:click="abierto = false" wire:click="confirmarVaciarModulo({{ $modulo->id }})"
                 class="{{ $claseItem }} rounded-lg text-red-700 hover:bg-red-50 focus:bg-red-50">
-                <x-icono nombre="papelera" class="h-4 w-4" /> {{ $esPracticas ? 'Quitar prácticas de campo' : 'Vaciar semana' }}
+                <x-icono nombre="papelera" class="h-4 w-4" /> Vaciar semana
             </button>
         @endif
     </div>
