@@ -16,13 +16,13 @@ use App\Rules\TieneRol;
 use App\Services\Matricula\GestorMatriculas;
 use App\Services\Multimedia\SubidorArchivos;
 use App\Services\Reportes\ProgresoAcademicoService;
+use App\View\Components\PanelProfesorLayout;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
-use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 use Livewire\WithFileUploads;
@@ -33,8 +33,9 @@ use Livewire\WithFileUploads;
  * - Profesor / Supervisor: contenido por semanas y prácticas de campo (RF-34, RF-37) y anuncios (RF-81).
  * - Profesor del curso: gestiona el contenido de cada semana en la misma página (GestionaContenidoSemanal).
  * - Supervisor: clonación (RF-20, RF-21).
+ * - Profesor (solo ese rol): misma lógica con su vista rediseñada (livewire/docente/cursos/detalle)
+ *   y el layout de barra inferior; render() solo elige la vista y el layout.
  */
-#[Layout('layouts.app')]
 class Show extends Component
 {
     use GestionaContenidoSemanal;
@@ -671,7 +672,9 @@ class Show extends Component
                 ->get();
         }
 
-        return view('livewire.cursos.show', [
+        $vistaProfesor = PanelProfesorLayout::aplicaA(auth()->user());
+
+        return view($vistaProfesor ? 'livewire.docente.cursos.detalle' : 'livewire.cursos.show', [
             'modulos' => $modulos,
             'secciones' => $esEstudiante ? $this->seccionesDelEstudiante($modulos) : $this->seccionesDeGestion($modulos),
             'profesores' => $this->puedeAdministrar ? User::role('profesor')->where('activo', true)->orderBy('name')->get() : collect(),
@@ -680,7 +683,7 @@ class Show extends Component
             'carpetas' => $this->curso->carpetas,
             'estudiantesBusquedaRapida' => $estudiantesBusquedaRapida,
             'totalEstudiantesActivos' => $this->puedeGestionar ? $this->curso->inscripcionesActivas()->count() : 0,
-        ])->title("{$this->curso->nombre} — LearnUp");
+        ])->layout($vistaProfesor ? 'layouts.panel-profesor' : 'layouts.app')->title("{$this->curso->nombre} — LearnUp");
     }
 
     // ==========================================
