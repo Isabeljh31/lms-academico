@@ -127,11 +127,15 @@ class Index extends Component
                 ->orWhereHas('tarea', fn ($t) => $t->where('titulo', 'like', "%{$this->busqueda}%"))
             ));
 
-        $totalPendientes = (clone $pendientes)->count();
-        $conAtraso = (clone $pendientes)->where('updated_at', '<', now()->subDays(3))->count();
+        // Total y "con atraso" en una sola consulta; el paginador reutiliza el total.
+        $conteo = (clone $pendientes)->toBase()
+            ->selectRaw('count(*) as total, sum(case when updated_at < ? then 1 else 0 end) as con_atraso', [now()->subDays(3)])
+            ->first();
+        $totalPendientes = (int) $conteo->total;
+        $conAtraso = (int) $conteo->con_atraso;
 
         return view('livewire.docente.por-calificar.index', [
-            'entregas' => $pendientes->with(['estudiante', 'tarea.curso', 'grupo'])->orderBy('updated_at')->paginate(10),
+            'entregas' => $pendientes->with(['estudiante', 'tarea.curso', 'grupo'])->orderBy('updated_at')->paginate(10, total: $totalPendientes),
             'cursos' => $cursos,
             'totalPendientes' => $totalPendientes,
             'conAtraso' => $conAtraso,

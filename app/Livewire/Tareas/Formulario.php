@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Tareas;
 
+use App\Livewire\Cursos\Concerns\EligeTipoYEvaluacion;
+use App\Livewire\Cursos\Concerns\FechasDeActividad;
 use App\Models\Curso;
 use App\Models\Tarea;
 use App\Notifications\CambioFechaTarea;
@@ -21,10 +23,16 @@ use Livewire\Component;
  * RF-41: formatos de archivo permitidos. RF-37: Borrador/Publicado/Programado.
  * RF-76: tarea grupal asignada a un grupo específico.
  * RF-84: aviso de tarea nueva y de cambio de fecha.
+ *
+ * Desde el asistente de Actividades (?tipo=practica|examen|entrega) muestra
+ * solo los bloques de ese tipo y, si es calificada, la vincula a una evaluación.
  */
 #[Layout('layouts.app')]
 class Formulario extends Component
 {
+    use EligeTipoYEvaluacion;
+    use FechasDeActividad;
+
     public Curso $curso;
 
     /** Se abrió desde la pantalla Actividades (?desde=actividades): al guardar o cancelar vuelve allí. */
@@ -84,6 +92,13 @@ class Formulario extends Component
             $this->publicar_en = $tarea->publicar_en?->format('Y-m-d\TH:i') ?? '';
         } else {
             Gate::authorize('crear', [Tarea::class, $curso]);
+            $this->iniciarTipoDeActividad();
+            [$this->fecha_inicio, $this->fecha_entrega] = $this->fechasPorDefecto();
+
+            // Las prácticas casi siempre son grupales: si el curso ya tiene grupos, se sugiere así.
+            if ($this->tipoActividad === 'practica' && $curso->grupos()->exists()) {
+                $this->tipo_entrega = 'grupal';
+            }
         }
 
         abort_if($curso->estaFinalizado(), 403, 'El curso está archivado y no admite cambios.');
@@ -102,7 +117,8 @@ class Formulario extends Component
             'instrucciones' => ['nullable', 'string', 'max:5000'],
             'modulo_id' => ['required', Rule::exists('modulos', 'id')->where('curso_id', $this->curso->id)],
             'fecha_inicio' => ['nullable', 'date'],
-            'fecha_entrega' => array_filter(['required', 'date', $this->fecha_inicio !== '' ? 'after_or_equal:fecha_inicio' : null]),
+            'fecha_entrega' => array_values(array_filter(['required', 'date', $this->fecha_inicio !== '' ? 'after_or_equal:fecha_inicio' : null,
+                $this->reglaLimiteNoPasado($this->tarea?->fecha_entrega?->format('Y-m-d\TH:i'))])),
             'peso_nota' => ['required', 'numeric', 'min:0', 'max:100'],
             'intentos_permitidos' => ['required', 'integer', 'min:1', 'max:10'],
             'formatos_permitidos' => ['array'],
@@ -111,15 +127,18 @@ class Formulario extends Component
             'grupo_asignado_id' => ['nullable', Rule::exists('grupos', 'id')->where('curso_id', $this->curso->id)],
             'estado_contenido' => ['required', Rule::in(['borrador', 'publicado', 'programado'])],
             'publicar_en' => ['nullable', 'required_if:estado_contenido,programado', 'date'],
+            ...$this->reglasEvaluacion(),
         ], [
+            ...$this->mensajesEvaluacion(),
             'modulo_id.required' => 'Selecciona la semana a la que pertenece la tarea.',
             'modulo_id.exists' => 'La semana elegida no pertenece a este curso.',
+            'fecha_entrega.required' => 'Indica la fecha límite de entrega.',
             'fecha_entrega.after_or_equal' => 'La fecha límite no puede ser anterior a la fecha de inicio.',
             'publicar_en.required_if' => 'Indica cuándo se publicará automáticamente.',
         ]);
 
         $datos = [
-            ...collect($validado)->except(['estado_contenido', 'publicar_en', 'grupo_asignado_id'])->all(),
+            ...collect($validado)->except(['estado_contenido', 'publicar_en', 'grupo_asignado_id', 'evaluacionId'])->all(),
             'fecha_inicio' => $this->fecha_inicio ?: null,
             'formatos_permitidos' => array_values($this->formatos_permitidos) ?: null,
             'grupo_asignado_id' => $this->tipo_entrega === 'grupal' ? $this->grupo_asignado_id : null,
@@ -129,6 +148,7 @@ class Formulario extends Component
         ];
 
         $eraVisible = $this->tarea?->esVisibleParaEstudiante() ?? false;
+        $avisoEvaluacion = '';
         $fechaAnterior = $this->tarea?->fecha_entrega?->copy();
 
         if ($this->tarea) {
@@ -136,6 +156,7 @@ class Formulario extends Component
             $tarea = $this->tarea->fresh();
         } else {
             $tarea = $this->curso->tareas()->create($datos)->fresh();
+            $avisoEvaluacion = $this->asignarEvaluacionElegida($tarea);
         }
 
         $estudiantes = $this->curso->inscripcionesActivas()->with('estudiante')->get()->pluck('estudiante')->filter();
@@ -146,8 +167,20 @@ class Formulario extends Component
             Notification::send($estudiantes, new CambioFechaTarea($tarea, $fechaAnterior));
         }
 
-        session()->flash('estado', "Tarea \"{$tarea->titulo}\" guardada.");
+        session()->flash('estado', "Tarea \"{$tarea->titulo}\" guardada.".$avisoEvaluacion);
         $this->redirect($this->rutaVolver(), navigate: true);
+    }
+
+    /**
+     * @return array<string, array{titulo: string, calificada: bool, examen: bool}>
+     */
+    protected function tiposDeActividad(): array
+    {
+        return [
+            'practica' => ['titulo' => 'práctica calificada', 'calificada' => true, 'examen' => false],
+            'examen' => ['titulo' => 'examen (entrega)', 'calificada' => true, 'examen' => true],
+            'entrega' => ['titulo' => 'entrega sin nota', 'calificada' => false, 'examen' => false],
+        ];
     }
 
     public function rutaVolver(): string
@@ -163,6 +196,10 @@ class Formulario extends Component
             'modulos' => $this->curso->modulos()->orderBy('orden')->get(),
             'grupos' => $this->curso->grupos()->orderBy('nombre')->get(),
             'extensiones' => SubidorArchivos::extensionesPermitidas(),
-        ])->title(($this->tarea ? 'Editar tarea' : 'Nueva tarea').' — LearnUp');
+            'tipo' => $this->tipoElegido(),
+            // Peso del resumen del alumno: solo en el formulario completo de una tarea que no cuenta para una evaluación.
+            'mostrarPeso' => $this->tipoElegido() === null && ! ($this->tarea?->rubrosEvaluacion()->exists() ?? false),
+            'evaluacion' => $this->datosDeEvaluacion(),
+        ])->title(($this->tarea ? 'Editar tarea' : 'Nueva '.($this->tipoElegido()['titulo'] ?? 'tarea')).' — LearnUp');
     }
 }

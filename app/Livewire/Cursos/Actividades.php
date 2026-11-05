@@ -8,6 +8,7 @@ use App\Models\Curso;
 use App\Models\Quiz;
 use App\Models\RubroEvaluacion;
 use App\Models\Tarea;
+use App\Services\Evaluacion\AvanceEvaluaciones;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -41,7 +42,7 @@ class Actividades extends Component
     public const PESTANAS = ['actividades' => 'Actividades', 'banco' => 'Banco de preguntas'];
 
     /** @var array<string, string> */
-    public const FILTROS = ['todas' => 'Todas', 'tareas' => 'Tareas', 'quizzes' => 'Quizzes', 'sin_evaluacion' => 'Sin evaluación'];
+    public const FILTROS = ['todas' => 'Todas', 'tareas' => 'Tareas', 'quizzes' => 'Quizzes', 'sin_evaluacion' => 'No cuentan para la nota'];
 
     public Curso $curso;
 
@@ -82,7 +83,7 @@ class Actividades extends Component
 
     /**
      * Abre el panel de cálculo de una evaluación. Con $actividad («tarea-5»)
-     * la deja preseleccionada: viene de la insignia «Sin evaluación» de la lista.
+     * la deja preseleccionada: viene de la insignia «No cuenta para la nota · Asignar» de la lista.
      */
     public function configurarCalculo(int $rubroId, ?string $actividad = null): void
     {
@@ -521,17 +522,27 @@ class Actividades extends Component
             ['pageName' => 'pagina'],
         );
 
+        // Los cuatro contadores de los filtros en una sola consulta.
+        $conteos = Curso::query()->select('id')->whereKey($this->curso->getKey())->withCount([
+            'tareas',
+            'quizzes',
+            'tareas as tareas_sin_evaluacion_count' => fn ($q) => $q->whereDoesntHave('rubrosEvaluacion'),
+            'quizzes as quizzes_sin_evaluacion_count' => fn ($q) => $q->whereDoesntHave('rubrosEvaluacion'),
+        ])->first();
+
+        $rubros = $this->curso->esquemaEvaluacion()->with(['rubros.tareas', 'rubros.quizzes'])->first()?->rubros ?? collect();
+
         return view('livewire.cursos.actividades', [
-            'rubros' => $this->curso->esquemaEvaluacion()->with(['rubros.tareas', 'rubros.quizzes'])->first()?->rubros ?? collect(),
+            'rubros' => $rubros,
+            'avances' => app(AvanceEvaluaciones::class)->deCurso($this->curso, $rubros),
             'tareasDisponibles' => $this->mostrarCalculo ? $this->curso->tareas()->with(['modulo', 'rubrosEvaluacion'])->orderBy('titulo')->get() : collect(),
             'quizzesDisponibles' => $this->mostrarCalculo ? $this->curso->quizzes()->with(['modulo', 'rubrosEvaluacion'])->orderBy('tema')->get() : collect(),
             'totalCalculo' => $this->mostrarCalculo && $this->modoCalculo === ModoCalculo::Promedio->value ? $this->totalDelPanel() : null,
             'actividades' => $actividades,
             'totales' => [
-                'tareas' => $this->curso->tareas()->count(),
-                'quizzes' => $this->curso->quizzes()->count(),
-                'sin_evaluacion' => $this->curso->tareas()->whereDoesntHave('rubrosEvaluacion')->count()
-                    + $this->curso->quizzes()->whereDoesntHave('rubrosEvaluacion')->count(),
+                'tareas' => (int) $conteos->tareas_count,
+                'quizzes' => (int) $conteos->quizzes_count,
+                'sin_evaluacion' => (int) $conteos->tareas_sin_evaluacion_count + (int) $conteos->quizzes_sin_evaluacion_count,
             ],
             'editable' => ! $this->curso->estaFinalizado(),
         ])->title("Actividades — {$this->curso->nombre}");

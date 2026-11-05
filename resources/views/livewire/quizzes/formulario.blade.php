@@ -2,7 +2,20 @@
 <div class="relative py-8">
     <div class="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado :titulo="$quiz ? 'Editar quiz' : 'Nuevo quiz'" icono="quiz" :descripcion="$curso->nombre" />
+        <x-gestion.encabezado :titulo="$quiz ? 'Editar quiz' : 'Nuevo '.($tipo['titulo'] ?? 'quiz')" icono="quiz" :descripcion="$curso->nombre" />
+
+        @if ($tipoActividad === 'examen')
+            <p class="flex items-start gap-1.5 text-sm text-slate-600 dark:text-slate-300">
+                <x-icono nombre="info" class="mt-0.5 h-4 w-4 shrink-0" />
+                <span>Preguntas que se califican solas. ¿El examen es una entrega de archivo?
+                    <a href="{{ route('cursos.tareas.crear', [$curso, 'desde' => 'actividades', 'tipo' => 'examen']) }}" wire:navigate class="font-semibold text-azul-oscuro underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro dark:text-azul-fondo">Créalo como entrega</a>.</span>
+            </p>
+        @elseif ($tipoActividad === 'practica')
+            <p class="flex items-start gap-1.5 text-sm text-slate-600 dark:text-slate-300">
+                <x-icono nombre="info" class="mt-0.5 h-4 w-4 shrink-0" />
+                <span>Este quiz no cuenta para la nota. Los alumnos ven su puntaje para practicar.</span>
+            </p>
+        @endif
 
         <x-gestion.alertas />
 
@@ -31,17 +44,32 @@
                         <x-gestion.control id="tema" wire:model="tema" autocomplete="off" />
                     </x-gestion.campo>
                     <x-gestion.campo etiqueta="Semana" nombre="modulo_id" requerido>
-                        <x-gestion.control tipo="select" id="modulo_id" wire:model="modulo_id">
-                            <option value="">Selecciona la semana (o prácticas de campo)</option>
-                            @foreach ($modulos as $modulo)
-                                <option value="{{ $modulo->id }}">{{ $modulo->nombreCompleto() }}</option>
-                            @endforeach
-                        </x-gestion.control>
+                        {{-- En los calificados la semana se envía al momento para sugerir la evaluación. --}}
+                        @if ($evaluacion['mostrar'])
+                            <x-gestion.desplegable id="modulo_id" etiqueta="Semana" wire:model.live="modulo_id" :seleccionado="$modulo_id"
+                                placeholder="Selecciona la semana (o prácticas de campo)"
+                                :opciones="$modulos->mapWithKeys(fn ($modulo) => [$modulo->id => $modulo->nombreCompleto()])->all()" />
+                        @else
+                            <x-gestion.desplegable id="modulo_id" etiqueta="Semana" wire:model="modulo_id" :seleccionado="$modulo_id"
+                                placeholder="Selecciona la semana (o prácticas de campo)"
+                                :opciones="$modulos->mapWithKeys(fn ($modulo) => [$modulo->id => $modulo->nombreCompleto()])->all()" />
+                        @endif
                     </x-gestion.campo>
                 </div>
             </x-gestion.tarjeta>
 
-            <x-gestion.tarjeta titulo="Configuración" descripcion="Cuenta el mejor intento del estudiante. La nota es de práctica y no entra en la nota final ponderada.">
+            @if ($evaluacion['mostrar'])
+                @include('livewire.cursos._asignar-evaluacion')
+            @endif
+
+            @php
+                $descripcionConfiguracion = match ($tipoActividad) {
+                    'examen' => 'Cuenta el mejor intento del estudiante para la evaluación que elegiste.',
+                    'practica' => 'Es de práctica: el mejor intento no cuenta para la nota.',
+                    default => 'Cuenta el mejor intento del estudiante. Si este quiz está asignado a una evaluación (en Actividades), su nota cuenta para esa evaluación. Si es de práctica, no cuenta.',
+                };
+            @endphp
+            <x-gestion.tarjeta titulo="Configuración" :descripcion="$descripcionConfiguracion">
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <x-gestion.campo etiqueta="Intentos permitidos" nombre="intentos" requerido>
                         <x-gestion.control id="intentos" type="number" min="1" max="10" wire:model="intentos" />
@@ -62,20 +90,20 @@
                     </div>
                     <x-gestion.campo etiqueta="Disponible desde" nombre="fecha_inicio">
                         <x-gestion.fecha-hora id="fecha_inicio" wire:model="fecha_inicio" />
+                        @include('livewire.cursos._lectura-fecha', ['campo' => 'fecha_inicio', 'prefijo' => 'Se abre', 'vacio' => 'Sin fecha de inicio: se puede rendir apenas se publique.'])
                     </x-gestion.campo>
                     <x-gestion.campo etiqueta="Fecha límite" nombre="fecha_limite">
                         <x-gestion.fecha-hora id="fecha_limite" wire:model="fecha_limite" />
+                        @include('livewire.cursos._lectura-fecha', ['campo' => 'fecha_limite', 'prefijo' => 'Vence', 'vacio' => 'Sin fecha límite: queda abierto.'])
                     </x-gestion.campo>
                     <x-gestion.campo etiqueta="Estado" nombre="estado_contenido" requerido>
-                        <x-gestion.control tipo="select" id="estado_contenido" wire:model.live="estado_contenido">
-                            <option value="borrador">Borrador</option>
-                            <option value="publicado">Publicado</option>
-                            <option value="programado">Programado</option>
-                        </x-gestion.control>
+                        <x-gestion.desplegable id="estado_contenido" etiqueta="Estado" wire:model.live="estado_contenido" :seleccionado="$estado_contenido"
+                            :opciones="['borrador' => 'Borrador', 'publicado' => 'Publicado', 'programado' => 'Programado']" />
                     </x-gestion.campo>
                     @if ($estado_contenido === 'programado')
                         <x-gestion.campo etiqueta="Publicar automáticamente el" nombre="publicar_en" requerido>
-                            <x-gestion.control id="publicar_en" type="datetime-local" wire:model="publicar_en" />
+                            <x-gestion.fecha-hora id="publicar_en" wire:model="publicar_en" />
+                            @include('livewire.cursos._lectura-fecha', ['campo' => 'publicar_en', 'prefijo' => 'Se publica', 'vacio' => 'Elige cuándo se publicará.'])
                         </x-gestion.campo>
                     @endif
                 </div>
@@ -196,11 +224,8 @@
                                 </x-gestion.campo>
                                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <x-gestion.campo etiqueta="Tipo" nombre="preguntas.{{ $i }}.tipo" requerido>
-                                        <x-gestion.control tipo="select" id="preguntas.{{ $i }}.tipo" wire:model.live="preguntas.{{ $i }}.tipo" :disabled="$this->estructuraBloqueada">
-                                            @foreach ($tipos as $valor => $etiqueta)
-                                                <option value="{{ $valor }}">{{ $etiqueta }}</option>
-                                            @endforeach
-                                        </x-gestion.control>
+                                        <x-gestion.desplegable id="preguntas.{{ $i }}.tipo" etiqueta="Tipo de pregunta" wire:model.live="preguntas.{{ $i }}.tipo"
+                                            :seleccionado="$pregunta['tipo'] ?? 'opcion_unica'" :opciones="$tipos" :disabled="$this->estructuraBloqueada" />
                                     </x-gestion.campo>
                                     <x-gestion.campo etiqueta="Puntaje" nombre="preguntas.{{ $i }}.puntaje" requerido>
                                         <x-gestion.control id="preguntas.{{ $i }}.puntaje" type="number" step="0.01" min="0.5" max="100" wire:model.live.debounce.400ms="preguntas.{{ $i }}.puntaje" />
@@ -266,21 +291,14 @@
                                 {{-- Dos pasos: primero la unidad (por defecto la actual) y luego un tema de esa unidad. --}}
                                 <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                                     <x-gestion.campo etiqueta="1. Unidad" nombre="unidadBanco">
-                                        <x-gestion.control tipo="select" id="unidadBanco" wire:model.live="unidadBanco">
-                                            <option value="">Selecciona una unidad</option>
-                                            @foreach ($unidadesBanco as $valor => $etiqueta)
-                                                <option value="{{ $valor }}">{{ $etiqueta }}</option>
-                                            @endforeach
-                                        </x-gestion.control>
+                                        <x-gestion.desplegable id="unidadBanco" etiqueta="Unidad" wire:model.live="unidadBanco" :seleccionado="$unidadBanco"
+                                            placeholder="Selecciona una unidad" :opciones="$unidadesBanco" />
                                     </x-gestion.campo>
                                     @if ($unidadBanco !== '')
                                         <x-gestion.campo etiqueta="2. Tema" nombre="temaBanco">
-                                            <x-gestion.control tipo="select" id="temaBanco" wire:model.live="temaBanco">
-                                                <option value="">{{ $temasBanco->isEmpty() ? 'Esta unidad no tiene preguntas' : 'Selecciona un tema' }}</option>
-                                                @foreach ($temasBanco as $t)
-                                                    <option value="{{ $t }}">{{ $t }}</option>
-                                                @endforeach
-                                            </x-gestion.control>
+                                            <x-gestion.desplegable id="temaBanco" etiqueta="Tema" wire:model.live="temaBanco" :seleccionado="$temaBanco"
+                                                :placeholder="$temasBanco->isEmpty() ? 'Esta unidad no tiene preguntas' : 'Selecciona un tema'"
+                                                :opciones="$temasBanco->mapWithKeys(fn ($tema) => [$tema => $tema])->all()" />
                                         </x-gestion.campo>
                                     @endif
                                     @if (($unidadBanco !== '' && $temaBanco !== '') || $incluirAnteriores)
@@ -333,10 +351,8 @@
                                         @if ($incluirAnteriores)
                                             <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                                                 <x-gestion.campo etiqueta="Ordenar" nombre="ordenAnteriores" class="sm:w-56">
-                                                    <x-gestion.control tipo="select" id="ordenAnteriores" wire:model.live="ordenAnteriores">
-                                                        <option value="fallos">Más falladas primero</option>
-                                                        <option value="tema">Por unidad y tema</option>
-                                                    </x-gestion.control>
+                                                    <x-gestion.desplegable id="ordenAnteriores" etiqueta="Ordenar" wire:model.live="ordenAnteriores" :seleccionado="$ordenAnteriores"
+                                                        :opciones="['fallos' => 'Más falladas primero', 'tema' => 'Por unidad y tema']" />
                                                 </x-gestion.campo>
                                                 <div class="flex items-end gap-2">
                                                     <x-gestion.campo etiqueta="Cantidad" nombre="cantidadMasFalladas" class="w-20">
@@ -423,7 +439,7 @@
 
             <div class="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                 <x-gestion.boton variante="secundario" :href="$this->rutaVolver()">Cancelar</x-gestion.boton>
-                <x-gestion.boton type="submit" icono="check">Guardar quiz</x-gestion.boton>
+                <x-gestion.boton type="submit" icono="check" wire:loading.attr="disabled" wire:target="guardar">{{ $tipo === null ? 'Guardar quiz' : 'Guardar '.$tipo['titulo'] }}</x-gestion.boton>
             </div>
         </form>
     </div>
