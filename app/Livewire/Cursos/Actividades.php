@@ -365,7 +365,9 @@ class Actividades extends Component
             $claves === [] => ['total' => 0.0, 'estado' => 'error', 'mensaje' => 'Elige al menos una actividad.'],
             in_array(null, $pesos, true) || min($pesos) < 1 || max($pesos) > 100 => ['total' => $total, 'estado' => 'error', 'mensaje' => 'Usa un valor entre 1 y 100 en cada peso.'],
             abs($total - $this->objetivoCalculo()) >= 0.005 => ['total' => $total, 'estado' => $total < $this->objetivoCalculo() ? 'aviso' : 'error', 'mensaje' => $this->mensajeTotal(round($this->objetivoCalculo() - $total, 2))],
-            default => ['total' => $total, 'estado' => 'ok', 'mensaje' => 'Suma '.$this->formatearPeso($this->objetivoCalculo()).' %. Listo para guardar.'],
+            default => ['total' => $total, 'estado' => 'ok', 'mensaje' => $this->objetivoCalculo() < 100
+                ? 'Suma '.$this->formatearPeso($this->objetivoCalculo()).' % + '.$this->formatearPeso(100 - $this->objetivoCalculo()).' % de prácticas = 100 %. Listo para guardar.'
+                : 'Suma 100 %. Listo para guardar.'],
         };
     }
 

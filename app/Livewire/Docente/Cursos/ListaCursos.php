@@ -3,6 +3,7 @@
 namespace App\Livewire\Docente\Cursos;
 
 use App\Models\Curso;
+use App\Models\SesionClase;
 use App\Services\Calendario\SeccionesProfesor;
 use App\Services\Reportes\CursosProfesor;
 use Illuminate\Contracts\View\View;
@@ -10,24 +11,18 @@ use Illuminate\Support\Collection;
 use Livewire\Component;
 
 /**
- * Pantalla Cursos del Profesor (mockups "Cursos" y "CursosLista"): sus
- * cursos en tarjetas o en lista compacta, con filtro por estado, búsqueda y
- * orden. Con más de UMBRAL_LISTA cursos se abre en lista; el interruptor
- * permite cambiarlo. Se muestran por tandas de POR_TANDA.
+ * Pantalla Cursos del Profesor (diseño "Tu mapa de trabajo"): sus cursos en
+ * lista, cada uno con su recorrido por semanas, y al lado lo que vence en los
+ * próximos 7 días. Filtro por estado, búsqueda y orden; se muestran por
+ * tandas de POR_TANDA.
  */
 class ListaCursos extends Component
 {
-    /** Con más cursos que esto la pantalla se abre en lista. */
-    public const UMBRAL_LISTA = 8;
-
     /** Cursos que se muestran por tanda («Ver los N restantes»). */
     public const POR_TANDA = 12;
 
-    /** Desde cuántos cursos aparecen los filtros, el buscador, el orden y el interruptor de vista. */
+    /** Desde cuántos cursos aparecen los filtros, el buscador y el orden. */
     public const MIN_CONTROLES = 4;
-
-    /** Hasta cuántos cursos la tarjeta ocupa todo el ancho, con la línea de semanas. */
-    public const MAX_TARJETA_ANCHA = 2;
 
     public const ESTADOS = ['todos' => 'Todos', 'publicado' => 'Publicados', 'borrador' => 'Borradores', 'despublicado' => 'Despublicados', 'archivado' => 'Archivados'];
 
@@ -38,9 +33,6 @@ class ListaCursos extends Component
     public string $busqueda = '';
 
     public string $orden = 'pendientes';
-
-    /** cuadricula o lista; null = según la cantidad de cursos. */
-    public ?string $vista = null;
 
     public int $mostrar = self::POR_TANDA;
 
@@ -54,7 +46,6 @@ class ListaCursos extends Component
         $validos = [
             'estado' => array_keys(self::ESTADOS),
             'orden' => array_keys(self::ORDENES),
-            'vista' => ['cuadricula', 'lista'],
         ];
 
         if (isset($validos[$propiedad]) && ! in_array($this->{$propiedad}, $validos[$propiedad], true)) {
@@ -102,13 +93,19 @@ class ListaCursos extends Component
 
         return view('livewire.docente.cursos.lista-cursos', [
             'total' => $cursos->count(),
+            'todosLosCursos' => $cursos->keyBy('id'),
+            'matriculados' => (int) $cursos->sum('inscripciones_activas_count'),
+            'porCalificar' => (int) collect($resumen)->sum('pendientes'),
+            'siguienteClase' => SesionClase::query()
+                ->whereIn('curso_id', $cursos->reject(fn (Curso $curso) => $curso->estaFinalizado())->modelKeys())
+                ->where('fecha', '>=', now())
+                ->orderBy('fecha')
+                ->first(),
             'conteos' => $conteos,
             'cursos' => $filtrados->take($this->mostrar),
             'filtrados' => $filtrados->count(),
             'resumen' => $resumen,
-            'vistaActual' => $conControles ? ($this->vista ?? ($cursos->count() > self::UMBRAL_LISTA ? 'lista' : 'cuadricula')) : 'cuadricula',
             'conControles' => $conControles,
-            'tarjetaAncha' => $cursos->count() <= self::MAX_TARJETA_ANCHA,
         ]);
     }
 

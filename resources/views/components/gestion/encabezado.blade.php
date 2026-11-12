@@ -2,6 +2,9 @@
     'titulo',
     'descripcion' => null,
     'icono' => null,
+    // Enlace de retroceso encima del título (p. ej. al curso); null = sin enlace.
+    'volver' => null,
+    'volverTexto' => 'Volver al curso',
 ])
 
 {{-- Encabezado de página para las pantallas de Profesor y Supervisor. --}}
@@ -11,6 +14,10 @@
     $textoTitulo = $esAdmin ? 'text-stone-900 dark:text-stone-100' : 'text-texto dark:text-slate-100';
     $textoDesc = $esAdmin ? 'text-stone-500 dark:text-stone-400' : 'text-slate-500 dark:text-slate-400';
 @endphp
+
+@if ($volver)
+    <x-gestion.volver :href="$volver" :texto="$volverTexto" class="-mb-3" />
+@endif
 
 <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
     <div class="flex items-start gap-3 min-w-0">

@@ -13,7 +13,7 @@
     <div @class(['mx-auto max-w-5xl space-y-6 px-4 sm:px-6 lg:px-8' => ! $incrustado, 'space-y-5' => $incrustado])>
 
         @unless ($incrustado)
-            <x-gestion.encabezado titulo="Banco de preguntas" icono="base-datos"
+            <x-gestion.encabezado :volver="route('cursos.show', $curso)" titulo="Banco de preguntas" icono="base-datos"
                 descripcion="Preguntas reutilizables de {{ $curso->nombre }}, organizadas por unidad y tema. Puedes agregarlas a cualquier quiz del curso.">
                 <x-gestion.boton variante="secundario" icono="quiz" :href="route('cursos.actividades', $curso)">Actividades</x-gestion.boton>
                 <x-gestion.boton variante="secundario" icono="subir" wire:click="abrirImportacion">Importar desde Excel/CSV</x-gestion.boton>

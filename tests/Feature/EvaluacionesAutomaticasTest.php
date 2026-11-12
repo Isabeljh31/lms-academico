@@ -11,6 +11,7 @@ use App\Models\Entrega;
 use App\Models\NotaRubro;
 use App\Models\Quiz;
 use App\Models\ResultadoQuiz;
+use App\Models\Tarea;
 use App\Services\Evaluacion\CalculadoraNotas;
 use App\Services\Evaluacion\NotasDeEvaluacion;
 use App\Services\Reportes\ProgresoAcademicoService;
@@ -139,6 +140,32 @@ class EvaluacionesAutomaticasTest extends TestCase
         $entrega->update(['nota' => 16]);
         $this->assertSame(18.0, $resolver());
         $resultado->update(['puntaje' => 12]);
+        $this->assertSame(14.0, $resolver());
+    }
+
+    public function test_una_tarea_vencida_sin_entrega_cuenta_cero_solo_con_su_peso(): void
+    {
+        $e = $this->escenario();
+        $rubro = $this->esquemaValido($e['curso'])->rubros->first();
+        $rubro->update(['modo_calculo' => ModoCalculo::Promedio]);
+        $practica = Tarea::factory()->create(['curso_id' => $e['curso']->id, 'modulo_id' => $e['modulo']->id, 'fecha_entrega' => now()->subDay()]);
+        $rubro->tareas()->attach($practica, ['peso' => 50]);
+        $rubro->tareas()->attach($e['tarea'], ['peso' => 50]);
+        Entrega::create(['tarea_id' => $e['tarea']->id, 'estudiante_id' => $e['estudiante']->id, 'estado' => 'calificado', 'nota' => 16]);
+        $resolver = fn () => app(NotasDeEvaluacion::class)->resolver(collect([$rubro->fresh()]), collect([$e['estudiante']->id]))[$e['estudiante']->id][$rubro->id];
+
+        // Eva = 0 × 50 % + 16 × 50 %: el cero pesa solo en su parte.
+        $this->assertSame(8.0, $resolver());
+
+        // Oculta para el estudiante no pudo entregarla: no se le pone cero.
+        $practica->update(['visible' => false]);
+        $this->assertNull($resolver());
+        $practica->update(['visible' => true]);
+
+        // Entregó tarde: la nota espera a que el profesor la califique.
+        $entregaTardia = Entrega::create(['tarea_id' => $practica->id, 'estudiante_id' => $e['estudiante']->id, 'estado' => 'entregado']);
+        $this->assertNull($resolver());
+        $entregaTardia->update(['estado' => 'calificado', 'nota' => 12]);
         $this->assertSame(14.0, $resolver());
     }
 

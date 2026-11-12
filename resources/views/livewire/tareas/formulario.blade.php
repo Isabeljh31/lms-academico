@@ -1,7 +1,7 @@
 <div class="py-8">
     <div class="mx-auto max-w-3xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado :titulo="$tarea ? 'Editar tarea' : 'Nueva '.($tipo['titulo'] ?? 'tarea')" icono="tarea" :descripcion="$curso->nombre" />
+        <x-gestion.encabezado :volver="$this->rutaVolver()" volver-texto="Volver" :titulo="$tarea ? 'Editar tarea' : 'Nueva '.($tipo['titulo'] ?? 'tarea')" icono="tarea" :descripcion="$curso->nombre" />
 
         @if ($tipoActividad === 'examen')
             <p class="flex items-start gap-1.5 text-sm text-slate-600 dark:text-slate-300">

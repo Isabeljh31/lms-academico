@@ -23,8 +23,8 @@
     ];
 
     $item = "relative flex min-h-11 min-w-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1.5 py-1 text-[11px] font-medium leading-tight transition md:flex-none md:px-2.5 xl:flex-row xl:gap-2 xl:px-3.5 xl:py-0 xl:text-sm motion-reduce:transition-none {$enfoque}";
-    $itemInactivo = 'text-slate-600 hover:bg-fondo hover:text-azul-oscuro';
-    $itemActivo = 'bg-celeste font-semibold text-azul-oscuro';
+    $itemInactivo = 'font-semibold text-imperial hover:bg-celeste hover:text-azul-oscuro';
+    $itemActivo = 'bg-azul-oscuro font-bold text-white shadow-md shadow-azul-oscuro/30';
     $opcionMenu = "flex min-h-11 w-full items-center gap-2.5 rounded-lg px-3 text-left text-sm font-medium text-texto transition hover:bg-fondo motion-reduce:transition-none {$enfoque} focus-visible:ring-offset-0";
 @endphp
 
@@ -54,7 +54,7 @@
         <div class="pointer-events-none fixed inset-x-0 bottom-[calc(0.5rem+env(safe-area-inset-bottom))] z-40 sm:bottom-5">
         <div class="mx-auto flex w-full max-w-[1440px] justify-center px-2 sm:px-6 lg:px-8 xl:px-12 2xl:px-16">
         <nav aria-label="Navegación principal"
-            class="pointer-events-auto flex w-full min-w-0 max-w-full items-center gap-1 rounded-2xl border border-celeste bg-white p-1.5 shadow-xl shadow-texto/10 md:w-auto xl:p-2">
+            class="pointer-events-auto flex w-full min-w-0 max-w-full items-center gap-1 rounded-2xl border-2 border-azul-oscuro/15 bg-white/95 p-1.5 shadow-2xl shadow-azul-oscuro/25 ring-1 ring-white backdrop-blur md:w-auto xl:p-2">
 
             <a href="{{ route('dashboard') }}" wire:navigate aria-label="{{ config('app.name', 'LearnUp') }}: inicio"
                 class="mr-1.5 hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-azul-oscuro text-white md:flex {{ $enfoque }}">
@@ -66,11 +66,11 @@
                 <a href="{{ route($enlace['ruta']) }}" wire:navigate wire:key="dock-{{ $enlace['ruta'] }}"
                     @if ($activo) aria-current="page" @endif
                     class="{{ $item }} {{ $activo ? $itemActivo : $itemInactivo }} {{ $enlace['secundario'] ? 'hidden md:flex' : '' }}">
-                    <x-icono :nombre="$enlace['icono']" class="h-5 w-5 shrink-0" />
+                    <x-icono :nombre="$enlace['icono']" class="h-5 w-5 shrink-0 {{ $activo ? '' : 'text-azul-oscuro' }}" />
                     <span class="xl:hidden">{{ $enlace['corta'] }}</span>
                     <span class="hidden xl:inline">{{ $enlace['larga'] }}</span>
                     @if (($enlace['contador'] ?? 0) > 0)
-                        <span class="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-azul-oscuro px-1 text-[11px] font-bold leading-none text-white ring-2 ring-white xl:static xl:ring-0">
+                        <span class="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-amber-400 px-1 text-[11px] font-bold leading-none text-texto ring-2 ring-white xl:static xl:ring-0">
                             {{ $enlace['contador'] > 99 ? '99+' : $enlace['contador'] }}<span class="sr-only"> entregas por calificar</span>
                         </span>
                     @endif

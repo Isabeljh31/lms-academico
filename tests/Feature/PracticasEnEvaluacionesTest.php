@@ -155,12 +155,20 @@ class PracticasEnEvaluacionesTest extends TestCase
             ->call('guardarCalculo')
             ->assertHasErrors('pesosCalculo')
             ->set('pesosCalculo', ['tarea-'.$e['tarea']->id => '70'])
+            ->assertSee('Reservado en el panel de prácticas')
+            ->assertSee('Suma 70 % + 30 % de prácticas = 100 %. Listo para guardar.')
             ->call('guardarCalculo')
             ->assertHasNoErrors();
 
         $this->assertSame(70.0, (float) $rubros[0]->tareas()->find($e['tarea']->id)->pivot->peso);
         // La práctica conserva su vínculo y su peso.
         $this->assertSame(7.5, (float) $rubros[0]->tareas()->find($practica->id)->pivot->peso);
+        // Con 3 de las 4 prácticas aún sin crear, su 30 % reservado completa el 100 %.
+        $this->assertSame('lista', $rubros[0]->fresh()->load(['tareas', 'quizzes'])->estadoCalculo());
+        // …pero la evaluación no tiene nota hasta que se preparen.
+        Livewire::actingAs($e['profesor'])->test(Actividades::class, ['curso' => $e['curso']])
+            ->assertSee('Prepara las 3 prácticas de campo que faltan del tramo')
+            ->assertDontSee('Todos los alumnos tienen nota.');
 
         Livewire::actingAs($e['profesor'])->test(Actividades::class, ['curso' => $e['curso']])
             ->call('configurarCalculo', $rubros[0]->id)

@@ -1,18 +1,22 @@
 @use('App\Services\Reportes\PanelProfesor')
 @php
     // Estilos del Panel del Profesor (mockup "Panel"), con los tokens de la paleta LearnUp.
-    $tarjeta = 'rounded-xl border border-celeste bg-white shadow-sm';
+    $tarjeta = 'rounded-2xl border border-celeste bg-white shadow-sm';
+    $tituloSeccion = 'flex items-center gap-2.5 text-lg font-bold text-texto';
+    $iconoSeccion = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg';
     $eyebrow = 'text-xs font-semibold uppercase tracking-wide text-slate-500';
     $pastilla = 'inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold';
     $enfoque = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cielo focus-visible:ring-offset-2';
     $boton = "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-4 text-sm font-semibold transition active:scale-[.97] motion-reduce:transition-none motion-reduce:active:scale-100 {$enfoque}";
     $botonPrimario = "{$boton} bg-azul-oscuro text-white shadow-sm hover:bg-azul-fondo";
     $botonSecundario = "{$boton} border border-slate-200 bg-white text-texto hover:border-azul-oscuro hover:text-azul-oscuro";
-    $chip = "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold transition sm:min-h-9 motion-reduce:transition-none {$enfoque}";
+    $botonFila = "{$botonPrimario} sm:min-h-9 sm:px-3.5 sm:text-[13px]";
+    $botonFilaSecundario = "{$botonSecundario} sm:min-h-9 sm:px-3.5 sm:text-[13px]";
+    $chip = "inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-[13px] font-semibold transition sm:min-h-8 motion-reduce:transition-none {$enfoque}";
     $chipActivo = 'border-azul-oscuro bg-azul-oscuro text-white';
-    $chipInactivo = 'border-slate-200 bg-white text-slate-600 hover:border-azul-oscuro hover:text-azul-oscuro';
-    $enlacePie = "flex min-h-12 items-center justify-between gap-3 border-t border-celeste px-5 text-sm font-semibold text-azul-oscuro transition hover:bg-fondo motion-reduce:transition-none {$enfoque} focus-visible:ring-inset focus-visible:ring-offset-0";
-    $fila = 'border-t border-celeste px-5 py-3.5 transition hover:bg-fondo motion-reduce:transition-none';
+    $chipInactivo = 'border-celeste bg-celeste/60 text-imperial hover:border-azul-oscuro/40 hover:bg-celeste';
+    $enlacePie = "flex min-h-11 items-center justify-between gap-3 border-t border-celeste bg-fondo/60 px-5 text-sm font-semibold text-azul-oscuro transition hover:bg-celeste motion-reduce:transition-none {$enfoque} focus-visible:ring-inset focus-visible:ring-offset-0";
+    $fila = 'border-t border-celeste px-5 py-2.5 transition hover:bg-fondo motion-reduce:transition-none';
 
     $plural = fn (int $n, string $uno, string $varios) => $n === 1 ? "1 {$uno}" : "{$n} {$varios}";
     $nota = fn (?float $valor) => $valor === null ? null : number_format($valor, 1, ',', '');
@@ -26,84 +30,90 @@
     $tiposProximos = ['todo' => 'Todo', 'cierre' => 'Cierres', 'contenido' => 'Contenido por subir', 'evaluacion' => 'Evaluaciones'];
 @endphp
 
-<div class="flex flex-col gap-6">
-    {{-- Encabezado --}}
-    <header class="flex flex-wrap items-center justify-between gap-3">
-        <div class="min-w-0">
-            <h1 class="break-words text-3xl font-bold leading-tight tracking-tight text-texto sm:text-[2.125rem]">Hola, {{ $profesor->name }}</h1>
-            <p class="mt-1.5 text-base text-slate-600">{{ mb_strtoupper(mb_substr($hoy, 0, 1)).mb_substr($hoy, 1) }}. Resumen de tus cursos y pendientes.</p>
-        </div>
-        <span class="{{ $pastilla }} bg-lavanda-fondo/40 px-3 py-1 text-[13px] text-lavanda-oscuro">Rol: Profesor</span>
-    </header>
+<div class="flex flex-col gap-5">
+    {{-- Franja de bienvenida: saludo e indicadores en un solo bloque con el degradado de marca (imperial → persian → ocean). --}}
+    <section aria-label="Resumen" class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-imperial via-azul-oscuro to-azul-fondo px-5 py-5 text-white shadow-lg shadow-azul-oscuro/20 sm:px-6">
+        <span class="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-cielo/30 blur-3xl" aria-hidden="true"></span>
+        <span class="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-lavanda-fondo/20 blur-3xl" aria-hidden="true"></span>
 
-    {{-- Indicadores --}}
-    <section aria-label="Indicadores" class="rounded-xl border border-celeste shadow-sm grid grid-cols-2 gap-px overflow-hidden bg-celeste sm:grid-cols-3 lg:grid-cols-5">
-        @php
-            $indicadores = [
-                ['etiqueta' => 'Cursos a cargo', 'valor' => $indicadores['cursos'], 'detalle' => null, 'icono' => 'libro', 'tono' => 'bg-celeste text-azul-oscuro',
-                    'ruta' => route('cursos.index'), 'aria' => 'Cursos a cargo: '.$indicadores['cursos'].'. Ver mis cursos'],
-                ['etiqueta' => 'Estudiantes', 'valor' => $indicadores['estudiantes'], 'detalle' => null, 'icono' => 'usuarios', 'tono' => 'bg-celeste text-azul-oscuro'],
-                ['etiqueta' => 'Por calificar', 'valor' => $indicadores['porCalificar'], 'detalle' => 'entregas', 'icono' => 'check-circulo', 'tono' => 'bg-amber-100 text-amber-800', 'ayuda' => 'Cada grupo cuenta como 1.'],
-                ['etiqueta' => 'Quizzes activos', 'valor' => $indicadores['quizzesActivos'], 'detalle' => null, 'icono' => 'quiz', 'tono' => 'bg-cielo-claro text-azul-fondo'],
-                ['etiqueta' => 'Promedio a la fecha', 'valor' => $nota($indicadores['promedio']) ?? 'Sin notas', 'detalle' => $indicadores['promedio'] !== null ? 'sobre 20' : null, 'icono' => 'grafico', 'tono' => 'bg-menta-fondo text-exito-oscuro'],
-            ];
-        @endphp
-        @foreach ($indicadores as $indice => $indicador)
+        <header class="relative flex flex-wrap items-center justify-between gap-3">
+            <div class="min-w-0">
+                <h1 class="break-words text-2xl font-bold leading-tight tracking-tight sm:text-[1.75rem]">Hola, {{ $profesor->name }}</h1>
+                <p class="mt-1 text-sm text-white/75">{{ mb_strtoupper(mb_substr($hoy, 0, 1)).mb_substr($hoy, 1) }}. Resumen de tus cursos y pendientes.</p>
+            </div>
+            <span class="{{ $pastilla }} bg-white/15 px-3 py-1 text-[13px] text-white ring-1 ring-white/25">Rol: Profesor</span>
+        </header>
+
+        {{-- Indicadores --}}
+        <div aria-label="Indicadores" role="group" class="relative mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
             @php
-                // Todas las celdas comparten la altura de su fila (grid) y una altura mínima común;
-                // la etiqueta usa a lo sumo 2 líneas (11 px en pantallas angostas).
-                $celda = 'relative flex h-full min-h-[6.25rem] min-w-0 items-center gap-2.5 bg-white px-4 py-4 sm:gap-3 sm:px-5 '.($indice === 4 ? 'col-span-2 sm:col-span-2 lg:col-span-1' : '');
-                $esEnlace = isset($indicador['ruta']);
+                $indicadores = [
+                    ['etiqueta' => 'Cursos a cargo', 'valor' => $indicadores['cursos'], 'detalle' => null, 'icono' => 'libro', 'tono' => 'bg-white/20 text-white',
+                        'ruta' => route('cursos.index'), 'aria' => 'Cursos a cargo: '.$indicadores['cursos'].'. Ver mis cursos'],
+                    ['etiqueta' => 'Estudiantes', 'valor' => $indicadores['estudiantes'], 'detalle' => null, 'icono' => 'usuarios', 'tono' => 'bg-lavanda-fondo text-lavanda-oscuro'],
+                    ['etiqueta' => 'Por calificar', 'valor' => $indicadores['porCalificar'], 'detalle' => 'entregas', 'icono' => 'check-circulo', 'tono' => 'bg-amber-300 text-imperial', 'ayuda' => 'Cada grupo cuenta como 1.'],
+                    ['etiqueta' => 'Quizzes activos', 'valor' => $indicadores['quizzesActivos'], 'detalle' => null, 'icono' => 'quiz', 'tono' => 'bg-cielo text-imperial'],
+                    ['etiqueta' => 'Promedio a la fecha', 'valor' => $nota($indicadores['promedio']) ?? 'Sin notas', 'detalle' => $indicadores['promedio'] !== null ? 'sobre 20' : null, 'icono' => 'grafico', 'tono' => 'bg-verde-fondo text-exito-oscuro'],
+                ];
             @endphp
-            @if ($esEnlace)
-                <a href="{{ $indicador['ruta'] }}" wire:navigate wire:key="indicador-{{ $indice }}" aria-label="{{ $indicador['aria'] }}"
-                    class="{{ $celda }} group transition hover:bg-fondo motion-reduce:transition-none focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cielo">
-            @else
-                <div class="{{ $celda }}" wire:key="indicador-{{ $indice }}">
-            @endif
-                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] sm:h-10 sm:w-10 {{ $indicador['tono'] }}">
-                    <x-icono :nombre="$indicador['icono']" class="h-5 w-5" />
-                </span>
-                <div class="min-w-0 flex-1">
-                    <p class="{{ $eyebrow }} flex items-center gap-1 text-[11px] leading-tight sm:text-xs {{ $esEnlace ? 'group-hover:text-azul-oscuro' : '' }}">
-                        <span>{{ $indicador['etiqueta'] }}</span>
-                        @isset($indicador['ayuda'])
-                            {{-- Ayuda: aparece al pasar el mouse y al enfocar con el teclado; el texto se anuncia con aria-describedby. --}}
-                            <span class="group/ayuda relative inline-flex">
-                                <button type="button" aria-label="Más información sobre {{ $indicador['etiqueta'] }}" aria-describedby="ayuda-indicador-{{ $indice }}"
-                                    class="relative inline-flex h-5 w-5 items-center justify-center rounded-full text-slate-400 transition hover:text-azul-oscuro after:absolute after:-inset-3 after:content-[''] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cielo">
-                                    <x-icono nombre="info" class="h-4 w-4" />
-                                </button>
-                                <span id="ayuda-indicador-{{ $indice }}" role="tooltip"
-                                    class="pointer-events-none invisible absolute left-0 top-full z-20 mt-1.5 w-40 rounded-lg bg-texto px-2.5 py-1.5 text-xs font-medium normal-case tracking-normal text-white opacity-0 shadow-lg transition group-focus-within/ayuda:visible group-focus-within/ayuda:opacity-100 group-hover/ayuda:visible group-hover/ayuda:opacity-100 motion-reduce:transition-none sm:left-auto sm:right-0">{{ $indicador['ayuda'] }}</span>
-                            </span>
-                        @endisset
-                    </p>
-                    <p class="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
-                        <span class="{{ is_string($indicador['valor']) && ! is_numeric(str_replace(',', '.', $indicador['valor'])) ? 'text-xl' : 'text-[1.75rem] sm:text-[1.875rem]' }} font-bold leading-tight text-imperial">{{ $indicador['valor'] }}</span>
-                        @if ($indicador['detalle'])
-                            <span class="text-xs text-slate-500">{{ $indicador['detalle'] }}</span>
-                        @endif
-                    </p>
-                </div>
-            @if ($esEnlace)
-                </a>
-            @else
-                </div>
-            @endif
-        @endforeach
+            @foreach ($indicadores as $indice => $indicador)
+                @php
+                    $celda = 'relative flex h-full min-w-0 items-center gap-3 rounded-xl bg-white/10 px-3.5 py-3 ring-1 ring-white/15 backdrop-blur-sm '.($indice === 4 ? 'col-span-2 sm:col-span-1' : '');
+                    $esEnlace = isset($indicador['ruta']);
+                @endphp
+                @if ($esEnlace)
+                    <a href="{{ $indicador['ruta'] }}" wire:navigate wire:key="indicador-{{ $indice }}" aria-label="{{ $indicador['aria'] }}"
+                        class="{{ $celda }} group transition hover:bg-white/20 motion-reduce:transition-none focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cielo">
+                @else
+                    <div class="{{ $celda }}" wire:key="indicador-{{ $indice }}">
+                @endif
+                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg {{ $indicador['tono'] }}">
+                        <x-icono :nombre="$indicador['icono']" class="h-[18px] w-[18px]" />
+                    </span>
+                    <div class="min-w-0 flex-1">
+                        <p class="flex items-center gap-1 text-[11px] font-semibold uppercase leading-tight tracking-wide text-white/70">
+                            <span>{{ $indicador['etiqueta'] }}</span>
+                            @isset($indicador['ayuda'])
+                                {{-- Ayuda: aparece al pasar el mouse y al enfocar con el teclado; el texto se anuncia con aria-describedby. --}}
+                                <span class="group/ayuda relative inline-flex">
+                                    <button type="button" aria-label="Más información sobre {{ $indicador['etiqueta'] }}" aria-describedby="ayuda-indicador-{{ $indice }}"
+                                        class="relative inline-flex h-4 w-4 items-center justify-center rounded-full text-white/60 transition hover:text-white after:absolute after:-inset-3 after:content-[''] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cielo">
+                                        <x-icono nombre="info" class="h-3.5 w-3.5" />
+                                    </button>
+                                    <span id="ayuda-indicador-{{ $indice }}" role="tooltip"
+                                        class="pointer-events-none invisible absolute left-0 top-full z-20 mt-1.5 w-40 rounded-lg bg-texto px-2.5 py-1.5 text-xs font-medium normal-case tracking-normal text-white opacity-0 shadow-lg transition group-focus-within/ayuda:visible group-focus-within/ayuda:opacity-100 group-hover/ayuda:visible group-hover/ayuda:opacity-100 motion-reduce:transition-none sm:left-auto sm:right-0">{{ $indicador['ayuda'] }}</span>
+                                </span>
+                            @endisset
+                        </p>
+                        <p class="flex flex-wrap items-baseline gap-x-1.5">
+                            <span class="{{ is_string($indicador['valor']) && ! is_numeric(str_replace(',', '.', $indicador['valor'])) ? 'text-lg' : 'text-2xl' }} font-bold leading-tight text-white">{{ $indicador['valor'] }}</span>
+                            @if ($indicador['detalle'])
+                                <span class="text-xs text-white/65">{{ $indicador['detalle'] }}</span>
+                            @endif
+                        </p>
+                    </div>
+                @if ($esEnlace)
+                    </a>
+                @else
+                    </div>
+                @endif
+            @endforeach
+        </div>
     </section>
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)] lg:items-start xl:gap-8">
-        <div class="flex min-w-0 flex-col gap-6">
+    <div class="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)] lg:items-start">
+        <div class="flex min-w-0 flex-col gap-5">
 
             {{-- Para hacer ahora --}}
             <section aria-labelledby="titulo-para-hacer" class="{{ $tarjeta }} relative overflow-hidden"
                 wire:loading.class="opacity-60" wire:target="cursoPendientes">
-                <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-[18px]">
+                <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
                     <div class="min-w-0">
-                        <h2 id="titulo-para-hacer" class="text-xl font-semibold text-texto">Para hacer ahora</h2>
-                        <p class="mt-0.5 text-sm text-slate-500">
+                        <h2 id="titulo-para-hacer" class="{{ $tituloSeccion }}">
+                            <span class="{{ $iconoSeccion }} bg-amber-100 text-amber-700" aria-hidden="true"><x-icono nombre="check-circulo" class="h-[18px] w-[18px]" /></span>
+                            Para hacer ahora
+                        </h2>
+                        <p class="mt-1 text-[13px] text-slate-500">
                             @if ($pendientes['total'] > 0)
                                 {{ $plural($pendientes['total'], 'entrega', 'entregas') }} en {{ $plural($pendientes['actividades'], 'actividad', 'actividades') }}, la más antigua primero. Cada grupo cuenta como 1.
                             @else
@@ -117,7 +127,7 @@
                 </div>
 
                 @if ($pendientes['porCurso']->count() > 1)
-                    <div class="px-5 pb-3.5">
+                    <div class="px-5 pb-3">
                         @if ($pendientes['porCurso']->count() <= \App\Livewire\Docente\Panel::MAX_CHIPS_CURSO)
                             <div class="flex flex-wrap gap-2" role="group" aria-label="Filtrar por curso">
                                 <button type="button" wire:click="$set('cursoPendientes', 0)" aria-pressed="{{ $cursoPendientes === 0 ? 'true' : 'false' }}"
@@ -156,24 +166,24 @@
                     @endif
                     <ul>
                         @foreach ($pendientes['filas'] as $actividad)
-                            <li class="{{ $fila }} flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4" wire:key="pendiente-{{ $actividad['tarea_id'] }}">
+                            @php $colorCurso = $colores[$actividad['curso_id']] ?? \App\Services\Calendario\ColoresCursos::NEUTRO; @endphp
+                            <li class="{{ $fila }} flex flex-col gap-2.5 border-l-[3px] sm:flex-row sm:items-center sm:gap-4" style="border-left-color: {{ $colorCurso }}" wire:key="pendiente-{{ $actividad['tarea_id'] }}">
                                 <div class="min-w-0 max-w-prose flex-1">
                                     @unless ($cursoPendientes)
-                                        <p class="{{ $eyebrow }} flex min-w-0 items-center gap-1.5">
-                                            <span class="h-2 w-2 shrink-0 rounded-full" style="background-color: {{ $colores[$actividad['curso_id']] ?? \App\Services\Calendario\ColoresCursos::NEUTRO }}" aria-hidden="true"></span>
+                                        <p class="flex min-w-0 items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide" style="color: {{ $colorCurso }}">
                                             <span class="truncate">{{ $secciones->nombreVisible($actividad['curso_id']) }}</span>
                                         </p>
                                     @endunless
-                                    <p class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-                                        <b class="break-words text-[15px] font-semibold text-texto">{{ $actividad['titulo'] }}</b>
-                                        <span class="{{ $pastilla }} bg-celeste text-slate-600">{{ $actividad['grupal'] ? 'Grupal' : 'Individual' }}</span>
+                                    <p class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                        <b class="break-words text-sm font-semibold text-texto">{{ $actividad['titulo'] }}</b>
+                                        <span class="{{ $pastilla }} {{ $actividad['grupal'] ? 'bg-lavanda-fondo/40 text-lavanda-oscuro' : 'bg-cielo-claro text-azul-fondo' }} px-2 text-[11px]">{{ $actividad['grupal'] ? 'Grupal' : 'Individual' }}</span>
                                     </p>
-                                    <p class="mt-0.5 text-sm text-slate-500">
+                                    <p class="text-[13px] text-slate-500">
                                         {{ $plural($actividad['pendientes'], $actividad['grupal'] ? 'entrega de grupo' : 'entrega', $actividad['grupal'] ? 'entregas de grupo' : 'entregas') }} · la más antigua, {{ PanelProfesor::textoAntiguedad($actividad['mas_antigua']) }}
                                     </p>
                                 </div>
                                 <a href="{{ route('cursos.tareas.show', [$actividad['curso_id'], $actividad['tarea_id']]) }}" wire:navigate
-                                    class="{{ $botonPrimario }} self-start sm:ml-auto sm:self-auto"
+                                    class="{{ $botonFila }} self-start sm:ml-auto sm:self-auto"
                                     aria-label="Calificar {{ $actividad['pendientes'] }} {{ $actividad['pendientes'] === 1 ? 'entrega' : 'entregas' }} de {{ $actividad['titulo'] }}">Calificar {{ $actividad['pendientes'] }}</a>
                             </li>
                         @endforeach
@@ -191,13 +201,16 @@
             {{-- Lo que se viene --}}
             <section aria-labelledby="titulo-se-viene" class="{{ $tarjeta }} relative overflow-hidden"
                 wire:loading.class="opacity-60" wire:target="tipoProximo,cursoProximo">
-                <div class="px-5 py-[18px]">
-                    <h2 id="titulo-se-viene" class="text-xl font-semibold text-texto">Lo que se viene</h2>
-                    <p class="mt-0.5 text-sm text-slate-500">Las {{ \App\Livewire\Docente\Panel::MAX_PROXIMAS }} fechas más cercanas. Filtra para ver el resto.</p>
+                <div class="px-5 py-4">
+                    <h2 id="titulo-se-viene" class="{{ $tituloSeccion }}">
+                        <span class="{{ $iconoSeccion }} bg-cielo-claro text-azul-fondo" aria-hidden="true"><x-icono nombre="calendario" class="h-[18px] w-[18px]" /></span>
+                        Lo que se viene
+                    </h2>
+                    <p class="mt-1 text-[13px] text-slate-500">Las {{ \App\Livewire\Docente\Panel::MAX_PROXIMAS }} fechas más cercanas. Filtra para ver el resto.</p>
                 </div>
 
                 @if ($proximas['conteos']['todo'] > 0 || $tipoProximo !== 'todo' || $cursoProximo)
-                    <div class="flex flex-col gap-2.5 px-5 pb-3.5">
+                    <div class="flex flex-col gap-2 px-5 pb-3">
                         <div class="flex flex-wrap gap-2" role="group" aria-label="Filtrar por tipo">
                             @foreach ($tiposProximos as $tipo => $etiqueta)
                                 <button type="button" wire:key="chip-tipo-{{ $tipo }}" wire:click="$set('tipoProximo', '{{ $tipo }}')" aria-pressed="{{ $tipoProximo === $tipo ? 'true' : 'false' }}"
@@ -234,16 +247,18 @@
                 @else
                     <ul>
                         @foreach ($proximas['filas'] as $item)
-                            <li class="{{ $fila }} flex flex-wrap items-center gap-x-4 gap-y-3" wire:key="proxima-{{ $item['clave'] }}">
-                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] {{ $iconoProxima[$item['icono']] ?? 'bg-celeste text-azul-oscuro' }}">
-                                    <x-icono :nombre="$item['icono']" class="h-5 w-5" />
+                            <li class="{{ $fila }} flex flex-wrap items-center gap-x-3.5 gap-y-2.5" wire:key="proxima-{{ $item['clave'] }}">
+                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg {{ $iconoProxima[$item['icono']] ?? 'bg-celeste text-azul-oscuro' }}">
+                                    <x-icono :nombre="$item['icono']" class="h-[18px] w-[18px]" />
                                 </span>
                                 <div class="min-w-0 max-w-prose flex-1 basis-48">
-                                    <p class="{{ $eyebrow }} truncate">{{ $secciones->nombreVisible($item['curso_id']) }}</p>
-                                    <p class="mb-1.5 mt-0.5 break-words text-[15px] font-semibold leading-snug text-texto">{{ $item['titulo'] }}</p>
-                                    <span class="{{ $pastilla }} {{ $item['dias'] <= PanelProfesor::DIAS_ALERTA ? 'bg-amber-100 text-amber-800' : 'bg-celeste text-azul-oscuro' }}">{{ PanelProfesor::textoDias($item['dias'], $item['prefijo']) }}</span>
+                                    <p class="truncate text-[11px] font-bold uppercase tracking-wide" style="color: {{ $colores[$item['curso_id']] ?? \App\Services\Calendario\ColoresCursos::NEUTRO }}">{{ $secciones->nombreVisible($item['curso_id']) }}</p>
+                                    <p class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                        <span class="break-words text-sm font-semibold leading-snug text-texto">{{ $item['titulo'] }}</span>
+                                        <span class="{{ $pastilla }} px-2 text-[11px] {{ $item['dias'] <= PanelProfesor::DIAS_ALERTA ? 'bg-amber-100 text-amber-800' : 'bg-celeste text-azul-oscuro' }}">{{ PanelProfesor::textoDias($item['dias'], $item['prefijo']) }}</span>
+                                    </p>
                                 </div>
-                                <a href="{{ $item['url'] }}" wire:navigate class="{{ $botonSecundario }} ml-14 sm:ml-auto">{{ $item['accion'] }}</a>
+                                <a href="{{ $item['url'] }}" wire:navigate class="{{ $botonFilaSecundario }} ml-12 sm:ml-auto">{{ $item['accion'] }}</a>
                             </li>
                         @endforeach
                     </ul>
@@ -258,9 +273,12 @@
 
         {{-- Comunicados --}}
         <div class="min-w-0 lg:sticky lg:top-6">
-            <aside aria-labelledby="titulo-comunicados" class="{{ $tarjeta }} relative flex flex-col p-5 lg:max-h-[calc(100vh-8rem)]"
+            <aside aria-labelledby="titulo-comunicados" class="{{ $tarjeta }} relative flex flex-col p-4 sm:p-5 lg:max-h-[calc(100vh-8rem)]"
                 wire:loading.class="opacity-60" wire:target="filtroComunicados,todosLosComunicados">
-                <h2 id="titulo-comunicados" class="mb-3 text-xl font-semibold text-texto">Comunicados</h2>
+                <h2 id="titulo-comunicados" class="{{ $tituloSeccion }} mb-3">
+                    <span class="{{ $iconoSeccion }} bg-lavanda-fondo/50 text-lavanda-oscuro" aria-hidden="true"><x-icono nombre="megafono" class="h-[18px] w-[18px]" /></span>
+                    Comunicados
+                </h2>
 
                 @if ($comunicados['total'] === 0)
                     <x-panel-profesor.vacio icono="megafono" titulo="Sin comunicados." descripcion="Los avisos de la institución para profesores aparecerán aquí." />
@@ -276,18 +294,18 @@
                     <div class="-mx-1 min-h-0 overflow-y-auto px-1 lg:flex-1 {{ $todosLosComunicados ? 'max-h-[28rem]' : '' }}">
                         @forelse ($comunicados['lista'] as $comunicado)
                             @if ($comunicado->prioridad === 'urgente')
-                                <div class="mb-1.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-red-800" wire:key="comunicado-{{ $comunicado->id }}">
-                                    <p class="{{ $eyebrow }} flex items-center gap-2 !text-red-700">
-                                        <x-icono nombre="alerta" class="h-[18px] w-[18px] shrink-0" />
+                                <div class="mb-1.5 rounded-xl border-l-4 border-coral-oscuro bg-coral-fondo/25 p-3 text-coral-oscuro" wire:key="comunicado-{{ $comunicado->id }}">
+                                    <p class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide">
+                                        <x-icono nombre="alerta" class="h-4 w-4 shrink-0" />
                                         Urgente · {{ $comunicado->created_at->locale('es')->diffForHumans() }}
                                     </p>
-                                    <p class="mb-1 mt-1.5 break-words text-[15px] font-semibold leading-snug">{{ $comunicado->titulo }}</p>
-                                    <p class="whitespace-pre-line break-words text-sm leading-relaxed">{{ $comunicado->contenido }}</p>
+                                    <p class="mb-0.5 mt-1 break-words text-sm font-semibold leading-snug text-texto">{{ $comunicado->titulo }}</p>
+                                    <p class="whitespace-pre-line break-words text-[13px] leading-relaxed text-slate-700">{{ $comunicado->contenido }}</p>
                                 </div>
                             @else
                                 <details class="group border-t border-celeste first:border-t-0" wire:key="comunicado-{{ $comunicado->id }}">
                                     <summary class="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-lg py-2.5 [&::-webkit-details-marker]:hidden {{ $enfoque }}">
-                                        <span class="h-2 w-2 shrink-0 rounded-full bg-azul-oscuro" aria-hidden="true"></span>
+                                        <span class="h-2 w-2 shrink-0 rounded-full bg-lavanda-oscuro" aria-hidden="true"></span>
                                         <span class="min-w-0 flex-1">
                                             <b class="block break-words text-sm font-semibold leading-snug text-texto">{{ $comunicado->titulo }}</b>
                                             <span class="text-xs text-slate-500">Institucional · {{ $comunicado->created_at->locale('es')->diffForHumans() }}</span>

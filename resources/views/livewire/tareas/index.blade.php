@@ -2,7 +2,7 @@
     {{-- Ancho de contenedor estandarizado (max-w-6xl) para todas las vistas del estudiante. --}}
     <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         @if ($this->esVistaDocente)
-        <x-gestion.encabezado titulo="Tareas" icono="tarea" :descripcion="$curso->nombre.', las notas de tareas son de práctica y no entran en la nota final ponderada.'">
+        <x-gestion.encabezado :volver="route('cursos.show', $curso)" titulo="Tareas" icono="tarea" :descripcion="$curso->nombre.', las notas de tareas son de práctica y no entran en la nota final ponderada.'">
             @if ($this->puedeGestionar && ! $curso->estaFinalizado())
                 <x-gestion.boton icono="mas" :href="route('cursos.tareas.crear', $curso)">Nueva tarea</x-gestion.boton>
             @endif

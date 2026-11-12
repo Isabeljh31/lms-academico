@@ -1,4 +1,5 @@
 <x-gestion.pagina ancho="normal">
+    <x-gestion.volver :href="route('cursos.show', $curso)" class="-mb-3" />
 
     <div class="flex items-center justify-between flex-wrap gap-4">
         <div>

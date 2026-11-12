@@ -105,7 +105,9 @@ class Formulario extends Component
             if ($this->practica === null) {
                 $this->iniciarTipoDeActividad();
             }
-            [$this->fecha_inicio, $this->fecha_entrega] = $this->fechasPorDefecto();
+            [$this->fecha_inicio, $this->fecha_entrega] = $this->practica !== null && $curso->rangoSemana($this->practica)
+                ? $this->fechasDeLaSemana($this->practica)
+                : $this->fechasPorDefecto();
 
             // Las prácticas casi siempre son grupales: si el curso ya tiene grupos, se sugiere así.
             if ($this->tipoActividad === 'practica' && $curso->grupos()->exists()) {
@@ -136,6 +138,19 @@ class Formulario extends Component
         $this->titulo = Tarea::etiquetaPractica($numero);
     }
 
+    /**
+     * La práctica N se hace en la semana N del curso: por defecto va del lunes
+     * a las 00:00 al domingo a las 23:59 de esa semana (el profesor puede acortarla).
+     *
+     * @return array{0: string, 1: string}
+     */
+    protected function fechasDeLaSemana(int $semana): array
+    {
+        [$lunes, $domingo] = $this->curso->rangoSemana($semana);
+
+        return [$lunes->format('Y-m-d\TH:i'), $domingo->copy()->setTime(23, 59)->format('Y-m-d\TH:i')];
+    }
+
     public function guardar(): void
     {
         $this->tarea
@@ -151,8 +166,8 @@ class Formulario extends Component
             'modulo_id' => ['required', Rule::exists('modulos', 'id')->where('curso_id', $this->curso->id)
                 ->where('tipo_seccion', $this->practica ? Modulo::TIPO_PRACTICAS : Modulo::TIPO_SEMANA)],
             'fecha_inicio' => ['nullable', 'date'],
-            'fecha_entrega' => array_values(array_filter(['required', 'date', $this->fecha_inicio !== '' ? 'after_or_equal:fecha_inicio' : null,
-                $this->reglaLimiteNoPasado($this->tarea?->fecha_entrega?->format('Y-m-d\TH:i'))])),
+            // Admite fechas ya vencidas: quien no entregó queda con 0 en su evaluación (NotasDeEvaluacion).
+            'fecha_entrega' => array_values(array_filter(['required', 'date', $this->fecha_inicio !== '' ? 'after_or_equal:fecha_inicio' : null])),
             'peso_nota' => ['required', 'numeric', 'min:0', 'max:100'],
             'intentos_permitidos' => ['required', 'integer', 'min:1', 'max:10'],
             'formatos_permitidos' => ['array'],

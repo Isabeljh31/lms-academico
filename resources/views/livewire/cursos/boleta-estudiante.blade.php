@@ -1,7 +1,8 @@
 <div class="py-8 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto space-y-6 print:py-0 print:max-w-none">
 
     {{-- Encabezado --}}
-    <div class="flex items-center justify-end print:hidden">
+    <div class="flex items-center justify-between gap-3 print:hidden">
+        <x-gestion.volver :href="route('cursos.show', $curso)" />
         <button onclick="window.print()"
             class="inline-flex items-center gap-2 rounded-lg border border-stone-300 dark:border-stone-600 px-3 py-1.5 text-xs text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700 transition">
             <x-icono nombre="imprimir" class="h-4 w-4" /> Imprimir / PDF

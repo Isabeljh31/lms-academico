@@ -2,7 +2,7 @@
     @php $esAdminVista = auth()->user()->hasRole('supervisor'); @endphp
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
-        <x-gestion.encabezado titulo="Estadísticas: {{ $quiz->tema }}" icono="grafico"
+        <x-gestion.encabezado :volver="route('cursos.quizzes.index', $quiz->curso)" volver-texto="Volver a quizzes" titulo="Estadísticas: {{ $quiz->tema }}" icono="grafico"
             descripcion="{{ $quiz->modulo?->nombreCompleto() }}, preguntas ordenadas de mayor a menor tasa de error (último intento de cada estudiante)." />
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">

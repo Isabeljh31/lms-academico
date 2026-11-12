@@ -48,20 +48,25 @@ class FechasFormularioProfesorTest extends TestCase
             ->assertSet('fecha_limite', '2026-11-04T23:59');
     }
 
-    public function test_la_fecha_limite_no_puede_estar_en_el_pasado_ni_antes_del_inicio(): void
+    public function test_la_tarea_admite_una_fecha_limite_vencida_pero_no_antes_del_inicio_y_el_quiz_no_admite_el_pasado(): void
     {
         $this->travelTo(Carbon::parse('2026-11-03 17:08'));
         $e = $this->escenario();
 
         Livewire::actingAs($e['profesor'])->test(FormularioTarea::class, ['curso' => $e['curso']])
             ->set('titulo', 'Informe')->set('modulo_id', $e['modulo']->id)
-            ->set('fecha_inicio', '')->set('fecha_entrega', '2026-11-03T17:00')
-            ->call('guardar')
-            ->assertHasErrors(['fecha_entrega'])
-            ->assertSee('La fecha límite ya pasó. Elige una fecha y hora desde ahora.')
             ->set('fecha_inicio', '2026-11-05T08:00')->set('fecha_entrega', '2026-11-04T08:00')
             ->call('guardar')
+            ->assertHasErrors(['fecha_entrega'])
             ->assertSee('La fecha límite no puede ser anterior a la fecha de inicio.');
+        $this->assertFalse(Tarea::where('titulo', 'Informe')->exists());
+
+        Livewire::actingAs($e['profesor'])->test(FormularioTarea::class, ['curso' => $e['curso']])
+            ->set('titulo', 'Informe vencido')->set('modulo_id', $e['modulo']->id)
+            ->set('fecha_inicio', '')->set('fecha_entrega', '2026-11-03T17:00')
+            ->call('guardar')
+            ->assertHasNoErrors();
+        $this->assertTrue(Tarea::where('titulo', 'Informe vencido')->sole()->estaVencida());
 
         Livewire::actingAs($e['profesor'])->test(FormularioQuiz::class, ['curso' => $e['curso']])
             ->set('tema', 'Repaso')->set('modulo_id', $e['modulo']->id)
@@ -70,11 +75,9 @@ class FechasFormularioProfesorTest extends TestCase
             ->call('guardar')
             ->assertHasErrors(['fecha_limite'])
             ->assertSee('La fecha límite ya pasó. Elige una fecha y hora desde ahora.');
-
-        $this->assertFalse(Tarea::where('titulo', 'Informe')->exists());
     }
 
-    public function test_una_tarea_ya_vencida_se_edita_sin_tocar_su_fecha_pero_no_se_mueve_a_otra_fecha_pasada(): void
+    public function test_una_tarea_ya_vencida_se_edita_y_puede_moverse_a_otra_fecha_pasada(): void
     {
         $this->travelTo(Carbon::parse('2026-11-03 17:08'));
         $e = $this->escenario();
@@ -88,7 +91,8 @@ class FechasFormularioProfesorTest extends TestCase
 
         Livewire::actingAs($e['profesor'])->test(FormularioTarea::class, ['curso' => $e['curso'], 'tarea' => $e['tarea']])
             ->set('fecha_entrega', '2026-10-25T23:59')
-            ->call('guardar')->assertHasErrors(['fecha_entrega']);
+            ->call('guardar')->assertHasNoErrors();
+        $this->assertSame('2026-10-25 23:59', $e['tarea']->fresh()->fecha_entrega->format('Y-m-d H:i'));
     }
 
     public function test_la_lectura_en_doce_horas_distingue_manana_y_tarde(): void

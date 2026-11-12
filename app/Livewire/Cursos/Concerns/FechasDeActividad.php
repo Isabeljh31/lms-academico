@@ -10,8 +10,8 @@ use Illuminate\Support\Carbon;
  *
  * - Al crear: inicio = ahora (sin segundos) y fecha límite = hoy a las 23:59,
  *   o mañana a las 23:59 si ya pasó. Nunca una fecha límite en el pasado.
- * - Al guardar: la fecha límite no puede estar en el pasado (si se escribió
- *   o se cambió; una tarea ya vencida se puede seguir editando sin tocarla).
+ * - Al guardar un quiz: la fecha límite no puede estar en el pasado (si se
+ *   escribió o se cambió). Las tareas sí admiten fechas vencidas.
  * - Lectura en 12 h bajo cada campo («Vence hoy a las 11:59 p. m.») para no
  *   confundir a. m. y p. m. (vista livewire.cursos._lectura-fecha).
  *

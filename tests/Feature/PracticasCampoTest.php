@@ -10,6 +10,7 @@ use App\Models\Entrega;
 use App\Models\Modulo;
 use App\Models\Tarea;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 use Tests\Concerns\PreparaEscenarioAcademico;
 use Tests\TestCase;
@@ -103,6 +104,22 @@ class PracticasCampoTest extends TestCase
         $tarea = Tarea::where('practica', 2)->sole();
         $this->assertSame('Práctica 02', $tarea->titulo);
         $this->assertSame(Modulo::TIPO_PRACTICAS, $tarea->modulo->tipo_seccion);
+    }
+
+    public function test_la_practica_toma_por_defecto_las_fechas_de_su_semana_aunque_ya_haya_pasado(): void
+    {
+        $this->travelTo(Carbon::parse('2026-11-11 10:00'));
+        $e = $this->escenario();
+        $e['curso']->update(['tiene_practicas_campo' => true, 'semanas_duracion' => 3, 'fecha_inicio' => '2026-10-28']);
+
+        Livewire::withQueryParams(['practica' => 1])->actingAs($e['profesor'])
+            ->test(FormularioTarea::class, ['curso' => $e['curso']])
+            ->assertSet('fecha_inicio', '2026-10-26T00:00')
+            ->assertSet('fecha_entrega', '2026-11-01T23:59')
+            ->call('guardar')
+            ->assertHasNoErrors();
+
+        $this->assertSame('2026-11-01 23:59', Tarea::where('practica', 1)->sole()->fecha_entrega->format('Y-m-d H:i'));
     }
 
     public function test_no_se_prepara_una_practica_que_el_supervisor_no_definio_o_que_ya_tiene_entrega(): void

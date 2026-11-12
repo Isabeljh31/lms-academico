@@ -111,7 +111,8 @@ class RubroEvaluacion extends Model
     /**
      * Estado de la configuración: «sin_configurar» (nunca se eligió modo),
      * «incompleta» (automática sin actividades o con pesos que no suman 100)
-     * o «lista».
+     * o «lista». El tramo de prácticas de campo cuenta con su % reservado,
+     * aunque esas prácticas todavía no se hayan creado.
      */
     public function estadoCalculo(): string
     {
@@ -123,8 +124,11 @@ class RubroEvaluacion extends Model
             return 'lista';
         }
 
-        $actividades = $this->actividadesVinculadas();
+        $demasActividades = $this->actividadesVinculadas()
+            ->reject(fn (array $vinculada) => $vinculada['tipo'] === 'tarea' && $this->tareas->find($vinculada['id'])?->practica !== null);
+        $pesoPracticas = $this->tienePracticas() ? (float) $this->peso_practicas : 0.0;
+        $total = $demasActividades->sum('peso') + $pesoPracticas;
 
-        return $actividades->isNotEmpty() && abs($actividades->sum('peso') - 100) < 0.01 ? 'lista' : 'incompleta';
+        return ($demasActividades->isNotEmpty() || $this->tienePracticas()) && abs($total - 100) < 0.01 ? 'lista' : 'incompleta';
     }
 }

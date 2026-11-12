@@ -90,6 +90,52 @@
                 x-show="abierta" @unless ($abiertaInicial) style="display: none" @endunless
                 class="px-4 pb-2 sm:pl-[4.5rem] sm:pr-4">
                 @include('livewire.docente.cursos._secciones', ['modulo' => $modulo, 'semanaClave' => $numero])
+
+                {{-- Tareas y quizzes de la semana: los mismos que el estudiante ve dentro de ella. --}}
+                @if ($seccion['tareas']->isNotEmpty() || $seccion['quizzes']->isNotEmpty())
+                    <section aria-labelledby="semana-{{ $numero }}-actividades-titulo" class="border-t border-celeste py-2.5">
+                        <h3 id="semana-{{ $numero }}-actividades-titulo" class="flex items-center gap-2 pb-2 text-sm font-semibold text-texto">
+                            Tareas y quizzes de la semana
+                            <span class="rounded-full border border-celeste bg-fondo px-2 text-xs font-bold text-slate-500">{{ $seccion['tareas']->count() + $seccion['quizzes']->count() }}</span>
+                        </h3>
+                        <ul class="overflow-hidden rounded-lg border border-celeste bg-white">
+                            @foreach ($seccion['tareas'] as $tarea)
+                                <li wire:key="semana-{{ $numero }}-tarea-{{ $tarea->id }}" class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-celeste px-3 py-2.5 first:border-t-0">
+                                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-celeste text-azul-oscuro" title="Tarea"><x-icono nombre="tarea" class="h-4 w-4" /></span>
+                                    <div class="min-w-0 flex-1 basis-48">
+                                        <p class="flex flex-wrap items-center gap-2 text-sm font-medium text-texto">
+                                            {{ $tarea->titulo }}
+                                            <span class="{{ $pastilla }} {{ $tarea->esVisibleParaEstudiante() ? 'bg-exito-base/15 text-exito-oscuro' : 'bg-celeste text-slate-600' }} text-[11px]">{{ $tarea->etiquetaEstadoPublicacion() }}</span>
+                                        </p>
+                                        <p class="text-xs text-slate-600">Tarea · {{ $tarea->estaVencida() ? 'Venció' : 'Vence' }} {{ $tarea->fecha_entrega->formatoFechaHora() }} · {{ $plural($tarea->entregas_count, 'entrega', 'entregas') }}</p>
+                                    </div>
+                                    <a href="{{ route('cursos.tareas.show', [$curso, $tarea]) }}" wire:navigate class="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-azul-oscuro hover:bg-celeste {{ $enfoque }}"
+                                        aria-label="Ver entregas de {{ $tarea->titulo }}"><x-icono nombre="ojo" class="h-4 w-4" /> Ver entregas</a>
+                                    @if ($editable)
+                                        <a href="{{ route('cursos.tareas.editar', [$curso, $tarea]) }}" wire:navigate class="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-slate-600 hover:bg-celeste hover:text-azul-oscuro {{ $enfoque }}"
+                                            aria-label="Editar {{ $tarea->titulo }}"><x-icono nombre="lapiz" class="h-4 w-4" /> Editar</a>
+                                    @endif
+                                </li>
+                            @endforeach
+                            @foreach ($seccion['quizzes'] as $quiz)
+                                <li wire:key="semana-{{ $numero }}-quiz-{{ $quiz->id }}" class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-celeste px-3 py-2.5 first:border-t-0">
+                                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-lavanda-fondo/50 text-lavanda-oscuro" title="Quiz"><x-icono nombre="quiz" class="h-4 w-4" /></span>
+                                    <div class="min-w-0 flex-1 basis-48">
+                                        <p class="flex flex-wrap items-center gap-2 text-sm font-medium text-texto">
+                                            {{ $quiz->tema }}
+                                            <span class="{{ $pastilla }} {{ $quiz->esVisibleParaEstudiante() ? 'bg-exito-base/15 text-exito-oscuro' : 'bg-celeste text-slate-600' }} text-[11px]">{{ $quiz->etiquetaEstadoPublicacion() }}</span>
+                                        </p>
+                                        <p class="text-xs text-slate-600">Quiz · {{ $quiz->fecha_limite ? 'Hasta '.$quiz->fecha_limite->formatoFechaHora() : 'Sin fecha límite' }}</p>
+                                    </div>
+                                    @if ($editable)
+                                        <a href="{{ route('cursos.quizzes.editar', [$curso, $quiz]) }}" wire:navigate class="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-slate-600 hover:bg-celeste hover:text-azul-oscuro {{ $enfoque }}"
+                                            aria-label="Editar {{ $quiz->tema }}"><x-icono nombre="lapiz" class="h-4 w-4" /> Editar</a>
+                                    @endif
+                                </li>
+                            @endforeach
+                        </ul>
+                    </section>
+                @endif
             </div>
         </li>
     @endforeach

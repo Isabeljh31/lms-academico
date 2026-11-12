@@ -41,6 +41,20 @@ class ContenidoPorSemanasTest extends TestCase
         $this->assertDatabaseMissing('modulos', ['curso_id' => $escenario['curso']->id, 'tipo_seccion' => Modulo::TIPO_PRACTICAS]);
     }
 
+    public function test_el_profesor_ve_dentro_de_cada_semana_sus_tareas_y_quizzes(): void
+    {
+        $escenario = $this->escenario();
+        $escenario['curso']->update(['semanas_duracion' => 4]);
+        $escenario['modulo']->update(['semana' => 2]);
+        $escenario['tarea']->update(['titulo' => 'Evaluación T1']);
+        $escenario['quiz']->update(['tema' => 'Repaso de límites']);
+
+        Livewire::actingAs($escenario['profesor'])->test(Show::class, ['curso' => $escenario['curso']])
+            ->assertSeeInOrder(['Semana 2', 'Tareas y quizzes de la semana', 'Evaluación T1', 'Ver entregas', 'Repaso de límites', 'Semana 3'])
+            ->assertSee(e(route('cursos.tareas.show', [$escenario['curso'], $escenario['tarea']])), false)
+            ->assertSee(e(route('cursos.quizzes.editar', [$escenario['curso'], $escenario['quiz']])), false);
+    }
+
     public function test_no_se_prepara_una_semana_fuera_de_la_duracion_del_curso(): void
     {
         $escenario = $this->escenario();

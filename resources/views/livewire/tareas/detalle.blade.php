@@ -10,6 +10,7 @@
 
 <div class="py-8">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <x-gestion.volver :href="route('cursos.show', $tarea->curso)" class="-mb-3" />
         @if (session('estado') && $paletaFria)
             <div class="rounded-lg bg-exito-base/15 text-exito-oscuro px-4 py-3 text-sm font-medium">{{ session('estado') }}</div>
         @endif
@@ -241,7 +242,7 @@
                 @endif
             </x-gestion.tarjeta>
 
-            <x-gestion.tarjeta titulo="Sin entregar ({{ $sinEntregar->count() }})" descripcion="{{ $tarea->estaVencida() ? 'El plazo venció: figuran como No entregado.' : 'El plazo sigue abierto: figuran como Pendiente.' }}">
+            <x-gestion.tarjeta titulo="Sin entregar ({{ $sinEntregar->count() }})" descripcion="{{ $tarea->estaVencida() ? 'El plazo venció: figuran como No entregado y, si la tarea cuenta para una evaluación, con 0 en su parte.' : 'El plazo sigue abierto: figuran como Pendiente.' }}">
                 @if ($sinEntregar->isEmpty())
                     <p class="text-sm text-stone-500">Todos los estudiantes matriculados entregaron.</p>
                 @else

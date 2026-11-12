@@ -6,7 +6,7 @@
     @endphp
     <div class="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado titulo="Matrícula del curso" icono="usuario-mas" :descripcion="$curso->nombre" />
+        <x-gestion.encabezado :volver="route('cursos.show', $curso)" titulo="Matrícula del curso" icono="usuario-mas" :descripcion="$curso->nombre" />
 
         <x-gestion.alertas />
 

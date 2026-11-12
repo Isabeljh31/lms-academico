@@ -38,7 +38,7 @@
     ];
     $etiquetaEvaluacion = fn (array $avance) => match ($avance['estado']) {
         'lista' => 'Lista',
-        'en_proceso' => $avance['total'] > 0 ? "En proceso (faltan {$avance['faltan']} de {$avance['total']})" : 'En proceso',
+        'en_proceso' => $avance['total'] > 0 && $avance['faltan'] > 0 ? "En proceso (faltan {$avance['faltan']} de {$avance['total']})" : 'En proceso',
         default => 'Falta definir',
     };
     $formatoPeso = fn (float $valor) => rtrim(rtrim(number_format($valor, 2, ',', ''), '0'), ',');
@@ -149,8 +149,9 @@
                                 $faltaDefinir && $vinculadas->isNotEmpty() => 'Ajusta los pesos de sus actividades para que sumen 100 %.',
                                 $faltaDefinir => 'Asigna una práctica o un examen para que esta evaluación tenga nota. Sin eso, no aparecerá en la nota final.',
                                 $avance['estado'] === 'lista' => 'Todos los alumnos tienen nota.',
+                                $avance['practicas'] > 0 => "Prepara ".($avance['practicas'] === 1 ? 'la práctica de campo que falta' : "las {$avance['practicas']} prácticas de campo que faltan").' del tramo: hasta entonces esta evaluación no tiene nota.',
                                 $avance['total'] === 0 => 'Cuando haya alumnos matriculados podrás registrar sus notas.',
-                                $rubro->esAutomatico() => "Faltan {$avance['faltan']} ".($avance['faltan'] === 1 ? 'nota' : 'notas').'. Mientras falten no se cuentan como 0: califica las entregas pendientes.',
+                                $rubro->esAutomatico() => "Faltan {$avance['faltan']} ".($avance['faltan'] === 1 ? 'nota' : 'notas').'. Califica las entregas pendientes; quien no entregue una tarea vencida queda con 0 en su parte.',
                                 default => "Faltan {$avance['faltan']} ".($avance['faltan'] === 1 ? 'nota' : 'notas').'. Regístralas en el libro de calificaciones.',
                             };
                         @endphp
@@ -189,18 +190,10 @@
                             @if ($vinculadas->isNotEmpty())
                                 <ul class="space-y-2.5" aria-label="Actividades de {{ $rubro->nombre }}">
                                     @foreach ($vinculadas as $vinculada)
-                                        <li wire:key="vinculada-{{ $rubro->id }}-{{ $vinculada['tipo'] }}-{{ $vinculada['id'] }}" class="space-y-1">
-                                            <div class="flex items-center gap-2 text-sm">
-                                                <span class="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide {{ $estiloTipo[$vinculada['tipo']]['insignia'] }}">{{ $estiloTipo[$vinculada['tipo']]['etiqueta'] }}</span>
-                                                <span class="min-w-0 flex-1 truncate text-texto dark:text-slate-100">{{ $vinculada['titulo'] }}</span>
-                                                <span class="shrink-0 font-semibold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso($vinculada['peso']) }} %</span>
-                                            </div>
-                                            <div class="flex items-center gap-2">
-                                                <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-celeste dark:bg-azul-borde-oscuro" aria-hidden="true">
-                                                    <span class="block h-full rounded-full {{ $color['relleno'] }}" style="width: {{ min(100, $vinculada['peso']) }}%"></span>
-                                                </span>
-                                                <span class="shrink-0 text-xs tabular-nums text-slate-500 dark:text-slate-400">{{ $formatoPeso($vinculada['peso'] * (float) $rubro->peso / 100) }} % de la final</span>
-                                            </div>
+                                        <li wire:key="vinculada-{{ $rubro->id }}-{{ $vinculada['tipo'] }}-{{ $vinculada['id'] }}" class="flex items-center gap-2 text-sm">
+                                            <span class="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide {{ $estiloTipo[$vinculada['tipo']]['insignia'] }}">{{ $estiloTipo[$vinculada['tipo']]['etiqueta'] }}</span>
+                                            <span class="min-w-0 flex-1 truncate text-texto dark:text-slate-100">{{ $vinculada['titulo'] }}</span>
+                                            <span class="shrink-0 font-semibold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso($vinculada['peso']) }} %</span>
                                         </li>
                                     @endforeach
                                 </ul>
@@ -416,6 +409,9 @@
             $disponibles = $tareasDisponibles->map(fn ($tarea) => ['tipo' => 'tarea', 'modelo' => $tarea, 'titulo' => $tarea->titulo])
                 ->concat($quizzesDisponibles->map(fn ($quiz) => ['tipo' => 'quiz', 'modelo' => $quiz, 'titulo' => $quiz->tema]));
             $enOtraEvaluacion = fn ($modelo) => $modelo->rubrosEvaluacion->first(fn ($rubro) => $rubro->id !== $rubroCalculoId);
+            // Parte de la evaluación reservada a prácticas de campo (se reparte en su propio panel).
+            $conPracticas = (bool) $rubroConfigurado?->tienePracticas();
+            $pesoPracticas = $conPracticas ? (float) $rubroConfigurado->peso_practicas : 0.0;
             $puedeGuardar = match ($modoCalculo) {
                 'promedio' => $totalCalculo['estado'] === 'ok',
                 'examen' => $examenCalculo !== null,
@@ -437,15 +433,22 @@
                     </legend>
                     <div class="grid gap-2.5 sm:grid-cols-3">
                         @foreach (\App\Enums\ModoCalculo::cases() as $modo)
-                            <label wire:key="modo-{{ $modo->value }}" @class(['relative flex cursor-pointer flex-col gap-0.5 rounded-xl border p-3 transition-colors motion-reduce:transition-none focus-within:ring-2 focus-within:ring-azul-oscuro',
+                            @php $bloqueado = $conPracticas && $modo !== \App\Enums\ModoCalculo::Promedio; @endphp
+                            <label wire:key="modo-{{ $modo->value }}" @class(['relative flex flex-col gap-0.5 rounded-xl border p-3 transition-colors motion-reduce:transition-none focus-within:ring-2 focus-within:ring-azul-oscuro',
+                                'cursor-pointer' => ! $bloqueado,
+                                'cursor-not-allowed opacity-50' => $bloqueado,
                                 'border-azul-oscuro bg-azul-oscuro/5 ring-1 ring-azul-oscuro dark:border-azul-fondo dark:bg-azul-fondo/10 dark:ring-azul-fondo' => $modoCalculo === $modo->value,
-                                'border-celeste hover:border-azul-oscuro/50 dark:border-azul-borde-oscuro' => $modoCalculo !== $modo->value])>
-                                <input type="radio" class="sr-only" wire:model.live="modoCalculo" value="{{ $modo->value }}">
+                                'border-celeste hover:border-azul-oscuro/50 dark:border-azul-borde-oscuro' => $modoCalculo !== $modo->value && ! $bloqueado,
+                                'border-celeste dark:border-azul-borde-oscuro' => $bloqueado])>
+                                <input type="radio" class="sr-only" wire:model.live="modoCalculo" value="{{ $modo->value }}" @disabled($bloqueado)>
                                 <span class="text-sm font-semibold text-texto dark:text-slate-100">{{ $modo->etiqueta() }}</span>
                                 <span class="text-xs leading-snug text-slate-500 dark:text-slate-400">{{ $modo->descripcion() }}</span>
                             </label>
                         @endforeach
                     </div>
+                    @if ($conPracticas)
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Incluye prácticas de campo, así que solo se calcula como promedio.</p>
+                    @endif
                     @error('modoCalculo') <p role="alert" class="text-sm text-red-600">{{ $message }}</p> @enderror
                 </fieldset>
 
@@ -465,6 +468,19 @@
                             <p class="rounded-lg border border-dashed border-celeste px-3 py-2.5 text-sm text-slate-600 dark:border-azul-borde-oscuro dark:text-slate-300">Todavía no hay tareas ni quizzes en el curso. Créalos con «Crear actividad».</p>
                         @else
                             <ul class="max-h-72 divide-y divide-celeste overflow-y-auto rounded-xl border border-celeste dark:divide-azul-borde-oscuro dark:border-azul-borde-oscuro">
+                                @if ($conPracticas)
+                                    <li wire:key="calculo-practicas" class="flex items-center gap-3 bg-fondo px-3 py-2.5 dark:bg-azul-pagina-oscura">
+                                        <x-icono nombre="info" class="h-4 w-4 shrink-0 text-slate-400" />
+                                        <div class="min-w-0 flex-1">
+                                            <span class="flex items-center gap-1.5 text-sm font-medium text-texto dark:text-slate-100">
+                                                <span class="shrink-0 rounded-md bg-exito-base/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-exito-oscuro">Campo</span>
+                                                <span class="truncate">Prácticas de campo {{ $rubroConfigurado->practica_desde }}{{ $rubroConfigurado->practica_hasta !== $rubroConfigurado->practica_desde ? '–'.$rubroConfigurado->practica_hasta : '' }}</span>
+                                            </span>
+                                            <span class="block text-xs text-slate-500 dark:text-slate-400">Reservado en el panel de prácticas. Las demás actividades reparten el resto.</span>
+                                        </div>
+                                        <span class="shrink-0 text-sm font-semibold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso($pesoPracticas) }} %</span>
+                                    </li>
+                                @endif
                                 @foreach ($disponibles as $disponible)
                                     @php
                                         $clave = $disponible['tipo'].'-'.$disponible['modelo']->id;
@@ -505,11 +521,15 @@
                         @php $estilo = $estiloTotal[$totalCalculo['estado']]; @endphp
                         <div class="space-y-2 rounded-xl bg-fondo p-3 dark:bg-azul-pagina-oscura">
                             <div class="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600 dark:text-slate-300">
-                                <span>Total <span class="text-base font-bold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso($totalCalculo['total']) }} %</span> de 100 %</span>
+                                @if ($conPracticas)
+                                    <span>Actividades <span class="text-base font-bold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso($totalCalculo['total']) }} %</span> + prácticas {{ $formatoPeso($pesoPracticas) }} % = <span class="font-semibold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso($totalCalculo['total'] + $pesoPracticas) }} %</span> de 100 %</span>
+                                @else
+                                    <span>Total <span class="text-base font-bold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso($totalCalculo['total']) }} %</span> de 100 %</span>
+                                @endif
                                 <x-gestion.boton variante="fantasma" tamano="sm" wire:click="repartirPesos" :disabled="$pesosCalculo === []">Repartir en partes iguales</x-gestion.boton>
                             </div>
                             <div class="h-2 overflow-hidden rounded-full bg-celeste dark:bg-azul-borde-oscuro" aria-hidden="true">
-                                <div class="h-full rounded-full transition-[width] motion-reduce:transition-none {{ $estilo['barra'] }}" style="width: {{ min(100, $totalCalculo['total']) }}%"></div>
+                                <div class="h-full rounded-full transition-[width] motion-reduce:transition-none {{ $estilo['barra'] }}" style="width: {{ min(100, $totalCalculo['total'] + $pesoPracticas) }}%"></div>
                             </div>
                             <p role="status" class="flex items-center gap-1.5 text-sm font-medium {{ $estilo['texto'] }}">
                                 <x-icono :nombre="$estilo['icono']" class="h-4 w-4 shrink-0" /> {{ $totalCalculo['mensaje'] }}

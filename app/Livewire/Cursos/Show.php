@@ -715,12 +715,24 @@ class Show extends Component
             $practicas = $this->carpetaPracticas(fn (int $numero) => ['tarea' => $tareas->get($numero)]);
         }
 
+        // Tareas y quizzes de cada semana (los mismos que ve el estudiante dentro de la semana).
+        $moduloIds = $porSemana->pluck('id');
+        $tareasPorModulo = $this->curso->tareas()->whereIn('modulo_id', $moduloIds)->whereNull('practica')
+            ->withCount('entregas')->orderBy('fecha_entrega')->get()->groupBy('modulo_id');
+        $quizzesPorModulo = $this->curso->quizzes()->whereIn('modulo_id', $moduloIds)
+            ->orderBy('fecha_limite')->get()->groupBy('modulo_id');
+
         return [
             'practicas' => $practicas,
-            'semanas' => array_map(
-                fn (int $semana) => $this->seccion($semana, $porSemana->get($semana), $sesiones),
-                range(1, $this->curso->totalSemanas()),
-            ),
+            'semanas' => array_map(function (int $semana) use ($porSemana, $sesiones, $tareasPorModulo, $quizzesPorModulo) {
+                $modulo = $porSemana->get($semana);
+
+                return [
+                    ...$this->seccion($semana, $modulo, $sesiones),
+                    'tareas' => $modulo ? $tareasPorModulo->get($modulo->id, collect()) : collect(),
+                    'quizzes' => $modulo ? $quizzesPorModulo->get($modulo->id, collect()) : collect(),
+                ];
+            }, range(1, $this->curso->totalSemanas())),
         ];
     }
 

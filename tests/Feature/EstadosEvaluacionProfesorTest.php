@@ -58,7 +58,7 @@ class EstadosEvaluacionProfesorTest extends TestCase
 
         Livewire::actingAs($e['profesor'])->test(Actividades::class, ['curso' => $e['curso']])
             ->assertSee('En proceso (faltan 2 de 4)')
-            ->assertSee('Mientras falten no se cuentan como 0');
+            ->assertSee('quien no entregue una tarea vencida queda con 0 en su parte');
 
         Entrega::where('estudiante_id', $otro->id)->update(['estado' => 'calificado', 'nota' => 12]);
         ResultadoQuiz::factory()->create(['quiz_id' => $e['quiz']->id, 'estudiante_id' => $otro->id, 'puntaje' => 10, 'intento' => 1]);
@@ -66,6 +66,24 @@ class EstadosEvaluacionProfesorTest extends TestCase
         Livewire::actingAs($e['profesor'])->test(Actividades::class, ['curso' => $e['curso']])
             ->assertSee('Todos los alumnos tienen nota.')
             ->assertSee('1 de 2 evaluaciones listas');
+    }
+
+    public function test_una_tarea_vencida_sin_entrega_cuenta_como_nota_ya_puesta(): void
+    {
+        $e = $this->escenario();
+        $rubro = $this->esquemaValido($e['curso'])->rubros->first();
+        $rubro->update(['modo_calculo' => ModoCalculo::Examen]);
+        $rubro->tareas()->attach($e['tarea']->id, ['peso' => 100]);
+        $e['tarea']->update(['fecha_entrega' => now()->addDay()]);
+
+        Livewire::actingAs($e['profesor'])->test(Actividades::class, ['curso' => $e['curso']])
+            ->assertSee('En proceso (faltan 1 de 1)');
+
+        // Vencida y sin entrega: el alumno ya tiene su 0.
+        $e['tarea']->update(['fecha_inicio' => now()->subDays(3), 'fecha_entrega' => now()->subDay()]);
+
+        Livewire::actingAs($e['profesor'])->test(Actividades::class, ['curso' => $e['curso']])
+            ->assertSee('Todos los alumnos tienen nota.');
     }
 
     public function test_una_evaluacion_manual_cuenta_las_notas_registradas(): void
