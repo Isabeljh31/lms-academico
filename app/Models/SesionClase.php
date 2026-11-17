@@ -6,6 +6,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 /**
  * ERS RF-39: Sesión de Clase programada dentro de un Curso.
@@ -17,7 +18,9 @@ class SesionClase extends Model
 
     protected $fillable = [
         'curso_id', 'titulo', 'fecha', 'duracion_minutos',
-        'descripcion', 'numero_sesion',
+        'descripcion', 'numero_sesion', 'modalidad',
+        // Salón real donde se dicta (null = aula solo en texto «Aula: X»).
+        'salon_id',
     ];
 
     protected $casts = [
@@ -45,9 +48,34 @@ class SesionClase extends Model
         return $this->belongsTo(Curso::class);
     }
 
+    /** Salón donde se dicta la clase (null en las clases con el aula solo en texto). */
+    public function salon(): BelongsTo
+    {
+        return $this->belongsTo(Salon::class);
+    }
+
     public function asistencias(): HasMany
     {
         return $this->hasMany(Asistencia::class, 'sesion_id');
+    }
+
+    /** Solicitudes de cambio de esta clase (SolicitudCambioClase). */
+    public function solicitudesCambio(): HasMany
+    {
+        return $this->hasMany(SolicitudCambioClase::class, 'sesion_id');
+    }
+
+    /** Última solicitud de cambio no cancelada (pendiente o resuelta): la que muestra «Ver solicitud». */
+    public function solicitudCambioVigente(): HasOne
+    {
+        return $this->hasOne(SolicitudCambioClase::class, 'sesion_id')
+            ->ofMany(['id' => 'max'], fn ($consulta) => $consulta->where('estado', '!=', 'cancelada'));
+    }
+
+    /** Solicitud de cambio pendiente (como máximo una por clase). */
+    public function solicitudCambioPendiente(): HasOne
+    {
+        return $this->hasOne(SolicitudCambioClase::class, 'sesion_id')->where('estado', 'pendiente');
     }
 
     /**

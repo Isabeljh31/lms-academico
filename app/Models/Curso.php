@@ -66,6 +66,8 @@ class Curso extends Model
         'tamano_maximo_grupo',
         // El Supervisor decide si el curso tiene prácticas de campo (una por semana).
         'tiene_practicas_campo',
+        // Sede del curso (reprogramación con salones reales; null = sin definir).
+        'sede_id',
     ];
 
     protected $attributes = [
@@ -268,6 +270,12 @@ class Curso extends Model
     // ==========================================
     // RELACIONES
     // ==========================================
+
+    /** Sede donde se dicta el curso (null mientras no se defina). */
+    public function sede(): BelongsTo
+    {
+        return $this->belongsTo(Sede::class);
+    }
 
     public function profesor(): BelongsTo
     {

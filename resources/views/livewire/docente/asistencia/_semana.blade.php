@@ -81,6 +81,19 @@
                         <tr wire:key="clase-{{ $sesion->id }}" @class(['bg-[var(--warn100)]' => $clase['estado'] === 'sin_lista'])>
                             <td class="px-7 py-3.5">
                                 <p class="max-w-[260px] truncate text-[14.5px] font-bold text-[var(--p900)]" title="{{ $sesion->titulo }}">{{ $sesion->titulo }}</p>
+                                @if ($clase['solicitud']?->esperaSustento())
+                                    <span class="mt-1 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-[var(--warn200)] px-2.5 py-0.5 text-[11.5px] font-bold text-[var(--warn800)]">
+                                        <x-icono nombre="documento" class="h-3 w-3" /> Sustento solicitado
+                                    </span>
+                                @elseif ($clase['cambio_pendiente'])
+                                    <span class="mt-1 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-[var(--warn200)] px-2.5 py-0.5 text-[11.5px] font-bold text-[var(--warn800)]">
+                                        <x-icono nombre="reloj" class="h-3 w-3" /> Reprogramación en revisión
+                                    </span>
+                                @elseif ($clase['solicitud']?->estado === 'aprobada')
+                                    <span class="mt-1 inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-[#F5FCD2] px-2.5 py-0.5 text-[11.5px] font-bold text-[#3B6506]">
+                                        <x-icono nombre="calendario" class="h-3 w-3" /> Reprogramada
+                                    </span>
+                                @endif
                             </td>
                             <td class="px-3 py-3.5">
                                 <p class="text-[15px] font-bold text-[var(--p900)]">{{ $sesion->fecha->format('H:i') }} – {{ $clase['fin']->format('H:i') }}</p>
@@ -138,7 +151,9 @@
                                         </button>
                                     @endif
 
-                                    {{-- Menú ⋮: solo acciones que ya existen (Eliminar, si la clase no tiene registros). --}}
+                                    {{-- Menú ⋮ (clase sin registros): «Reprogramar clase» (clase futura) o «Ver reprogramación»
+                                         (en revisión o resuelta), «Reprogramar de nuevo» tras un rechazo o una reversión,
+                                         y Eliminar, bloqueado mientras haya una reprogramación en revisión. --}}
                                     @if ($editable && ! $clase['con_lista'])
                                         <div class="relative" x-data="{ abierto: false }" x-on:click.outside="abierto = false" x-on:keydown.escape.stop="abierto = false; $refs.menu.focus()">
                                             <button type="button" x-ref="menu" x-on:click="abierto = ! abierto" aria-haspopup="menu" aria-expanded="false" x-bind:aria-expanded="abierto ? 'true' : 'false'"
@@ -146,12 +161,37 @@
                                                 <x-icono nombre="puntos" class="h-5 w-5" />
                                             </button>
                                             <div x-show="abierto" x-cloak style="display: none" role="menu"
-                                                class="absolute right-0 top-full z-30 mt-1 min-w-[180px] rounded-xl border border-[#e1ece9] bg-white p-1.5 shadow-[0_10px_30px_rgba(9,59,59,0.14)]">
-                                                <button type="button" role="menuitem"
-                                                    x-on:click="abierto = false; if (confirm(@js('¿Eliminar la clase «'.$sesion->titulo.'»?'))) { $wire.$parent.eliminarSesion({{ $sesion->id }}).then(() => $wire.$refresh()) }"
-                                                    class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-semibold text-[var(--err700)] hover:bg-[var(--err100)] {{ $enfoque }}">
-                                                    <x-icono nombre="papelera" class="h-4 w-4" /> Eliminar clase
-                                                </button>
+                                                class="absolute right-0 top-full z-30 mt-1 min-w-[230px] rounded-xl border border-[#e1ece9] bg-white p-1.5 shadow-[0_10px_30px_rgba(9,59,59,0.14)]">
+                                                @if ($clase['solicitud'])
+                                                    <button type="button" role="menuitem" x-on:click="abierto = false; Livewire.dispatch('abrir-solicitud-cambio', { sesion: {{ $sesion->id }} })"
+                                                        class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-semibold text-[var(--p900)] hover:bg-[var(--mint)] {{ $enfoque }}">
+                                                        <x-icono nombre="ojo" class="h-4 w-4" /> Ver reprogramación
+                                                    </button>
+                                                    @if (in_array($clase['solicitud']->estado, ['rechazada', 'revertida'], true) && ! $clase['pasada'])
+                                                        <button type="button" role="menuitem" x-on:click="abierto = false; Livewire.dispatch('abrir-solicitud-cambio', { sesion: {{ $sesion->id }}, nueva: true })"
+                                                            class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-semibold text-[var(--p900)] hover:bg-[var(--mint)] {{ $enfoque }}">
+                                                            <x-icono nombre="calendario" class="h-4 w-4" /> Reprogramar de nuevo
+                                                        </button>
+                                                    @endif
+                                                @elseif (! $clase['pasada'])
+                                                    <button type="button" role="menuitem" x-on:click="abierto = false; Livewire.dispatch('abrir-solicitud-cambio', { sesion: {{ $sesion->id }} })"
+                                                        class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-semibold text-[var(--p900)] hover:bg-[var(--mint)] {{ $enfoque }}">
+                                                        <x-icono nombre="calendario" class="h-4 w-4" /> Reprogramar clase
+                                                    </button>
+                                                @endif
+                                                @if ($clase['cambio_pendiente'])
+                                                    <button type="button" role="menuitem" aria-disabled="true" disabled aria-describedby="bloqueo-eliminar-{{ $sesion->id }}"
+                                                        class="flex w-full cursor-not-allowed flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left text-[13px] font-semibold text-[#9aa9a6]">
+                                                        <span class="inline-flex items-center gap-2"><x-icono nombre="papelera" class="h-4 w-4" /> Eliminar clase</span>
+                                                        <span id="bloqueo-eliminar-{{ $sesion->id }}" class="text-[11.5px] font-medium text-[#5b706c]">Tiene una reprogramación pendiente: cancélala para poder eliminar la clase.</span>
+                                                    </button>
+                                                @else
+                                                    <button type="button" role="menuitem"
+                                                        x-on:click="abierto = false; if (confirm(@js('¿Eliminar la clase «'.$sesion->titulo.'»?'))) { $wire.$parent.eliminarSesion({{ $sesion->id }}).then(() => $wire.$refresh()) }"
+                                                        class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-semibold text-[var(--err700)] hover:bg-[var(--err100)] {{ $enfoque }}">
+                                                        <x-icono nombre="papelera" class="h-4 w-4" /> Eliminar clase
+                                                    </button>
+                                                @endif
                                             </div>
                                         </div>
                                     @else

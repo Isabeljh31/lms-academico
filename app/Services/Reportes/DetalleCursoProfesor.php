@@ -108,7 +108,8 @@ class DetalleCursoProfesor
                 'sin_contenido' => collect($porSemana)->where('sin_contenido', true)->count(),
                 'programadas' => collect($porSemana)->whereNotNull('programada')->count(),
             ],
-            'proxima' => $proxima ? ['sesion' => $proxima, 'aula' => $this->aulaDe($curso, $proxima->fecha)] : null,
+            // Primero el aula de la propia clase (una reprogramada puede tener otra); si no, la del horario.
+            'proxima' => $proxima ? ['sesion' => $proxima, 'aula' => ($aula = AsistenciaProfesor::aula($proxima)) ? 'Aula '.$aula : $this->aulaDe($curso, $proxima->fecha)] : null,
         ];
     }
 

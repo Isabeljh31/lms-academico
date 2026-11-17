@@ -71,12 +71,13 @@ class AsistenciaProfesor
     }
 
     /**
-     * Aula de la clase solo si la descripción tiene exactamente el formato que
-     * escribe Curso::generarSesionesDesdeHorario() («Aula: X»).
+     * Aula de la clase: la descripción exacta que escribe
+     * Curso::generarSesionesDesdeHorario() («Aula: X») o una línea «Aula: X»
+     * dentro de una descripción con más texto (SolicitudesCambioClase::descripcionConAula).
      */
     public static function aula(SesionClase $sesion): ?string
     {
-        return preg_match('/^Aula:\s*(\S.{0,49})$/u', trim((string) $sesion->descripcion), $coincidencia) === 1
+        return preg_match('/^[ \t]*Aula:[ \t]*(\S[^\r\n]{0,49}?)[ \t]*$/mu', trim((string) $sesion->descripcion), $coincidencia) === 1
             ? trim($coincidencia[1])
             : null;
     }
@@ -131,7 +132,9 @@ class AsistenciaProfesor
      */
     public function clases(Curso $curso, int $activos, Carbon $ahora): Collection
     {
+        // Solicitud de cambio vigente de cada clase (marca «Cambio solicitado» y menú ⋮): una consulta para todas.
         $sesiones = $curso->sesionesClase()->orderBy('id')
+            ->with('solicitudCambioVigente')
             ->get(['id', 'curso_id', 'titulo', 'fecha', 'duracion_minutos', 'descripcion', 'numero_sesion']);
 
         if ($sesiones->isEmpty()) {
@@ -169,6 +172,8 @@ class AsistenciaProfesor
                 // Regla del Profesor (SesionClase::permiteTomarLista): desde las 00:00 del día de la clase.
                 'permite_lista' => $sesion->permiteTomarLista($ahora),
                 'con_lista' => $conLista,
+                'solicitud' => $sesion->solicitudCambioVigente,
+                'cambio_pendiente' => $sesion->solicitudCambioVigente?->estado === 'pendiente',
                 'presentes' => $presentes,
                 'tardanzas' => $tardanzas,
                 'justificados' => $justificados,

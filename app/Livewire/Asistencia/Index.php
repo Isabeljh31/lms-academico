@@ -133,6 +133,13 @@ class Index extends Component
             return;
         }
 
+        // Borrarla eliminaría en cascada la solicitud de cambio pendiente sin dejar rastro.
+        if ($sesion->solicitudCambioPendiente()->exists()) {
+            session()->flash('error', 'La clase tiene una reprogramación pendiente: cancélala antes de eliminar la clase.');
+
+            return;
+        }
+
         $sesion->delete();
         session()->flash('estado', 'Sesión eliminada.');
     }

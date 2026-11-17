@@ -97,6 +97,10 @@
             </section>
         @else
             <livewire:docente.asistencia.tablero :curso="$curso" :key="'tablero-asistencia-'.$curso->id" />
+            {{-- Solicitud de cambio de clase (menú ⋮ de cada clase): modal propio, solo en la vista del Profesor. --}}
+            @if ($this->editable)
+                <livewire:docente.asistencia.solicitud-cambio :curso="$curso" :key="'solicitud-cambio-'.$curso->id" />
+            @endif
         @endif
 
         {{-- «Omitir asistencia» (ERS RF-73): acción secundaria del curso, lejos de las acciones principales. --}}

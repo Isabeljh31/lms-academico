@@ -43,6 +43,8 @@
         ['ruta' => 'admin.usuarios.index', 'etiqueta' => 'Estudiantes', 'icono' => 'usuarios', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'admin.profesores.index', 'etiqueta' => 'Profesores', 'icono' => 'birrete', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'admin.comunicados.index', 'etiqueta' => 'Comunicados', 'icono' => 'megafono', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'admin.solicitudes-cambio-clase.index', 'etiqueta' => 'Reprogramaciones', 'icono' => 'calendario', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'admin.sedes-salones.index', 'etiqueta' => 'Sedes y salones', 'icono' => 'base-datos', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'admin.metricas', 'etiqueta' => 'Dashboard institucional', 'icono' => 'grafico', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'admin.analitica-riesgo', 'etiqueta' => 'Riesgo de abandono', 'icono' => 'alerta', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'admin.integraciones', 'etiqueta' => 'Integración API', 'icono' => 'enlace', 'visible' => $rol === 'supervisor'],

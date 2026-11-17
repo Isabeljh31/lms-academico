@@ -31,6 +31,8 @@ class ConfiguracionPlataforma
         'nombre_institucion' => 'LearnUp',
         'zona_horaria' => 'America/Lima',
         'formato_fecha' => 'd/m/Y',
+        // Horas mínimas de anticipación para que una reprogramación se aplique sola.
+        'reprogramacion_aviso_minimo_horas' => 24,
     ];
 
     /**
@@ -90,6 +92,16 @@ class ConfiguracionPlataforma
         $formato = (string) $this->obtener('formato_fecha');
 
         return array_key_exists($formato, self::FORMATOS_FECHA) ? $formato : self::PREDETERMINADOS['formato_fecha'];
+    }
+
+    /**
+     * Anticipación mínima (en horas) de la clase original y de la nueva para
+     * que una reprogramación se aplique sin revisión del Supervisor. Solo se
+     * cambia guardando la clave; no tiene pantalla.
+     */
+    public function avisoMinimoReprogramacionHoras(): int
+    {
+        return max(0, (int) $this->obtener('reprogramacion_aviso_minimo_horas'));
     }
 
     public function formatoFechaHora(bool $conSegundos = false): string
