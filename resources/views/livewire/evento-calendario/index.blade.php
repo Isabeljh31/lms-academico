@@ -159,6 +159,8 @@
                                 <span class="min-w-0">
                                     <span class="block truncate font-medium {{ $titulo }}">{{ $sesion->curso->nombre }}</span>
                                     <span class="text-xs {{ $suave }}">{{ $sesion->titulo }}</span>
+                                    {{-- COMPARTIDO (enlace de clases remotas): botón «Unirse a la clase». --}}
+                                    @include('components.boton-unirse-clase', ['sesion' => $sesion])
                                 </span>
                                 <span class="shrink-0 text-xs {{ $suave }}">{{ $sesion->fecha->translatedFormat('D d, H:i') }}</span>
                             </li>

@@ -14,6 +14,7 @@ use App\Models\Tarea;
 use App\Models\User;
 use App\Notifications\NuevoComunicado;
 use App\Rules\TieneRol;
+use App\Services\Asistencia\EnlacesClaseRemota;
 use App\Services\Matricula\GestorMatriculas;
 use App\Services\Multimedia\SubidorArchivos;
 use App\Services\Reportes\ProgresoAcademicoService;
@@ -100,6 +101,11 @@ class Show extends Component
     public ?UploadedFile $nuevoRecursoArchivo = null;
 
     public string $nuevoRecursoUrl = '';
+
+    // Enlace de clases remotas (vista del Profesor): lo que se escribe, nunca el enlace guardado.
+    public string $enlaceRemotoNuevo = '';
+
+    public ?string $avisoEnlaceRemoto = null;
 
     // Matrícula rápida desde el resumen administrativo
     public string $busquedaEstudianteRapida = '';
@@ -642,6 +648,64 @@ class Show extends Component
         $this->redirectRoute('cursos.editar', $nuevoCurso->id, navigate: true);
     }
 
+    // ==========================================
+    // ENLACE DE CLASES REMOTAS (Profesor del curso)
+    // ==========================================
+
+    public function guardarEnlaceRemoto(EnlacesClaseRemota $enlaces): void
+    {
+        $this->avisoEnlaceRemoto = null;
+
+        // Guardar vacío no borra nada: para eso está «Quitar enlace».
+        if (trim($this->enlaceRemotoNuevo) === '') {
+            $this->addError('enlace_remoto', 'Pega el enlace de la reunión (Teams, Meet, Zoom…).');
+
+            return;
+        }
+
+        $enlaces->guardarDelCurso(auth()->user(), $this->curso, $this->enlaceRemotoNuevo);
+
+        $this->reset('enlaceRemotoNuevo');
+        $this->resetErrorBag('enlace_remoto');
+        $this->avisoEnlaceRemoto = 'Enlace de clases remotas guardado.';
+    }
+
+    public function quitarEnlaceRemoto(EnlacesClaseRemota $enlaces): void
+    {
+        $enlaces->guardarDelCurso(auth()->user(), $this->curso, null);
+
+        $this->reset('enlaceRemotoNuevo');
+        $this->resetErrorBag('enlace_remoto');
+        $this->avisoEnlaceRemoto = 'Enlace de clases remotas quitado.';
+    }
+
+    /**
+     * Tarjeta «Enlace de clases remotas» del detalle del Profesor: solo el
+     * dominio del enlace guardado, calculado aquí con la policy (no es una
+     * propiedad pública). null = no se muestra (curso sin clases remotas).
+     *
+     * @return array{dominio: ?string, editable: bool, dominios: string}|null
+     */
+    protected function tarjetaEnlaceRemoto(EnlacesClaseRemota $enlaces): ?array
+    {
+        if (! Gate::allows('verEnlaceRemoto', $this->curso)) {
+            return null;
+        }
+
+        $tieneClasesRemotas = $this->curso->modalidad === 'remoto'
+            || $this->curso->sesionesClase()->where('modalidad', 'remoto')->exists();
+
+        if (! $tieneClasesRemotas) {
+            return null;
+        }
+
+        return [
+            'dominio' => $enlaces->dominioDe($this->curso->enlace_remoto),
+            'editable' => Gate::allows('editarEnlaceRemoto', $this->curso) && ! $this->curso->estaFinalizado(),
+            'dominios' => $enlaces->textoDominiosPermitidos(),
+        ];
+    }
+
     public function render(ProgresoAcademicoService $progreso)
     {
         $esEstudiante = auth()->user()->hasRole('estudiante');
@@ -683,6 +747,8 @@ class Show extends Component
             'carpetas' => $this->curso->carpetas,
             'estudiantesBusquedaRapida' => $estudiantesBusquedaRapida,
             'totalEstudiantesActivos' => $this->puedeGestionar ? $this->curso->inscripcionesActivas()->count() : 0,
+            // Solo la vista del Profesor muestra la tarjeta del enlace.
+            'enlaceRemoto' => $vistaProfesor ? $this->tarjetaEnlaceRemoto(app(EnlacesClaseRemota::class)) : null,
         ])->layout($vistaProfesor ? 'layouts.panel-profesor' : 'layouts.app')->title("{$this->curso->nombre} — LearnUp");
     }
 

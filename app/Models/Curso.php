@@ -68,6 +68,8 @@ class Curso extends Model
         'tiene_practicas_campo',
         // Sede del curso (reprogramación con salones reales; null = sin definir).
         'sede_id',
+        // Enlace fijo de reunión de las clases remotas (lo valida EnlacesClaseRemota).
+        'enlace_remoto',
     ];
 
     protected $attributes = [
@@ -554,7 +556,7 @@ class Curso extends Model
     public function clonar(string $nuevoNombre, ?int $profesorId = null): self
     {
         return DB::transaction(function () use ($nuevoNombre, $profesorId) {
-            $nuevo = $this->replicate(['codigo', 'created_at', 'updated_at']);
+            $nuevo = $this->replicate(['codigo', 'enlace_remoto', 'created_at', 'updated_at']);
             $nuevo->nombre = $nuevoNombre;
             $nuevo->estado = 'borrador';
             $nuevo->profesor_id = $profesorId ?? $this->profesor_id;

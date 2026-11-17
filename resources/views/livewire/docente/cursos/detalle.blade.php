@@ -66,6 +66,11 @@
                 </section>
             @endif
 
+            {{-- Enlace de clases remotas: solo si el curso es remoto o tiene clases remotas. --}}
+            @if ($enlaceRemoto)
+                @include('livewire.docente.cursos._enlace-remoto')
+            @endif
+
             <livewire:docente.cursos.evaluaciones-curso :curso="$curso" :key="'evaluaciones-curso-'.$curso->id" />
 
             {{-- Anuncios del curso (RF-81): el formulario existente se despliega solo al pulsar "Nuevo anuncio". --}}

@@ -154,7 +154,8 @@
                                     {{-- Menú ⋮ (clase sin registros): «Reprogramar clase» (clase futura) o «Ver reprogramación»
                                          (en revisión o resuelta), «Reprogramar de nuevo» tras un rechazo o una reversión,
                                          y Eliminar, bloqueado mientras haya una reprogramación en revisión. --}}
-                                    @if ($editable && ! $clase['con_lista'])
+                                    {{-- «Enlace de esta clase»: clase remota futura o en curso, aunque ya tenga lista (las demás opciones siguen igual). --}}
+                                    @if ($editable && (! $clase['con_lista'] || $clase['admite_enlace']))
                                         <div class="relative" x-data="{ abierto: false }" x-on:click.outside="abierto = false" x-on:keydown.escape.stop="abierto = false; $refs.menu.focus()">
                                             <button type="button" x-ref="menu" x-on:click="abierto = ! abierto" aria-haspopup="menu" aria-expanded="false" x-bind:aria-expanded="abierto ? 'true' : 'false'"
                                                 aria-label="Más acciones de {{ $sesion->titulo }}" class="grid h-9 w-9 place-items-center rounded-lg text-[#4b625e] hover:bg-[var(--mint)] {{ $enfoque }}">
@@ -162,6 +163,13 @@
                                             </button>
                                             <div x-show="abierto" x-cloak style="display: none" role="menu"
                                                 class="absolute right-0 top-full z-30 mt-1 min-w-[230px] rounded-xl border border-[#e1ece9] bg-white p-1.5 shadow-[0_10px_30px_rgba(9,59,59,0.14)]">
+                                                @if ($clase['admite_enlace'])
+                                                    <button type="button" role="menuitem" x-on:click="abierto = false; Livewire.dispatch('abrir-enlace-clase', { sesion: {{ $sesion->id }} })"
+                                                        class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-semibold text-[var(--p900)] hover:bg-[var(--mint)] {{ $enfoque }}">
+                                                        <x-icono nombre="enlace" class="h-4 w-4" /> Enlace de esta clase
+                                                    </button>
+                                                @endif
+                                                @unless ($clase['con_lista'])
                                                 @if ($clase['solicitud'])
                                                     <button type="button" role="menuitem" x-on:click="abierto = false; Livewire.dispatch('abrir-solicitud-cambio', { sesion: {{ $sesion->id }} })"
                                                         class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-semibold text-[var(--p900)] hover:bg-[var(--mint)] {{ $enfoque }}">
@@ -192,6 +200,7 @@
                                                         <x-icono nombre="papelera" class="h-4 w-4" /> Eliminar clase
                                                     </button>
                                                 @endif
+                                                @endunless
                                             </div>
                                         </div>
                                     @else

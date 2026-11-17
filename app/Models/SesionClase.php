@@ -21,6 +21,8 @@ class SesionClase extends Model
         'descripcion', 'numero_sesion', 'modalidad',
         // Salón real donde se dicta (null = aula solo en texto «Aula: X»).
         'salon_id',
+        // Enlace de reunión solo de esta clase (null = el del curso).
+        'enlace_remoto',
     ];
 
     protected $casts = [
@@ -87,5 +89,11 @@ class SesionClase extends Model
         $presentes = $this->asistencias()->whereIn('estado', ['presente', 'tardanza'])->count();
 
         return $total > 0 ? round($presentes / $total * 100, 1) : null;
+    }
+
+    /** Modalidad con la que se dicta la clase: la propia o, si es null, la del curso. */
+    public function modalidadEfectiva(): ?string
+    {
+        return $this->modalidad ?? $this->curso?->modalidad;
     }
 }

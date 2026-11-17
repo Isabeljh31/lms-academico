@@ -6,6 +6,7 @@ use App\Models\Curso;
 use App\Models\Leccion;
 use App\Models\Modulo;
 use App\Models\SesionClase;
+use App\Services\Asistencia\EnlacesClaseRemota;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Carbon;
@@ -135,11 +136,15 @@ class AsistenciaProfesor
         // Solicitud de cambio vigente de cada clase (marca «Cambio solicitado» y menú ⋮): una consulta para todas.
         $sesiones = $curso->sesionesClase()->orderBy('id')
             ->with('solicitudCambioVigente')
-            ->get(['id', 'curso_id', 'titulo', 'fecha', 'duracion_minutos', 'descripcion', 'numero_sesion']);
+            ->get(['id', 'curso_id', 'titulo', 'fecha', 'duracion_minutos', 'descripcion', 'numero_sesion', 'modalidad']);
 
         if ($sesiones->isEmpty()) {
             return collect();
         }
+
+        // La modalidad efectiva (menú ⋮ «Enlace de esta clase») hereda la del curso: sin consultas extra.
+        $sesiones->each->setRelation('curso', $curso);
+        $enlaces = app(EnlacesClaseRemota::class);
 
         $activosIds = $curso->inscripcionesActivas()->select('estudiante_id')->toBase();
         $cuenta = fn (string $estado) => "sum(case when estado = '{$estado}' and estudiante_id in ({$activosIds->toSql()}) then 1 else 0 end) as {$estado}s";
@@ -154,7 +159,7 @@ class AsistenciaProfesor
 
         $proximaId = $sesiones->first(fn (SesionClase $sesion) => $sesion->fecha->gt($ahora))?->id;
 
-        return $sesiones->map(function (SesionClase $sesion) use ($conteos, $activos, $ahora, $proximaId) {
+        return $sesiones->map(function (SesionClase $sesion) use ($conteos, $activos, $ahora, $proximaId, $enlaces) {
             $fila = $conteos->get($sesion->id);
             $presentes = (int) ($fila->presentes ?? 0);
             $tardanzas = (int) ($fila->tardanzas ?? 0);
@@ -174,6 +179,8 @@ class AsistenciaProfesor
                 'con_lista' => $conLista,
                 'solicitud' => $sesion->solicitudCambioVigente,
                 'cambio_pendiente' => $sesion->solicitudCambioVigente?->estado === 'pendiente',
+                // Clase remota futura o en curso: admite su propio enlace aunque ya tenga lista.
+                'admite_enlace' => $enlaces->admiteEnlacePropio($sesion, $ahora),
                 'presentes' => $presentes,
                 'tardanzas' => $tardanzas,
                 'justificados' => $justificados,

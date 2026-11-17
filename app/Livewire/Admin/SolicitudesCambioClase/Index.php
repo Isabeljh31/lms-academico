@@ -198,7 +198,7 @@ class Index extends Component
         $presencial = $this->modalidad === 'presencial';
         $aula = $presencial && $this->salonElegido === self::SIN_SALON ? $this->aula : null;
 
-        return [...$avisos, ...$servicio->avisos($solicitud, $horario[0], $horario[1], $aula, $presencial ? $salon : null)];
+        return [...$avisos, ...$servicio->avisos($solicitud, $horario[0], $horario[1], $aula, $presencial ? $salon : null, $this->modalidad)];
     }
 
     public function render(SolicitudesCambioClase $servicio, DisponibilidadSalones $disponibilidad): View

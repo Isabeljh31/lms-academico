@@ -55,7 +55,7 @@ class SolicitudesCambioClase
 
     public const CARPETA_SUSTENTOS = 'sustentos-reprogramacion';
 
-    public function __construct(protected DisponibilidadSalones $disponibilidad) {}
+    public function __construct(protected DisponibilidadSalones $disponibilidad, protected EnlacesClaseRemota $enlaces) {}
 
     /**
      * Crea la reprogramación. Se aplica sola si se eligió la nueva fecha (y
@@ -402,11 +402,12 @@ class SolicitudesCambioClase
      * de salón (por salon_id y, en clases antiguas, por «Aula: CÓDIGO») o, sin
      * salón, el aviso suave de cruce de aula por texto; cruce del mismo
      * docente (titular o co-docente) y fecha fuera de las semanas del curso.
-     * Una consulta por cada cruce.
+     * Una consulta por cada cruce. Si la clase pasa a remota sin enlace (ni
+     * propio ni del curso), avisa que el profesor recibirá un aviso.
      *
      * @return list<string>
      */
-    public function avisos(SolicitudCambioClase $solicitud, Carbon $inicio, int $duracion, ?string $aula, ?Salon $salon = null): array
+    public function avisos(SolicitudCambioClase $solicitud, Carbon $inicio, int $duracion, ?string $aula, ?Salon $salon = null, ?string $modalidad = null): array
     {
         $fin = $inicio->copy()->addMinutes($duracion);
         $curso = $solicitud->curso;
@@ -458,6 +459,13 @@ class SolicitudesCambioClase
             $avisos[] = $fueraDeSemanas;
         }
 
+        // Enlace de clases remotas: solo se consulta el del curso al elegir «remoto» (el curso llega con columnas acotadas).
+        if ($modalidad === 'remoto'
+            && ! $this->enlaces->esValido($solicitud->sesion->enlace_remoto)
+            && ! $this->enlaces->esValido(Curso::whereKey($curso->id)->value('enlace_remoto'))) {
+            $avisos[] = self::AVISO_SIN_ENLACE_REMOTO;
+        }
+
         return $avisos;
     }
 
@@ -469,6 +477,9 @@ class SolicitudesCambioClase
 
     /** Línea que reemplaza al aula cuando la clase pasa a remota (no se deja un aula obsoleta). */
     public const LINEA_REMOTA = 'Modalidad: Remota';
+
+    /** Aviso no bloqueante al aprobar una clase remota sin enlace (el Supervisor no edita el enlace). */
+    public const AVISO_SIN_ENLACE_REMOTO = 'El curso aún no tiene enlace de clases remotas; el profesor recibirá un aviso.';
 
     /**
      * Descripción de la clase con su ubicación: cambia la línea «Aula: X» o
@@ -540,6 +551,9 @@ class SolicitudesCambioClase
             'aula_nueva' => $aula,
             'salon_nuevo_id' => $presencial ? $salon?->id : null,
         ]);
+
+        // Clase remota sin enlace (ni propio ni del curso): se avisa a los docentes para que lo agreguen.
+        $this->enlaces->avisarSiFaltaEnlace($sesion);
 
         return [$anterior, $this->estadoDe($sesion)];
     }

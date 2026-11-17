@@ -49,6 +49,7 @@ class BitacoraAuditoria extends Model
         'cambio_password_inicial' => 'Cambio de contraseña inicial',
         'cambio_clase' => 'Reprogramación de clase',
         'catalogo_salones' => 'Catálogo de sedes y salones',
+        'enlace_remoto' => 'Enlace de clase remota',
         'otro_admin' => 'Otra acción',
     ];
 

@@ -100,6 +100,8 @@
             {{-- Solicitud de cambio de clase (menú ⋮ de cada clase): modal propio, solo en la vista del Profesor. --}}
             @if ($this->editable)
                 <livewire:docente.asistencia.solicitud-cambio :curso="$curso" :key="'solicitud-cambio-'.$curso->id" />
+                {{-- «Enlace de esta clase» (menú ⋮ de una clase remota): modal propio. --}}
+                <livewire:docente.asistencia.enlace-clase :curso="$curso" :key="'enlace-clase-'.$curso->id" />
             @endif
         @endif
 
