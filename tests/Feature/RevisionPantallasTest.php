@@ -59,7 +59,7 @@ class RevisionPantallasTest extends TestCase
             'P banco' => ['profesor', 'cursos.banco-preguntas', ['curso'], 'Banco de preguntas'],
             'P libro' => ['profesor', 'cursos.libro-calificaciones', ['curso'], 'Nota final'],
             'P grupos' => ['profesor', 'cursos.grupos.index', ['curso'], 'Grupos'],
-            'P asistencia' => ['profesor', 'asistencia.index', ['curso'], 'Clase 1'],
+            'P asistencia' => ['profesor', 'asistencia.index', ['curso'], 'Lecciones completadas'],
             'P matrícula' => ['profesor', 'cursos.matriculas', ['curso'], 'Las matrículas las registra el Supervisor'],
             'P por calificar' => ['profesor', 'docente.por-calificar', [], 'Por calificar'],
             'P reportes' => ['profesor', 'reportes.dashboard', [], 'Detalle por curso'],

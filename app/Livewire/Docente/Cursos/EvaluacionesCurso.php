@@ -31,14 +31,15 @@ class EvaluacionesCurso extends Component
     public function render(AvanceEvaluaciones $avance, PanelProfesor $panel): View
     {
         $rubros = $this->curso->esquemaEvaluacion()->with(['rubros.tareas', 'rubros.quizzes'])->first()?->rubros ?? collect();
-        $pendientesPorTarea = $rubros->isEmpty()
-            ? collect()
-            : $panel->pendientesPorActividad(collect([$this->curso->id]))->pluck('pendientes', 'tarea_id');
+        // Misma fuente que Por calificar y el dock: pendientes por tarea (una vez por grupo) y la más antigua.
+        $pendientes = $rubros->isEmpty() ? collect() : $panel->pendientesPorActividad(collect([$this->curso->id]))->keyBy('tarea_id');
 
         return view('livewire.docente.cursos.evaluaciones-curso', [
             'rubros' => $rubros,
             'avances' => $avance->deCurso($this->curso, $rubros),
-            'pendientesPorTarea' => $pendientesPorTarea,
+            'pendientesPorTarea' => $pendientes->map(fn (array $fila) => $fila['pendientes']),
+            'masAntiguaPorTarea' => $pendientes->map(fn (array $fila) => $fila['mas_antigua']),
+            'puedeAsignar' => ! $this->curso->estaFinalizado(),
         ]);
     }
 }

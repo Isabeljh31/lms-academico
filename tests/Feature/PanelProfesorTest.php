@@ -148,7 +148,8 @@ class PanelProfesorTest extends TestCase
         $componente = Livewire::actingAs($profesor)->test(Panel::class)
             ->assertSee('Calificar la más antigua')
             ->assertSeeInOrder(['Informe antiguo', 'hace 6 días', 'Informe reciente', 'hace 1 día'])
-            ->assertSee(route('cursos.tareas.show', [$curso, $antigua]), false)
+            // "Calificar" abre Por calificar con la tarea ya elegida.
+            ->assertSee(route('docente.por-calificar', ['tarea' => $antigua->id]), false)
             ->assertSee('Calificar 2');
 
         $this->assertSame($antigua->id, $componente->viewData('pendientes')['masAntigua']['tarea_id']);

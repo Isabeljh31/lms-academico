@@ -7,11 +7,11 @@ use App\Models\Curso;
 use App\Models\SesionClase;
 use App\Models\User;
 use App\Services\Asistencia\CalculadoraAsistencia;
+use App\View\Components\PanelProfesorLayout;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
-use Livewire\Attributes\Layout;
 use Livewire\Attributes\Locked;
 use Livewire\Component;
 
@@ -21,8 +21,14 @@ use Livewire\Component;
  * ERS RF-71: porcentaje de asistencia acumulado por estudiante.
  * ERS RF-73: el Profesor del curso decide si usa o no el control de asistencia
  *            (también lo puede fijar el Supervisor al editar el curso).
+ *
+ * El layout se elige en render() (no con #[Layout], que Livewire aplica
+ * después de render() y pisaría el del Profesor): layouts.app para el
+ * Supervisor, layouts.panel-profesor para el Profesor.
+ *
+ * Regla del Profesor: no se toma ni se modifica la asistencia de una clase
+ * futura (SesionClase::permiteTomarLista), validado en el servidor.
  */
-#[Layout('layouts.app')]
 class Index extends Component
 {
     public const ESTADOS = ['presente', 'tardanza', 'justificado', 'ausente'];
@@ -136,6 +142,17 @@ class Index extends Component
         Gate::authorize('supervisar', $this->curso);
 
         $sesion = $this->sesion($sesionId);
+
+        // Quien gestiona (el Profesor del curso) no abre el pase de lista de una clase futura;
+        // el Supervisor (solo lectura) sigue consultando como antes.
+        if (Gate::allows('gestionar', $this->curso) && $this->rechazarClaseFutura($sesion)) {
+            $this->sesionActivaId = null;
+            $this->marcas = [];
+            $this->vista = 'sesiones';
+
+            return;
+        }
+
         $registradas = $sesion->asistencias()->pluck('estado', 'estudiante_id');
 
         $this->sesionActivaId = $sesion->id;
@@ -149,6 +166,11 @@ class Index extends Component
     {
         abort_unless(in_array($estado, self::ESTADOS, true), 422);
 
+        if ($this->sesionActivaId !== null && Gate::allows('gestionar', $this->curso)
+            && $this->rechazarClaseFutura($this->sesion($this->sesionActivaId))) {
+            return;
+        }
+
         foreach (array_keys($this->marcas) as $estudianteId) {
             $this->marcas[$estudianteId] = $estado;
         }
@@ -161,6 +183,11 @@ class Index extends Component
     {
         $this->autorizarEdicion();
         $sesion = $this->sesion($this->sesionActivaId);
+
+        if ($this->rechazarClaseFutura($sesion)) {
+            return;
+        }
+
         $idsValidos = $this->estudiantesActivos()->pluck('id')->all();
 
         $this->validate([
@@ -186,6 +213,21 @@ class Index extends Component
         session()->flash('estado', "Asistencia de la sesión #{$sesion->numero_sesion} guardada.");
     }
 
+    /**
+     * true (con el aviso en pantalla) si la clase aún no ocurre y por eso no
+     * admite pase de lista. No escribe nada en la base de datos.
+     */
+    protected function rechazarClaseFutura(SesionClase $sesion): bool
+    {
+        if ($sesion->permiteTomarLista()) {
+            return false;
+        }
+
+        session()->flash('error', SesionClase::MENSAJE_CLASE_FUTURA);
+
+        return true;
+    }
+
     protected function sesion(?int $id): SesionClase
     {
         return $this->curso->sesionesClase()->findOrFail($id);
@@ -205,6 +247,23 @@ class Index extends Component
 
     public function render(CalculadoraAsistencia $calculadora)
     {
+        // Profesor (solo ese rol): misma lógica y acciones con su vista rediseñada; los
+        // indicadores, semanas y resumen los lee Docente\Asistencia\Tablero (sin N+1).
+        if (PanelProfesorLayout::aplicaA(auth()->user())) {
+            $sesionActiva = $this->vista === 'pase_lista' && $this->sesionActivaId !== null
+                ? $this->curso->sesionesClase()->find($this->sesionActivaId)
+                : null;
+
+            return view('livewire.docente.asistencia.index', [
+                'sesionActiva' => $sesionActiva,
+                // Pase de lista: sesión, estudiantes activos y estados guardados en tres consultas.
+                'estudiantes' => $sesionActiva
+                    ? User::whereIn('id', $this->curso->inscripcionesActivas()->select('estudiante_id'))->orderBy('name')->get(['id', 'name'])
+                    : collect(),
+                'guardadas' => $sesionActiva ? $sesionActiva->asistencias()->pluck('estado', 'estudiante_id')->all() : [],
+            ])->layout('layouts.panel-profesor')->title("Asistencia — {$this->curso->nombre}");
+        }
+
         $sesiones = $this->curso->sesionesClase()->withCount('asistencias')->get();
         $estudiantes = $this->estudiantesActivos();
 
@@ -221,6 +280,6 @@ class Index extends Component
                     'conteo' => $historial->countBy('estado'),
                 ])
                 : collect(),
-        ])->title("Asistencia — {$this->curso->nombre}");
+        ])->layout('layouts.app')->title("Asistencia — {$this->curso->nombre}");
     }
 }

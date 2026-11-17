@@ -122,7 +122,7 @@
                         </p>
                     </div>
                     @if ($pendientes['masAntigua'])
-                        <a href="{{ route('cursos.tareas.show', [$pendientes['masAntigua']['curso_id'], $pendientes['masAntigua']['tarea_id']]) }}" wire:navigate class="{{ $botonPrimario }}">Calificar la más antigua</a>
+                        <a href="{{ route('docente.por-calificar', ['tarea' => $pendientes['masAntigua']['tarea_id']]) }}" wire:navigate class="{{ $botonPrimario }}">Calificar la más antigua</a>
                     @endif
                 </div>
 
@@ -182,7 +182,7 @@
                                         {{ $plural($actividad['pendientes'], $actividad['grupal'] ? 'entrega de grupo' : 'entrega', $actividad['grupal'] ? 'entregas de grupo' : 'entregas') }} · la más antigua, {{ PanelProfesor::textoAntiguedad($actividad['mas_antigua']) }}
                                     </p>
                                 </div>
-                                <a href="{{ route('cursos.tareas.show', [$actividad['curso_id'], $actividad['tarea_id']]) }}" wire:navigate
+                                <a href="{{ route('docente.por-calificar', ['tarea' => $actividad['tarea_id']]) }}" wire:navigate
                                     class="{{ $botonFila }} self-start sm:ml-auto sm:self-auto"
                                     aria-label="Calificar {{ $actividad['pendientes'] }} {{ $actividad['pendientes'] === 1 ? 'entrega' : 'entregas' }} de {{ $actividad['titulo'] }}">Calificar {{ $actividad['pendientes'] }}</a>
                             </li>

@@ -50,7 +50,7 @@ class ContenidoPorSemanasTest extends TestCase
         $escenario['quiz']->update(['tema' => 'Repaso de límites']);
 
         Livewire::actingAs($escenario['profesor'])->test(Show::class, ['curso' => $escenario['curso']])
-            ->assertSeeInOrder(['Semana 2', 'Tareas y quizzes de la semana', 'Evaluación T1', 'Ver entregas', 'Repaso de límites', 'Semana 3'])
+            ->assertSeeInOrder(['Semana 2', 'Evaluaciones de la semana', 'Evaluación T1', 'Ver entregas', 'Repaso de límites', 'Semana 3'])
             ->assertSee(e(route('cursos.tareas.show', [$escenario['curso'], $escenario['tarea']])), false)
             ->assertSee(e(route('cursos.quizzes.editar', [$escenario['curso'], $escenario['quiz']])), false);
     }

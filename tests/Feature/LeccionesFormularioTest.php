@@ -616,6 +616,13 @@ class LeccionesFormularioTest extends TestCase
         $html = $componente->html();
         $valores = [];
 
+        // En la pantalla del Profesor el estado es el desplegable "Visibilidad para el estudiante" (x-docente.visibilidad).
+        if (preg_match('/id="visibilidad-estado-menu".*?<\/div>\s*<\/div>/s', $html, $menu)) {
+            preg_match_all('/data-opcion="([^"]+)"\s+tabindex="-1"\s+aria-checked="true"/', $menu[0], $marcados);
+            $this->assertCount(1, $marcados[1], 'La visibilidad debe tener exactamente una opción marcada.');
+            $valores['estado'] = $marcados[1][0];
+        }
+
         foreach (['estado', 'fuente', 'condicion_completitud'] as $grupo) {
             preg_match_all('/<input type="radio" name="leccion_'.$grupo.'" value="([^"]+)"[^>]*>/', $html, $radios, PREG_SET_ORDER);
 

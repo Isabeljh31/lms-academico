@@ -38,6 +38,23 @@ class PanelProfesor
     public function __construct(protected CalculadoraNotas $calculadora) {}
 
     /**
+     * Cursos activos del profesor (titular o co-docente): todos menos los que
+     * el Supervisor archivó, es decir publicados, borradores y despublicados.
+     * Única regla para "cursos a cargo" (pantalla Cursos), Por calificar, el
+     * Panel y la insignia "Por calificar" de la barra inferior.
+     */
+    public static function consultaCursosActivos(User|int $profesor): Builder
+    {
+        return Curso::dictadosPor($profesor)->where('estado', '!=', 'archivado');
+    }
+
+    /** La misma regla que consultaCursosActivos(), sobre un curso ya cargado. */
+    public static function esCursoActivo(Curso $curso): bool
+    {
+        return $curso->estado !== 'archivado';
+    }
+
+    /**
      * Cursos vigentes (no archivados) que dicta el profesor, como titular o
      * co-docente, con lo que el Panel necesita ya cargado.
      *
@@ -45,8 +62,7 @@ class PanelProfesor
      */
     public function cursos(User $profesor): Collection
     {
-        return Curso::dictadosPor($profesor)
-            ->where('estado', '!=', 'archivado')
+        return self::consultaCursosActivos($profesor)
             ->withCount('inscripcionesActivas')
             ->with([
                 'inscripcionesActivas:id,curso_id,estudiante_id',
@@ -96,7 +112,7 @@ class PanelProfesor
     /** Total por calificar del profesor (una vez por grupo), en una sola consulta. */
     public function totalPorCalificar(User $profesor): int
     {
-        $cursos = Curso::dictadosPor($profesor)->where('estado', '!=', 'archivado')->select('id');
+        $cursos = self::consultaCursosActivos($profesor)->select('id');
 
         return (int) $this->pendientesPorActividad($cursos)->sum('pendientes');
     }

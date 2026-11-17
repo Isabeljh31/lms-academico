@@ -1,65 +1,67 @@
 {{--
-    Franja superior de la pantalla Cursos (diseño "Tus clases, en movimiento"),
-    en versión compacta: saludo, siguiente sesión de clase y tres cifras.
-    Recibe $siguienteClase, $todosLosCursos, $total, $porCalificar, $matriculados y $enfoque.
+    Cabecera de la pantalla Cursos (mock verde): fecha, saludo con el nombre
+    completo, lo pendiente, buscador y la siguiente sesión de clase.
+    Recibe $siguienteClase, $todosLosCursos, $porCalificar, $sinContenidoProximaSemana,
+    $conControles y $plural.
 --}}
 @php
     $hoyTexto = now()->locale('es')->isoFormat('dddd, D [de] MMMM');
+    // El modelo User no tiene campo de género: tratamiento neutro "Prof.".
+    $tratamiento = 'Prof.';
+    $nombreProfesor = (string) auth()->user()->name;
+    $sinContenido = $sinContenidoProximaSemana;
     $claseCurso = $siguienteClase ? $todosLosCursos->get($siguienteClase->curso_id) : null;
-    $cuandoClase = null;
-    if ($siguienteClase) {
-        $minutos = (int) abs(now()->diffInMinutes($siguienteClase->fecha));
-        $cuandoClase = match (true) {
-            $minutos < 60 => 'En '.max(1, $minutos).' min',
-            $siguienteClase->fecha->isToday() => 'Hoy',
-            $siguienteClase->fecha->isTomorrow() => 'Mañana',
-            default => \Illuminate\Support\Str::ucfirst($siguienteClase->fecha->locale('es')->isoFormat('ddd D/MM')),
-        };
-    }
-    $cifras = [
-        ['valor' => $total, 'etiqueta' => $total === 1 ? 'Curso a cargo' : 'Cursos a cargo', 'icono' => 'libro'],
-        ['valor' => $porCalificar, 'etiqueta' => 'Por calificar', 'icono' => 'check-circulo'],
-        ['valor' => $matriculados, 'etiqueta' => 'Matriculados', 'icono' => 'usuarios'],
-    ];
+    $detalleClase = $siguienteClase && $claseCurso
+        ? collect([
+            $claseCurso->codigo,
+            $siguienteClase->numero_sesion ? 'Sesión '.$siguienteClase->numero_sesion : $siguienteClase->titulo,
+            $siguienteClase->fecha->locale('es')->isoFormat('dddd D [de] MMMM'),
+        ])->filter()->join(' · ')
+        : null;
+    $enfoqueOscuro ='focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--lime)]';
 @endphp
 
-<section aria-label="Resumen de tus cursos" class="overflow-hidden rounded-2xl border border-celeste bg-white shadow-sm">
-    <div class="flex flex-col gap-4 px-5 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-        <div class="min-w-0">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{{ $hoyTexto }}</p>
-            <h1 class="mt-1 text-xl font-bold leading-tight tracking-tight text-texto sm:text-[1.375rem]">Tus clases, <span class="text-azul-oscuro">en movimiento.</span></h1>
-            <p class="mt-0.5 text-[13px] text-slate-500">Lo que avanza, lo que sigue y dónde te necesitan.</p>
-        </div>
+<section aria-label="Resumen de tus cursos"
+    class="grid grid-cols-1 items-center gap-6 rounded-[20px] bg-[var(--p900)] px-[22px] py-[26px] text-white sm:rounded-3xl sm:px-12 sm:py-9 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-9">
+    <div class="min-w-0">
+        <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--sec2)]">{{ $hoyTexto }}</p>
+        {{-- El saludo se calcula en el navegador (hora local del profesor); el servidor envía "Hola". --}}
+        <h1 class="mb-3 mt-2.5 break-words text-[28px] font-extrabold leading-[1.12] tracking-[-0.02em] sm:text-[36px]">
+            <span x-data="{ saludo: 'Hola' }"
+                x-init="const hora = new Date().getHours(); saludo = hora >= 5 && hora < 12 ? 'Buenos días' : (hora >= 12 && hora < 19 ? 'Buenas tardes' : 'Buenas noches')"
+                x-text="saludo">Hola</span>,<br>
+            {{ $tratamiento }} {{ $nombreProfesor }}
+        </h1>
+        <p class="max-w-[560px] text-[15px] leading-[1.55] text-[#d3e3df]">
+            {{-- "Tienes N entregas por calificar y M cursos sin contenido para la próxima semana." (en una línea para no dejar espacios sueltos) --}}
+            @if ($porCalificar > 0 || $sinContenido > 0)Tienes @if ($porCalificar > 0)<b class="font-bold text-[var(--lime)]">{{ $plural($porCalificar, 'entrega', 'entregas') }}</b><span> por calificar</span>@endif{{ $porCalificar > 0 && $sinContenido > 0 ? ' y ' : '' }}@if ($sinContenido > 0)<b class="font-bold text-[var(--lime)]">{{ $plural($sinContenido, 'curso', 'cursos') }}</b><span> sin contenido para la próxima semana</span>@endif.@else Todo al día.@endif
+        </p>
 
-        @if ($siguienteClase && $claseCurso)
-            <a href="{{ route('cursos.show', $claseCurso) }}" wire:navigate
-                class="group flex min-w-0 items-center gap-3.5 rounded-xl border border-celeste bg-fondo px-4 py-2.5 transition hover:border-azul-oscuro/30 hover:bg-celeste/60 motion-reduce:transition-none lg:w-[25rem] {{ $enfoque }}"
-                aria-label="Tu siguiente clase: {{ $claseCurso->nombre }}, {{ $siguienteClase->fecha->locale('es')->isoFormat('dddd D [a las] HH:mm') }}">
-                <span class="shrink-0 text-center">
-                    <span class="block text-lg font-bold leading-none tabular-nums text-azul-oscuro">{{ $siguienteClase->fecha->format('H:i') }}</span>
-                    <span class="mt-1 block text-[10px] font-semibold uppercase tracking-wide text-slate-500">{{ $siguienteClase->fecha->locale('es')->isoFormat('ddd D') }}</span>
-                </span>
-                <span class="h-9 w-px shrink-0 bg-celeste" aria-hidden="true"></span>
-                <span class="min-w-0 flex-1">
-                    <span class="block text-[10px] font-semibold uppercase tracking-wide text-slate-500">Tu siguiente clase</span>
-                    <span class="block truncate text-sm font-semibold text-texto">{{ $claseCurso->nombre }}</span>
-                    <span class="block truncate text-xs text-slate-500">{{ collect([$claseCurso->codigo, $siguienteClase->titulo])->filter()->join(' · ') }}</span>
-                </span>
-                <span class="hidden shrink-0 rounded-full bg-white px-2 py-0.5 text-[11px] font-semibold text-azul-oscuro ring-1 ring-celeste sm:inline-flex">{{ $cuandoClase }}</span>
-                <x-icono nombre="flecha-derecha" class="h-4 w-4 shrink-0 text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-azul-oscuro motion-reduce:transition-none" />
-            </a>
+        {{-- Buscador: la propiedad "busqueda" de ListaCursos solo filtra con MIN_CONTROLES cursos o más. --}}
+        @if ($conControles)
+            <label class="mt-5 flex h-[46px] max-w-[560px] items-center gap-2.5 rounded-[10px] border-2 border-[#111111] bg-[var(--mint)] px-3 text-[#5b706c] focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-[color:var(--lime)]">
+                <x-icono nombre="lupa" class="h-[18px] w-[18px] shrink-0" />
+                <span class="sr-only">Buscar curso por nombre o código</span>
+                <input type="search" wire:model.live.debounce.350ms="busqueda" placeholder="Buscar curso por nombre o código" autocomplete="off"
+                    class="w-full min-w-0 border-0 bg-transparent p-0 text-[15px] text-[var(--ink)] placeholder:text-[#5b706c] focus:outline-none focus:ring-0">
+            </label>
         @endif
     </div>
 
-    <dl class="grid grid-cols-3 divide-x divide-celeste border-t border-celeste bg-fondo/50">
-        @foreach ($cifras as $cifra)
-            <div class="flex min-w-0 items-center gap-2.5 px-4 py-2.5 sm:px-6">
-                <x-icono :nombre="$cifra['icono']" class="hidden h-4 w-4 shrink-0 text-slate-400 sm:block" />
-                <div class="flex min-w-0 items-baseline gap-1.5">
-                    <dt class="order-2 truncate text-xs text-slate-500">{{ $cifra['etiqueta'] }}</dt>
-                    <dd class="order-1 text-base font-bold tabular-nums text-texto">{{ $cifra['valor'] }}</dd>
-                </div>
-            </div>
-        @endforeach
-    </dl>
+    <div class="rounded-[18px] bg-[var(--p800)] px-[22px] py-5">
+        <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--sec2)]">Tu siguiente clase</p>
+        @if ($siguienteClase && $claseCurso)
+            <p class="mb-0.5 mt-2 text-[44px] font-extrabold leading-none tracking-[-0.02em] tabular-nums">{{ $siguienteClase->fecha->format('H:i') }}</p>
+            <p class="mt-2 break-words text-[17px] font-bold">{{ $claseCurso->nombre }}</p>
+            <p class="mt-0.5 break-words text-xs text-[#cfe0db]">{{ $detalleClase }}</p>
+            <a href="{{ route('cursos.show', $claseCurso) }}" wire:navigate
+                aria-label="Ver sesión: {{ $claseCurso->nombre }}, {{ $siguienteClase->fecha->locale('es')->isoFormat('dddd D [a las] HH:mm') }}"
+                class="mt-4 inline-flex items-center gap-2 rounded-[10px] bg-white px-[15px] py-[9px] text-[13px] font-bold text-[var(--p900)] transition-colors hover:bg-[var(--mint)] motion-reduce:transition-none {{ $enfoqueOscuro }}">
+                Ver sesión
+                <x-icono nombre="flecha-derecha" class="h-[14px] w-[14px]" />
+            </a>
+        @else
+            <p class="mt-2 text-[17px] font-bold">Sin clases programadas</p>
+        @endif
+    </div>
 </section>

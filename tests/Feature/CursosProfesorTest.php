@@ -6,6 +6,7 @@ use App\Livewire\Cursos\Show;
 use App\Livewire\Docente\Cursos\EncabezadoCurso;
 use App\Livewire\Docente\Cursos\EvaluacionesCurso;
 use App\Livewire\Docente\Cursos\ListaCursos;
+use App\Livewire\Docente\PorCalificar\Index as PorCalificar;
 use App\Models\Comunicado;
 use App\Models\Curso;
 use App\Models\Entrega;
@@ -81,12 +82,12 @@ class CursosProfesorTest extends TestCase
 
         $pantalla = Livewire::actingAs($profesor)->test(ListaCursos::class)
             ->assertViewHas('siguienteClase', fn (?SesionClase $sesion) => $sesion?->titulo === 'Laboratorio de ácidos')
-            ->assertSeeInOrder(['Tus clases,', 'Tu siguiente clase', 'Química Orgánica', 'Laboratorio de ácidos', 'Mañana'])
-            ->assertSeeInOrder(['Recorrido', 'Herbario final · vence el 20/11 (en 16 días)'])
+            ->assertSeeInOrder(['Hola', 'Tu siguiente clase', '08:30', 'Química Orgánica', 'Sesión 1 · jueves 5 de noviembre', 'Ver sesión'])
+            ->assertSeeInOrder(['Botánica', 'Herbario final', 'en 16 días'])
             ->assertSeeInOrder(['En tu radar', 'Informe de laboratorio', 'Ver calendario completo']);
 
-        // El radar (después de la lista) no incluye lo que vence a más de 7 días.
-        $this->assertStringNotContainsString('Herbario final', Str::after($pantalla->html(), 'En tu radar'));
+        // El radar (antes de la lista) no incluye lo que vence a más de 7 días.
+        $this->assertStringNotContainsString('Herbario final', Str::between($pantalla->html(), 'En tu radar', 'Ver calendario completo'));
     }
 
     public function test_el_profesor_ve_su_pantalla_cursos_con_el_layout_de_barra_inferior(): void
@@ -142,36 +143,159 @@ class CursosProfesorTest extends TestCase
             ->assertSee('2 cursos');
     }
 
-    public function test_los_estados_tienen_conteos_reales_y_el_filtro_y_la_busqueda_funcionan(): void
+    public function test_los_chips_aparecen_solo_con_algo_que_atender_y_filtran(): void
     {
         $profesor = $this->usuarioConRol('profesor');
-        $this->cursoDe($profesor, ['nombre' => 'Química Orgánica', 'codigo' => 'QUI-210']);
-        $this->cursoDe($profesor, ['nombre' => 'Química General', 'codigo' => 'QUI-101']);
-        $this->cursoDe($profesor, ['nombre' => 'Historia del Perú', 'estado' => 'borrador']);
+        $this->cursoDe($profesor, ['nombre' => 'Química Orgánica', 'codigo' => 'QUI-210', 'fecha_inicio' => null]);
+        // Semana 1 (actual) con contenido y semana 2 vacía: "sin contenido la próxima semana".
+        $general = $this->cursoDe($profesor, ['nombre' => 'Química General', 'codigo' => 'QUI-101', 'fecha_inicio' => '2026-11-02', 'semanas_duracion' => 16]);
+        Modulo::create(['curso_id' => $general->id, 'semana' => 1, 'titulo' => 'Semana 1', 'materiales' => []])
+            ->lecciones()->create(['titulo' => 'Lectura', 'estado' => 'publicado', 'orden' => 1]);
+        $this->cursoDe($profesor, ['nombre' => 'Historia del Perú', 'estado' => 'borrador', 'fecha_inicio' => null]);
+        $this->cursoDe($profesor, ['nombre' => 'Física', 'estado' => 'despublicado', 'fecha_inicio' => null]);
         $this->cursoDe($profesor, ['nombre' => 'Biología Celular', 'estado' => 'archivado']);
 
+        $nombres = fn (array $esperados) => fn ($cursos) => $cursos->pluck('nombre')->sort()->values()->all() === collect($esperados)->sort()->values()->all();
+
         $componente = Livewire::actingAs($profesor)->test(ListaCursos::class)
-            ->assertViewHas('conteos', fn ($conteos) => $conteos->all() === ['todos' => 4, 'publicado' => 2, 'borrador' => 1, 'despublicado' => 0, 'archivado' => 1])
-            // Sin cursos despublicados, ese chip no aparece.
-            ->assertDontSee('Despublicados');
+            ->assertSet('filtro', 'activos')
+            // Por defecto, los activos: publicados, borradores y despublicados.
+            ->assertViewHas('cursos', $nombres(['Química Orgánica', 'Química General', 'Historia del Perú', 'Física']))
+            ->assertSee('4 cursos activos')
+            ->assertSee('Filtrar cursos')
+            ->assertSee('Sin contenido la próxima semana (1)')
+            ->assertSee('Borradores (1)')
+            ->assertSee('Ver cursos archivados (1)')
+            // Ya no hay pestañas "Activos" ni "Con entregas por calificar", ni el aviso amarillo de la cabecera.
+            ->assertDontSee('Con entregas por calificar')
+            ->assertDontSeeHtml('wire:key="filtro-activos"')
+            ->assertDontSee('1 curso sin contenido la próxima semana')
+            ->assertDontSee('Mostrar todos')
+            ->assertSeeHtml('aria-labelledby="desplegable-orden-etiqueta desplegable-orden-boton"')
+            ->assertDontSeeHtml('<select');
 
-        $componente->set('estado', 'borrador')
-            ->assertViewHas('cursos', fn ($cursos) => $cursos->pluck('nombre')->all() === ['Historia del Perú'])
-            ->set('estado', 'archivado')
-            ->assertSee('Biología Celular')
-            ->assertSee('Curso cerrado')
-            ->assertDontSee('Química Orgánica');
+        $componente->set('filtro', 'sin_contenido')
+            ->assertViewHas('cursos', $nombres(['Química General']))
+            ->assertSeeHtml('aria-pressed="true"')
+            ->assertSee('Mostrar todos')
+            ->set('filtro', 'borradores')->assertViewHas('cursos', $nombres(['Historia del Perú']))
+            // Pulsar de nuevo el chip vuelve a los activos.
+            ->set('filtro', 'activos')->assertViewHas('cursos', fn ($cursos) => $cursos->count() === 4)
+            ->set('filtro', 'archivados')
+            ->assertViewHas('cursos', $nombres(['Biología Celular']))
+            ->assertSee('Volver a cursos activos')
+            ->assertDontSee('Ver cursos archivados')
+            ->assertDontSee('Filtrar cursos');
 
-        // Búsqueda sin tildes ni mayúsculas, por nombre o por código; los conteos siguen a la búsqueda.
-        $componente->set('estado', 'todos')->set('busqueda', 'quimica')
-            ->assertViewHas('conteos', fn ($conteos) => $conteos['todos'] === 2 && $conteos['borrador'] === 0)
-            ->assertSee('Química General')
-            ->assertDontSee('Historia del Perú')
+        // La búsqueda y el orden se combinan con el chip activo.
+        $componente->set('busqueda', 'quimica')->set('filtro', 'sin_contenido')
+            ->assertViewHas('cursos', $nombres(['Química General']))
+            ->set('filtro', 'activos')->set('orden', 'nombre')
+            ->assertViewHas('cursos', fn ($cursos) => $cursos->pluck('nombre')->all() === ['Química General', 'Química Orgánica'])
             ->set('busqueda', 'qui-101')
-            ->assertViewHas('cursos', fn ($cursos) => $cursos->pluck('nombre')->all() === ['Química General']);
+            ->assertViewHas('cursos', $nombres(['Química General']));
 
-        // Un valor manipulado vuelve al predeterminado.
-        $componente->set('estado', 'inventado')->assertSet('estado', 'todos');
+        // El filtro se lee de la URL; un valor inexistente (o de las pestañas antiguas) vuelve a los activos.
+        $componente->set('filtro', 'inventado')->assertSet('filtro', 'activos');
+        Livewire::withQueryParams(['filtro' => 'borradores'])->actingAs($profesor)->test(ListaCursos::class)
+            ->assertSet('filtro', 'borradores')
+            ->assertViewHas('cursos', $nombres(['Historia del Perú']));
+        Livewire::withQueryParams(['filtro' => 'por_calificar'])->actingAs($profesor)->test(ListaCursos::class)
+            ->assertSet('filtro', 'activos');
+    }
+
+    public function test_sin_nada_que_atender_no_hay_chips_y_el_filtro_vacio_lo_dice(): void
+    {
+        $profesor = $this->usuarioConRol('profesor');
+        foreach (['Química Orgánica', 'Botánica', 'Cívica', 'Arte Peruano'] as $nombre) {
+            $this->cursoDe($profesor, ['nombre' => $nombre, 'fecha_inicio' => null]);
+        }
+
+        Livewire::actingAs($profesor)->test(ListaCursos::class)
+            ->assertDontSee('Filtrar cursos')
+            ->assertDontSee('Borradores')
+            ->assertDontSee('Sin contenido la próxima semana')
+            ->assertDontSee('Ver cursos archivados');
+
+        // Con un enlace antiguo al filtro, el chip activo se ve (para poder quitarlo) con su estado vacío.
+        Livewire::withQueryParams(['filtro' => 'sin_contenido'])->actingAs($profesor)->test(ListaCursos::class)
+            ->assertSee('Sin contenido la próxima semana (0)')
+            ->assertSee('Todos tus cursos tienen contenido para la próxima semana ✓')
+            ->assertSee('Mostrar todos');
+    }
+
+    /** HTML de la tarjeta de un curso (desde su nombre hasta su pie). */
+    protected function tarjeta(string $html, Curso $curso): string
+    {
+        return Str::before(Str::after($html, 'id="curso-'.$curso->id.'-nombre"'), 'matriculados');
+    }
+
+    public function test_la_tarjeta_muestra_las_tareas_de_la_semana_actual_con_su_titulo_original(): void
+    {
+        $profesor = $this->usuarioConRol('profesor');
+        // Hoy (miércoles 4/11) es la semana 1 de los cursos que empiezan el lunes 2/11.
+        $calculo = $this->cursoDe($profesor, ['nombre' => 'Cálculo 2', 'fecha_inicio' => '2026-11-02', 'semanas_duracion' => 16]);
+        $this->tarea($calculo, 'Informe corto', '2026-11-07 23:59');
+        $this->tarea($calculo, 'Práctica 3: Fracciones parciales', '2026-11-04 23:59');
+        $semana2 = Modulo::create(['curso_id' => $calculo->id, 'semana' => 2, 'titulo' => 'Semana 2', 'materiales' => []]);
+        Tarea::factory()->create(['curso_id' => $calculo->id, 'modulo_id' => $semana2->id, 'titulo' => 'Tarea de la semana dos', 'fecha_entrega' => '2026-11-13 23:59']);
+
+        $campo = $this->cursoDe($profesor, ['nombre' => 'Topografía', 'fecha_inicio' => '2026-11-02', 'semanas_duracion' => 16, 'tiene_practicas_campo' => true]);
+        Modulo::create(['curso_id' => $campo->id, 'semana' => 1, 'titulo' => 'Semana 1', 'materiales' => []])
+            ->lecciones()->create(['titulo' => 'Lectura', 'estado' => 'publicado', 'orden' => 1]);
+        $practicas = Modulo::create(['curso_id' => $campo->id, 'tipo_seccion' => Modulo::TIPO_PRACTICAS, 'titulo' => 'Prácticas de campo', 'materiales' => []]);
+        Tarea::factory()->create(['curso_id' => $campo->id, 'modulo_id' => $practicas->id, 'practica' => 1, 'titulo' => 'Levantamiento del campus', 'fecha_entrega' => '2026-11-06 23:59']);
+        Tarea::factory()->create(['curso_id' => $campo->id, 'modulo_id' => $practicas->id, 'practica' => 2, 'titulo' => 'Nivelación de terreno', 'fecha_entrega' => '2026-11-13 23:59']);
+
+        $vacio = $this->cursoDe($profesor, ['nombre' => 'Estadística', 'fecha_inicio' => '2026-11-02', 'semanas_duracion' => 16]);
+
+        $html = Livewire::actingAs($profesor)->test(ListaCursos::class)->html();
+
+        // Semana actual con varias tareas: la más próxima, su tipo y "+N más" con la lista en el title.
+        $tarjeta = $this->tarjeta($html, $calculo);
+        $this->assertStringContainsString('Esta semana · Semana 1', $tarjeta);
+        $this->assertMatchesRegularExpression('/title="Práctica 3: Fracciones parciales">Práctica 3: Fracciones parciales<\/p>\s*<time[^>]*>hoy<\/time>/', $tarjeta);
+        $this->assertStringContainsString('Tarea de semana', $tarjeta);
+        $this->assertStringContainsString("title=\"Práctica 3: Fracciones parciales · hoy\nInforme corto · en 3 días\">+1 más</span>", $tarjeta);
+        $this->assertStringNotContainsString('Tarea de la semana dos', $tarjeta);
+        // Un curso sin prácticas de campo no las menciona.
+        $this->assertStringNotContainsString('Práctica de campo', $tarjeta);
+
+        // Prácticas de campo: solo la que vence dentro de la semana actual, como línea aparte.
+        $tarjeta = $this->tarjeta($html, $campo);
+        $this->assertStringNotContainsString('Sin tareas esta semana', $tarjeta);
+        $this->assertStringContainsString('data-actividad="Práctica de campo"', $tarjeta);
+        $this->assertStringContainsString('Levantamiento del campus', $tarjeta);
+        $this->assertStringNotContainsString('Nivelación de terreno', $tarjeta);
+        $this->assertStringNotContainsString('Tarea de semana', $tarjeta);
+
+        // Semana actual sin contenido: solo el aviso ámbar.
+        $tarjeta = $this->tarjeta($html, $vacio);
+        $this->assertStringContainsString('Semana 1 sin contenido', $tarjeta);
+        $this->assertStringNotContainsString('Sin tareas esta semana', $tarjeta);
+        $this->assertStringNotContainsString('data-actividad', $tarjeta);
+    }
+
+    public function test_cursos_a_cargo_excluye_archivados_y_coincide_con_por_calificar(): void
+    {
+        $profesor = $this->usuarioConRol('profesor');
+        $publicado = $this->cursoDe($profesor, ['nombre' => 'Química Orgánica']);
+        $this->cursoDe($profesor, ['nombre' => 'Historia del Perú', 'estado' => 'borrador']);
+        $this->cursoDe($profesor, ['nombre' => 'Biología Celular', 'estado' => 'archivado']);
+        $this->entregaPendiente($this->tarea($publicado, 'Informe', '2026-11-20 23:59'));
+
+        Livewire::actingAs($profesor)->test(ListaCursos::class)
+            ->assertViewHas('total', 2)
+            ->assertSeeInOrder(['2', 'Cursos a cargo'])
+            ->assertSee('2 cursos activos')
+            // Con menos de MIN_CONTROLES cursos tampoco hay pestañas, pero el archivado sigue a un clic.
+            ->assertSee('Ver cursos archivados (1)')
+            ->set('filtro', 'archivados')
+            ->assertViewHas('cursos', fn ($cursos) => $cursos->pluck('nombre')->all() === ['Biología Celular']);
+
+        Livewire::actingAs($profesor)->test(PorCalificar::class)
+            ->assertViewHas('cursosActivos', fn ($cursos) => $cursos->count() === 2)
+            ->assertSee('1 de 2');
     }
 
     public function test_sin_resultados_muestra_un_estado_vacio_con_limpiar_filtros(): void
@@ -182,13 +306,13 @@ class CursosProfesorTest extends TestCase
         }
 
         Livewire::actingAs($profesor)->test(ListaCursos::class)
-            ->set('estado', 'borrador')
+            ->set('filtro', 'por_calificar')
             ->set('busqueda', 'astronomía')
-            ->assertSee('Ningún curso coincide con el filtro')
+            ->assertSee('Ningún curso coincide con la búsqueda')
             ->assertSee('Limpiar filtros')
             ->call('limpiarFiltros')
             ->assertSet('busqueda', '')
-            ->assertSet('estado', 'todos')
+            ->assertSet('filtro', 'activos')
             ->assertSee('Química Orgánica');
     }
 
@@ -201,7 +325,7 @@ class CursosProfesorTest extends TestCase
 
         Livewire::actingAs($profesor)->test(ListaCursos::class)
             ->assertViewHas('conControles', false)
-            ->assertDontSee('Filtrar por estado')
+            ->assertDontSee('Filtrar cursos')
             ->assertDontSee('Buscar curso por nombre o código')
             ->assertDontSee('Ordenar:')
             ->assertDontSee('Mostrando')
@@ -213,7 +337,7 @@ class CursosProfesorTest extends TestCase
 
         Livewire::actingAs($profesor)->test(ListaCursos::class)
             ->assertViewHas('conControles', true)
-            ->assertSee('Filtrar por estado')
+            ->assertDontSee('Filtrar cursos') // Sin nada que atender no hay chips.
             ->assertSee('Buscar curso por nombre o código')
             ->assertSee('Ordenar:')
             ->assertSee('Mostrando 4 de 4 cursos');
@@ -240,10 +364,10 @@ class CursosProfesorTest extends TestCase
         Livewire::actingAs($profesor)->test(ListaCursos::class)
             ->assertSeeInOrder([
                 'Química Orgánica',
-                'Recorrido', 'Semana 3 de 5 · 60 %',
-                // El aviso más urgente, con su acción (la semana 3 sin contenido gana a la evaluación).
-                'La Semana 3 (actual) no tiene contenido', 'Agregar contenido',
-                'por revisar',
+                'Semana 3 de 5', '60 %',
+                // El aviso más urgente, como chip corto (la semana 3 sin contenido gana a la evaluación).
+                'Semana 3 sin contenido',
+                'Calificar',
             ])
             ->assertSee('aria-label="Calificar 1 entrega de Química Orgánica"', false)
             ->assertSee(route('cursos.show', ['curso' => $curso, 'semana' => 3]), false)
@@ -262,9 +386,9 @@ class CursosProfesorTest extends TestCase
         // Con contenido en la actual, se avisa de la siguiente.
         $semana3 = Modulo::create(['curso_id' => $curso->id, 'semana' => 3, 'titulo' => 'Semana 3', 'materiales' => []]);
         $semana3->lecciones()->create(['titulo' => 'Lectura', 'estado' => 'publicado', 'orden' => 1]);
+        $this->assertSame(['semana_siguiente'], $this->tiposParaHacer($profesor, $curso));
         Livewire::actingAs($profesor)->test(ListaCursos::class)
-            ->assertSee('La Semana 4 empieza el lunes 09/11 y aún no tiene contenido')
-            ->assertSee(route('cursos.show', ['curso' => $curso, 'semana' => 4]), false);
+            ->assertSeeHtml('<b class="font-bold text-[var(--lime)]">1 curso</b><span> sin contenido para la próxima semana</span>');
 
         // Con contenido también en la siguiente, y sin nada más: todo al día.
         $semana4 = Modulo::create(['curso_id' => $curso->id, 'semana' => 4, 'titulo' => 'Semana 4', 'materiales' => []]);
@@ -272,7 +396,7 @@ class CursosProfesorTest extends TestCase
         Livewire::actingAs($profesor)->test(ListaCursos::class)
             ->assertViewHas('resumen', fn (array $resumen) => $resumen[$curso->id]['para_hacer'] === [])
             ->assertDontSee('no tiene contenido')
-            ->assertSee('al día');
+            ->assertSee('Al día');
     }
 
     public function test_para_hacer_ordena_por_urgencia_y_muestra_como_maximo_tres(): void
@@ -314,23 +438,21 @@ class CursosProfesorTest extends TestCase
         $esquema = EsquemaEvaluacion::create(['curso_id' => $curso->id]);
         $esquema->rubros()->create(['nombre' => 'Primer parcial', 'semana' => 1, 'peso' => 40, 'orden' => 1]);
         $esquema->rubros()->create(['nombre' => 'Examen final', 'semana' => 5, 'peso' => 60, 'orden' => 2]);
-        $this->cursoDe($profesor, ['nombre' => 'Botánica']);
+        $botanica = $this->cursoDe($profesor, ['nombre' => 'Botánica']);
 
         // b) Sin tareas ni quizzes por cerrar: el fin de la semana 5 (domingo 22/11); la semana 1 ya pasó.
-        Livewire::actingAs($profesor)->test(ListaCursos::class)
-            ->assertSee('Examen final · termina el 22/11 (en 18 días)')
-            ->assertDontSee('· Primer parcial')
-            // c) Sin actividades ni evaluaciones: "Sin fechas".
-            ->assertSee('Sin fechas');
+        // La tarjeta de un curso en marcha muestra "Esta semana"; el cierre sigue en el resumen (radar y orden "Próximo cierre").
+        $cierreDe = fn (Curso $deCurso) => Livewire::actingAs($profesor)->test(ListaCursos::class)->viewData('resumen')[$deCurso->id]['cierre'];
+        $this->assertSame('Examen final · termina el 22/11 (en 18 días)', $cierreDe($curso)['texto']);
+        // c) Sin actividades ni evaluaciones: sin cierre.
+        $this->assertNull($cierreDe($botanica));
 
         Livewire::actingAs($profesor)->test(EncabezadoCurso::class, ['curso' => $curso])
-            ->assertSeeInOrder(['Próximo cierre', '22/11', 'Examen final', '· Semana 5']);
+            ->assertSeeInOrder(['Próximo cierre', 'Dom 22 nov', 'Examen final', '· Semana 5']);
 
         // a) Una tarea futura gana a la evaluación.
         $this->tarea($curso, 'Informe de laboratorio', '2026-11-12 23:59');
-        Livewire::actingAs($profesor)->test(ListaCursos::class)
-            ->assertSee('Informe de laboratorio · vence el 12/11 (en 8 días)')
-            ->assertDontSee('Examen final · termina');
+        $this->assertSame('Informe de laboratorio · vence el 12/11 (en 8 días)', $cierreDe($curso)['texto']);
     }
 
     /** Semana 1 con dos recursos y una actividad complementaria, en ese orden. */
@@ -400,7 +522,7 @@ class CursosProfesorTest extends TestCase
         Livewire::actingAs($this->usuarioConRol('profesor'))->test(ListaCursos::class)
             ->assertSee('Aún no tienes cursos a cargo')
             ->assertSee('0 cursos')
-            ->assertDontSee('Filtrar por estado');
+            ->assertDontSee('Filtrar cursos');
     }
 
     public function test_el_orden_por_defecto_es_mas_por_calificar_y_se_puede_cambiar(): void
@@ -462,13 +584,13 @@ class CursosProfesorTest extends TestCase
         $this->cursoDe($profesor, ['nombre' => 'Botánica']);
 
         Livewire::actingAs($profesor)->test(ListaCursos::class)
-            ->assertSee('Quiz de nomenclatura · vence el 08/11 (en 4 días)')
+            ->assertSeeInOrder(['Quiz de nomenclatura', 'en 4 días'])
             ->assertDontSee('Informe vencido')
             ->assertDontSee('Informe oculto')
-            ->assertSee('Sin fechas');
+            ->assertSee('Sin entregas próximas');
 
         Livewire::actingAs($profesor)->test(EncabezadoCurso::class, ['curso' => $curso])
-            ->assertSeeInOrder(['Próximo cierre', '08/11', 'Quiz de nomenclatura', '· Semana 1']);
+            ->assertSeeInOrder(['Próximo cierre', 'Dom 8 nov', 'Quiz de nomenclatura', '· Semana 1']);
     }
 
     public function test_el_avance_usa_la_misma_semana_actual_que_el_detalle(): void
@@ -485,7 +607,7 @@ class CursosProfesorTest extends TestCase
 
         $this->actingAs($profesor)->get(route('cursos.show', $curso))
             ->assertOk()
-            ->assertSeeInOrder(['Semana 3 de 5', 'Contenido por semanas', 'Semana 2', 'Semana 3', 'Semana actual', 'Semana 4', 'Programada']);
+            ->assertSeeInOrder(['Semana 3', 'de 5 · 60 %', 'Contenido por semanas', 'Semana 2', 'Semana 3', 'Esta semana', 'Semana 4', 'Sin contenido']);
 
         Livewire::actingAs($profesor)->test(Show::class, ['curso' => $curso])
             ->assertSet('semanasAbiertas', [3]);
@@ -505,8 +627,8 @@ class CursosProfesorTest extends TestCase
             ->assertViewHas('resumen', fn (array $resumen) => $resumen[$quimica->id]['aviso'] === 'La Semana 1 (actual) no tiene contenido'
                 && $resumen[$historia->id]['aviso'] === 'Aún es un borrador: los estudiantes no lo ven'
                 && $resumen[$civica->id]['aviso'] === null)
-            ->assertSee('La Semana 1 (actual) no tiene contenido')
-            ->assertSee('Aún es un borrador: los estudiantes no lo ven')
+            ->assertSee('Semana 1 sin contenido')
+            ->assertSee('Borrador')
             ->assertSee('Calificar 1');
     }
 
@@ -527,7 +649,7 @@ class CursosProfesorTest extends TestCase
             ->assertSee('Navegación principal')
             ->assertSee('Volver a Cursos')
             ->assertSee('Calificar 1 entrega')
-            ->assertSeeInOrder(['Matriculados', '1', 'de 30', 'cupos ocupados', 'Por calificar', '1', 'la más antigua'])
+            ->assertSeeInOrder(['Matriculados', '1', 'de 30 cupos', 'Por calificar', '1', 'la más antigua espera'])
             ->assertSee(route('cursos.actividades', $curso), false)
             ->assertSee(route('cursos.matriculas', $curso), false)
             ->assertSee(route('cursos.grupos.index', $curso), false)

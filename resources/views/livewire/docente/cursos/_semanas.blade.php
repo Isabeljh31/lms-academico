@@ -1,142 +1,178 @@
 {{--
-    Contenido por semanas del detalle del curso del Profesor (mockup
-    "CursoDetalle"). Cada semana es un acordeón con sus secciones fijas; el
-    estado abierto sale de $semanasAbiertas (Livewire), que Alpine cambia sin
-    pedir al servidor. Al entrar se abre la semana en curso (la misma regla de
-    GestionaContenidoSemanal); las pasadas quedan plegadas.
+    "Contenido por semanas" del detalle del curso del Profesor (maqueta
+    "CursoDetalle"): TODAS las semanas 1..N en orden, cada una como acordeón.
+    El estado abierto sale de $semanasAbiertas (Livewire, la semana en curso
+    abierta al entrar), que Alpine cambia sin pedir al servidor. Los filtros
+    son del lado del navegador; sus contadores vienen del servidor
+    ($detalleCurso, DetalleCursoProfesor::resumen).
 
-    - Semana actual: número relleno y la pastilla "Semana actual".
-    - Futuras sin contenido: número con borde punteado y "Programada".
-    - "Sin contenido": la semana aún no tiene ningún elemento (lecciones, tareas ni quizzes).
+    Etiquetas solo si aplican: "Esta semana", "Programada · se publica …",
+    "Sin contenido" (sin lecciones, tareas ni quizzes) y "Borrador".
 --}}
+@use('App\Livewire\Docente\PorCalificar\Index', 'PorCalificar')
+@use('App\Services\Reportes\DetalleCursoProfesor')
+@use('App\Services\Reportes\PanelProfesor')
 @php
-    $semanaActual = \App\Services\Reportes\CursosProfesor::semanaActual($curso, count($secciones['semanas']));
-    $ahora = now();
-    $enfoque = 'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-cielo focus-visible:ring-offset-2';
-    $pastilla = 'inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold';
+    $semanaActual = collect($detalleCurso['semanas'])->search(fn (array $datos) => $datos['momento'] === 'actual') ?: null;
+    $enfoque = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--p700)]';
+    $etiqueta = 'inline-flex items-center gap-[5px] whitespace-nowrap rounded-full px-[9px] py-0.5 text-[11px] font-bold';
+    $pastilla = 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-[9px] py-0.5 text-[11.5px] font-bold';
+    $contador = 'inline-flex items-center gap-[5px] rounded-[7px] bg-[#F1F7F5] px-2 py-0.5 text-xs text-[#3d5753]';
+    $botonContorno = "inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-[9px] border-[1.5px] border-[#c9ddd8] bg-white px-3 text-[12.5px] font-bold text-[var(--p700)] transition-colors hover:bg-[var(--mint)] motion-reduce:transition-none {$enfoque}";
     $plural = fn (int $n, string $uno, string $varios) => $n === 1 ? "1 {$uno}" : "{$n} {$varios}";
+    $rangoCorto = fn (array $rango) => $rango[0]->month === $rango[1]->month
+        ? $rango[0]->format('d').' – '.$rango[1]->copy()->locale('es')->isoFormat('DD MMM')
+        : $rango[0]->copy()->locale('es')->isoFormat('DD MMM').' – '.$rango[1]->copy()->locale('es')->isoFormat('DD MMM');
+    $filtros = ['todas' => 'Todas', 'por_calificar' => 'Con entregas por calificar', 'sin_contenido' => 'Sin contenido', 'programadas' => 'Programadas'];
 @endphp
-<ul aria-label="Semanas del curso">
-    @foreach ($secciones['semanas'] as $seccion)
-        @php
-            $modulo = $seccion['modulo'];
-            $numero = $seccion['semana'];
-            $abiertaInicial = in_array($numero, $semanasAbiertas, true);
-            $esActual = $numero === $semanaActual;
-            $esFutura = ! $esActual && $seccion['rango'] && $seccion['rango'][0]->gt($ahora);
-            $elementos = $modulo ? $modulo->lecciones_count + $modulo->tareas_count + $modulo->quizzes_count : 0;
-            $sinContenido = $elementos === 0;
-            $claseNumero = match (true) {
-                $esActual => 'bg-azul-oscuro text-white',
-                $esFutura && ! $modulo => 'border border-dashed border-slate-400 bg-white text-slate-500',
-                default => 'bg-celeste text-azul-oscuro',
-            };
-        @endphp
-        <li wire:key="semana-profesor-{{ $numero }}"
-            x-data="{
-                get abierta() { return (this.$wire.semanasAbiertas ?? []).map(Number).includes({{ $numero }}) },
-                alternar() {
-                    const otras = (this.$wire.semanasAbiertas ?? []).map(Number).filter(s => s !== {{ $numero }});
-                    this.$wire.semanasAbiertas = this.abierta ? otras : [...otras, {{ $numero }}];
-                },
-            }"
-            @class(['border-t border-celeste transition-colors motion-reduce:transition-none', 'bg-fondo/60' => $abiertaInicial])
-            x-bind:class="{ 'bg-fondo/60': abierta }">
-            <div class="flex items-center gap-1 px-4 py-2">
-                <button type="button" id="semana-{{ $numero }}-encabezado" x-on:click="alternar()"
-                    x-bind:aria-expanded="abierta.toString()" aria-expanded="{{ $abiertaInicial ? 'true' : 'false' }}"
-                    aria-controls="semana-{{ $numero }}-contenido"
-                    class="group flex min-h-11 min-w-0 flex-1 items-center gap-4 rounded-lg py-1 text-left {{ $enfoque }}">
-                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] text-[15px] font-bold {{ $claseNumero }}">{{ $numero }}</span>
-                    <span class="min-w-0 flex-1">
-                        <span class="flex flex-wrap items-center gap-2">
-                            <span class="text-[15px] font-semibold text-texto group-hover:text-azul-oscuro">
-                                {{ $seccion['etiqueta'] }}@if ($modulo?->tema())<span class="font-medium text-slate-600">: {{ $modulo->tema() }}</span>@endif
+
+<section aria-labelledby="titulo-contenido-semanas" class="rounded-[20px] bg-white pb-3.5 shadow-[0_1px_2px_rgba(9,59,59,0.06),0_6px_20px_rgba(9,59,59,0.05)]"
+    x-data="{
+        filtro: 'todas',
+        irActual() {
+            const fila = document.getElementById('semana-{{ $semanaActual ?? 0 }}');
+            if (! fila) return;
+            const abiertas = (this.$wire.semanasAbiertas ?? []).map(Number);
+            if (! abiertas.includes({{ $semanaActual ?? 0 }})) this.$wire.semanasAbiertas = [...abiertas, {{ $semanaActual ?? 0 }}];
+            this.filtro = 'todas';
+            this.$nextTick(() => fila.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }));
+        },
+    }">
+    <div class="flex items-start justify-between gap-4 px-6 pb-1.5 pt-[22px]">
+        <div class="min-w-0">
+            <h2 id="titulo-contenido-semanas" class="text-[19px] font-extrabold text-[var(--p900)]">Contenido por semanas</h2>
+            <p class="mt-[3px] text-[12.5px] text-[#5b706c]">
+                El curso dura {{ $plural(count($secciones['semanas']), 'semana', 'semanas') }}{{ $curso->semanas_duracion ? '' : ' (duración sugerida: el Supervisor aún no la definió)' }}.
+                Las semanas sin etiqueta están publicadas; las programadas o en borrador no las ven los estudiantes.
+            </p>
+        </div>
+        @if ($semanaActual)
+            <button type="button" x-on:click="irActual()"
+                class="inline-flex h-9 shrink-0 items-center gap-[7px] whitespace-nowrap rounded-[10px] border-[1.5px] border-[#c9ddd8] px-[13px] text-[12.5px] font-bold text-[var(--p700)] transition-colors hover:bg-[var(--mint)] motion-reduce:transition-none {{ $enfoque }}">
+                <x-icono nombre="flecha-abajo" class="h-[15px] w-[15px]" /> Ir a la semana actual
+            </button>
+        @endif
+    </div>
+
+    <div class="mb-2 flex gap-[22px] border-b-[1.5px] border-[#e4eeeb] px-6 pt-1.5" role="group" aria-label="Filtrar semanas">
+        @foreach ($filtros as $clave => $texto)
+            <button type="button" x-on:click="filtro = '{{ $clave }}'" x-bind:aria-pressed="(filtro === '{{ $clave }}').toString()" aria-pressed="{{ $clave === 'todas' ? 'true' : 'false' }}"
+                data-filtro="{{ $clave }}"
+                x-bind:class="filtro === '{{ $clave }}' ? 'font-bold text-[var(--p900)] after:absolute after:inset-x-0 after:-bottom-[1.5px] after:h-[2.5px] after:rounded-sm after:bg-[var(--p900)]' : 'text-[#4b625e] hover:text-[var(--p900)]'"
+                class="relative flex min-h-10 items-center gap-1.5 pb-2.5 pt-2 text-[13px] {{ $enfoque }} {{ $clave === 'todas' ? 'font-bold text-[var(--p900)] after:absolute after:inset-x-0 after:-bottom-[1.5px] after:h-[2.5px] after:rounded-sm after:bg-[var(--p900)]' : 'text-[#4b625e]' }}">
+                {{ $texto }} <span class="rounded-full bg-[#eaf1ef] px-[7px] py-px text-[11px] font-bold">{{ $detalleCurso['filtros'][$clave] }}</span>
+            </button>
+        @endforeach
+    </div>
+
+    <ul aria-label="Semanas del curso">
+        @foreach ($secciones['semanas'] as $seccion)
+            @php
+                $modulo = $seccion['modulo'];
+                $numero = $seccion['semana'];
+                $datos = $detalleCurso['semanas'][$numero];
+                $abiertaInicial = in_array($numero, $semanasAbiertas, true);
+                $esActual = $datos['momento'] === 'actual';
+                $urgencia = $datos['dias'] !== null ? DetalleCursoProfesor::estiloUrgencia($datos['dias']) : null;
+                $claseNumero = match ($datos['momento']) {
+                    'actual' => 'bg-[var(--p900)] text-white',
+                    'pasada' => 'bg-[#DCEFEA] text-[var(--p700)]',
+                    'futura' => 'border-[1.5px] border-dashed border-[#c9ddd8] bg-white text-[#5b706c]',
+                    default => 'bg-[var(--mint)] text-[var(--p700)]',
+                };
+                $primeraTarea = $seccion['tareas']->first();
+                $condiciones = [
+                    'por_calificar' => $datos['pendientes'] > 0,
+                    'sin_contenido' => $datos['sin_contenido'],
+                    'programadas' => $datos['programada'] !== null,
+                ];
+            @endphp
+            <li id="semana-{{ $numero }}" wire:key="semana-profesor-{{ $numero }}" data-semana="{{ $numero }}" class="scroll-mt-4"
+                x-show="filtro === 'todas' {{ collect($condiciones)->filter()->keys()->map(fn ($clave) => "|| filtro === '{$clave}'")->join(' ') }}"
+                x-data="{
+                    get abierta() { return (this.$wire.semanasAbiertas ?? []).map(Number).includes({{ $numero }}) },
+                    alternar() {
+                        const otras = (this.$wire.semanasAbiertas ?? []).map(Number).filter(s => s !== {{ $numero }});
+                        this.$wire.semanasAbiertas = this.abierta ? otras : [...otras, {{ $numero }}];
+                    },
+                    abrir() { if (! this.abierta) this.alternar() },
+                }">
+                <div @class(['mx-3.5 rounded-[14px] border-[1.5px]', 'my-1.5 border-[#cfe2dd] bg-[#F6FAF9]' => $abiertaInicial, 'border-transparent' => ! $abiertaInicial])
+                    x-bind:class="abierta ? 'my-1.5 border-[#cfe2dd] bg-[#F6FAF9]' : 'border-transparent'">
+                    {{-- Encabezado clicable: el botón de abrir/cerrar cubre solo esta fila (absolute inset-0); el menú y "Agregar contenido" quedan encima (z-10). --}}
+                    <div class="relative flex cursor-pointer items-center gap-3.5 rounded-[12px] px-2.5 py-[13px] hover:bg-[#F3FAF8]">
+                        <span class="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl text-[15px] font-extrabold {{ $claseNumero }}" aria-hidden="true">{{ $numero }}</span>
+                        <div class="min-w-0 flex-1">
+                            <h3 class="flex flex-wrap items-center gap-2 text-[14.5px] font-bold text-[var(--p900)]">
+                                <span id="semana-{{ $numero }}-titulo">{{ $seccion['etiqueta'] }}@if ($modulo?->tema()):<span class="font-medium"> {{ $modulo->tema() }}</span>@endif</span>
+                                @if ($esActual)
+                                    <span class="{{ $etiqueta }} bg-[var(--p900)] text-white">Esta semana</span>
+                                @endif
+                                @if ($datos['programada'])
+                                    <span class="{{ $etiqueta }} bg-[var(--warn200)] text-[var(--warn800)]"><x-icono nombre="reloj" class="h-3 w-3" /> Programada · se publica {{ mb_strtolower(DetalleCursoProfesor::fechaCorta($datos['programada'])) }}</span>
+                                @elseif ($datos['borrador'] && ! $datos['sin_contenido'])
+                                    <span class="{{ $etiqueta }} bg-[#ECF1F0] text-[#4b625e]">Borrador</span>
+                                @endif
+                                @if ($datos['sin_contenido'])
+                                    <span class="{{ $etiqueta }} bg-[var(--warn200)] text-[var(--warn800)]">Sin contenido</span>
+                                @endif
+                            </h3>
+                            <div class="mt-1.5 flex flex-wrap items-center gap-2">
+                                @if ($seccion['rango'])
+                                    <span class="whitespace-nowrap text-[12.5px] text-[#5b706c]">{{ $rangoCorto($seccion['rango']) }}</span>
+                                @endif
+                                @if ($seccion['clases'] > 0)
+                                    <span class="{{ $contador }}"><x-icono nombre="presentacion" class="h-3.5 w-3.5 text-[var(--p700)]" />{{ $plural($seccion['clases'], 'clase', 'clases') }}</span>
+                                @endif
+                                @if ($datos['sin_contenido'])
+                                    <span class="text-[12.5px] text-[var(--warn800)]">Aún no hay material para los estudiantes</span>
+                                @else
+                                    @if ($modulo->lecciones_count > 0)
+                                        <span class="{{ $contador }}"><x-icono nombre="material" class="h-3.5 w-3.5 text-[var(--p700)]" />{{ $plural($modulo->lecciones_count, 'elemento', 'elementos') }}</span>
+                                    @endif
+                                    @if ($modulo->tareas_count > 0)
+                                        <span class="{{ $contador }}"><x-icono nombre="tarea" class="h-3.5 w-3.5 text-[var(--p700)]" />{{ $plural($modulo->tareas_count, 'tarea', 'tareas') }}</span>
+                                    @endif
+                                    @if ($modulo->quizzes_count > 0)
+                                        <span class="{{ $contador }}"><x-icono nombre="quiz" class="h-3.5 w-3.5 text-[var(--p700)]" />{{ $plural($modulo->quizzes_count, 'quiz', 'quizzes') }}</span>
+                                    @endif
+                                @endif
+                            </div>
+                        </div>
+
+                        {{-- Derecha: lo que pide atención en la semana. --}}
+                        @if ($datos['pendientes'] > 0)
+                            <span class="{{ $pastilla }} {{ $urgencia['pastilla'] }}" data-pendientes="{{ $datos['pendientes'] }}">
+                                <span class="h-[9px] w-[9px] rounded-full {{ $urgencia['punto'] }}" aria-hidden="true"></span>{{ $datos['pendientes'] }} por calificar · {{ PorCalificar::textoEspera($datos['dias']) }}
                             </span>
-                            @if ($esActual)
-                                <span class="{{ $pastilla }} bg-azul-oscuro text-white">Semana actual</span>
-                            @endif
-                            @if ($modulo)
-                                <span class="{{ $pastilla }} {{ $modulo->esVisibleParaEstudiante() ? 'bg-exito-base/15 text-exito-oscuro' : 'bg-celeste text-slate-600' }}">{{ $modulo->etiquetaEstadoPublicacion() }}</span>
-                            @elseif ($esFutura)
-                                <span class="{{ $pastilla }} bg-celeste text-slate-600">Programada</span>
-                            @endif
-                            @if ($sinContenido)
-                                <span class="{{ $pastilla }} bg-amber-100 text-amber-800">Sin contenido</span>
-                            @endif
-                        </span>
-                        <span class="mt-0.5 block text-[13px] text-slate-500">
-                            @if ($seccion['rango'])
-                                {{ $seccion['rango'][0]->translatedFormat('d M') }} – {{ $seccion['rango'][1]->translatedFormat('d M') }}
-                                @if ($seccion['clases'] > 0) · {{ $plural($seccion['clases'], 'clase', 'clases') }} @endif
-                                ·
-                            @endif
-                            @if ($sinContenido)
-                                Aún no hay material para los estudiantes
-                            @else
-                                {{ $plural($modulo->lecciones_count, 'elemento', 'elementos') }} · {{ $plural($modulo->tareas_count, 'tarea', 'tareas') }} · {{ $plural($modulo->quizzes_count, 'quiz', 'quizzes') }}
-                            @endif
-                        </span>
-                    </span>
-                    <x-icono nombre="flecha-abajo" class="h-5 w-5 shrink-0 text-slate-500 transition-transform duration-200 motion-reduce:transition-none {{ $abiertaInicial ? 'rotate-180' : '' }}" x-bind:class="{ 'rotate-180': abierta }" />
-                </button>
+                        @elseif ($datos['momento'] === 'futura' && $primeraTarea)
+                            <span class="whitespace-nowrap text-[12.5px] text-[#5b706c]">Entrega {{ $primeraTarea->fecha_entrega->format('d/m') }}</span>
+                        @elseif ($datos['sin_contenido'] && $editable)
+                            <button type="button" x-on:click="abrir()" class="{{ $botonContorno }} relative z-10" aria-label="Agregar contenido a la {{ $seccion['etiqueta'] }}">
+                                <x-icono nombre="mas" class="h-3.5 w-3.5" /> Agregar contenido
+                            </button>
+                        @elseif ($seccion['tareas']->isNotEmpty() && $datos['entregadas'] > 0)
+                            <span class="{{ $pastilla }} bg-[var(--ok100)] text-[var(--ok900)]"><x-icono nombre="check" class="h-[13px] w-[13px]" /> Todo calificado</span>
+                        @endif
 
-                @if ($editable)
-                    @include('livewire.docente.cursos._menu-semana', ['modulo' => $modulo, 'numero' => $numero, 'etiqueta' => $seccion['etiqueta']])
-                @endif
-            </div>
+                        <button type="button" x-on:click="alternar()" aria-controls="semana-{{ $numero }}-contenido"
+                            x-bind:aria-expanded="abierta.toString()" aria-expanded="{{ $abiertaInicial ? 'true' : 'false' }}"
+                            aria-label="Abrir o cerrar {{ $seccion['etiqueta'] }}"
+                            class="absolute inset-0 cursor-pointer rounded-[12px] focus-visible:outline focus-visible:outline-[3px] focus-visible:-outline-offset-[3px] focus-visible:outline-[color:var(--p700)]"></button>
+                        @if ($editable)
+                            <div class="relative z-10 shrink-0">
+                                @include('livewire.docente.cursos._menu-semana', ['modulo' => $modulo, 'numero' => $numero, 'etiqueta' => $seccion['etiqueta']])
+                            </div>
+                        @endif
+                    </div>
 
-            <div id="semana-{{ $numero }}-contenido" role="region" aria-labelledby="semana-{{ $numero }}-encabezado"
-                x-show="abierta" @unless ($abiertaInicial) style="display: none" @endunless
-                class="px-4 pb-2 sm:pl-[4.5rem] sm:pr-4">
-                @include('livewire.docente.cursos._secciones', ['modulo' => $modulo, 'semanaClave' => $numero])
-
-                {{-- Tareas y quizzes de la semana: los mismos que el estudiante ve dentro de ella. --}}
-                @if ($seccion['tareas']->isNotEmpty() || $seccion['quizzes']->isNotEmpty())
-                    <section aria-labelledby="semana-{{ $numero }}-actividades-titulo" class="border-t border-celeste py-2.5">
-                        <h3 id="semana-{{ $numero }}-actividades-titulo" class="flex items-center gap-2 pb-2 text-sm font-semibold text-texto">
-                            Tareas y quizzes de la semana
-                            <span class="rounded-full border border-celeste bg-fondo px-2 text-xs font-bold text-slate-500">{{ $seccion['tareas']->count() + $seccion['quizzes']->count() }}</span>
-                        </h3>
-                        <ul class="overflow-hidden rounded-lg border border-celeste bg-white">
-                            @foreach ($seccion['tareas'] as $tarea)
-                                <li wire:key="semana-{{ $numero }}-tarea-{{ $tarea->id }}" class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-celeste px-3 py-2.5 first:border-t-0">
-                                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-celeste text-azul-oscuro" title="Tarea"><x-icono nombre="tarea" class="h-4 w-4" /></span>
-                                    <div class="min-w-0 flex-1 basis-48">
-                                        <p class="flex flex-wrap items-center gap-2 text-sm font-medium text-texto">
-                                            {{ $tarea->titulo }}
-                                            <span class="{{ $pastilla }} {{ $tarea->esVisibleParaEstudiante() ? 'bg-exito-base/15 text-exito-oscuro' : 'bg-celeste text-slate-600' }} text-[11px]">{{ $tarea->etiquetaEstadoPublicacion() }}</span>
-                                        </p>
-                                        <p class="text-xs text-slate-600">Tarea · {{ $tarea->estaVencida() ? 'Venció' : 'Vence' }} {{ $tarea->fecha_entrega->formatoFechaHora() }} · {{ $plural($tarea->entregas_count, 'entrega', 'entregas') }}</p>
-                                    </div>
-                                    <a href="{{ route('cursos.tareas.show', [$curso, $tarea]) }}" wire:navigate class="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-azul-oscuro hover:bg-celeste {{ $enfoque }}"
-                                        aria-label="Ver entregas de {{ $tarea->titulo }}"><x-icono nombre="ojo" class="h-4 w-4" /> Ver entregas</a>
-                                    @if ($editable)
-                                        <a href="{{ route('cursos.tareas.editar', [$curso, $tarea]) }}" wire:navigate class="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-slate-600 hover:bg-celeste hover:text-azul-oscuro {{ $enfoque }}"
-                                            aria-label="Editar {{ $tarea->titulo }}"><x-icono nombre="lapiz" class="h-4 w-4" /> Editar</a>
-                                    @endif
-                                </li>
-                            @endforeach
-                            @foreach ($seccion['quizzes'] as $quiz)
-                                <li wire:key="semana-{{ $numero }}-quiz-{{ $quiz->id }}" class="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-celeste px-3 py-2.5 first:border-t-0">
-                                    <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-lavanda-fondo/50 text-lavanda-oscuro" title="Quiz"><x-icono nombre="quiz" class="h-4 w-4" /></span>
-                                    <div class="min-w-0 flex-1 basis-48">
-                                        <p class="flex flex-wrap items-center gap-2 text-sm font-medium text-texto">
-                                            {{ $quiz->tema }}
-                                            <span class="{{ $pastilla }} {{ $quiz->esVisibleParaEstudiante() ? 'bg-exito-base/15 text-exito-oscuro' : 'bg-celeste text-slate-600' }} text-[11px]">{{ $quiz->etiquetaEstadoPublicacion() }}</span>
-                                        </p>
-                                        <p class="text-xs text-slate-600">Quiz · {{ $quiz->fecha_limite ? 'Hasta '.$quiz->fecha_limite->formatoFechaHora() : 'Sin fecha límite' }}</p>
-                                    </div>
-                                    @if ($editable)
-                                        <a href="{{ route('cursos.quizzes.editar', [$curso, $quiz]) }}" wire:navigate class="inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-xs font-semibold text-slate-600 hover:bg-celeste hover:text-azul-oscuro {{ $enfoque }}"
-                                            aria-label="Editar {{ $quiz->tema }}"><x-icono nombre="lapiz" class="h-4 w-4" /> Editar</a>
-                                    @endif
-                                </li>
-                            @endforeach
-                        </ul>
-                    </section>
-                @endif
-            </div>
-        </li>
-    @endforeach
-</ul>
+                    <div id="semana-{{ $numero }}-contenido" role="region" aria-labelledby="semana-{{ $numero }}-titulo"
+                        x-show="abierta" @unless ($abiertaInicial) style="display: none" @endunless class="px-3.5 pb-3">
+                        @include('livewire.docente.cursos._semana-abierta')
+                    </div>
+                </div>
+                <div class="mx-6 border-t border-[#eef4f2]" x-show="! abierta" @if ($abiertaInicial) style="display: none" @endif aria-hidden="true"></div>
+            </li>
+        @endforeach
+    </ul>
+</section>

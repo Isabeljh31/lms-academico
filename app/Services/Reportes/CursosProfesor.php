@@ -104,10 +104,31 @@ class CursosProfesor
                 'mas_antigua' => $pendientes->min('mas_antigua'),
                 'cierre' => $cierre ? [...$cierre, 'texto' => $this->textoCierre($cierre, $ahora)] : null,
                 'semana_actual' => $actual ? 'Semana '.$actual.' · '.$this->rangoCorto($curso, $actual) : null,
+                'numero_semana_actual' => $actual,
                 'para_hacer' => $paraHacer,
                 'aviso' => $conAvisos ? $this->aviso($curso, $paraHacer) : null,
             ]];
         })->all();
+    }
+
+    /**
+     * Solo la identidad visual de un curso (color, iniciales y código), con
+     * las mismas reglas que resumen(), para el encabezado compacto de las
+     * subpantallas del curso sin calcular avance, pendientes ni cierres.
+     *
+     * @param  Collection<int, Curso>  $todos  cursos del profesor (para el color y la sección)
+     * @return array{color: string, iniciales: string, codigo: ?string}
+     */
+    public function identidad(Curso $curso, Collection $todos): array
+    {
+        $colores = $this->colores->asignar($todos->reject(fn (Curso $otro) => $otro->estaFinalizado())->values());
+        $secciones = new SeccionesProfesor($todos);
+
+        return [
+            'color' => $colores[$curso->id] ?? ColoresCursos::NEUTRO,
+            'iniciales' => PanelProfesor::iniciales($curso->nombre),
+            'codigo' => $curso->codigo ?: ($secciones->tieneVariasSecciones($curso->id) ? $secciones->codigo($curso->id) : null),
+        ];
     }
 
     /**
@@ -321,6 +342,60 @@ class CursosProfesor
                 ];
             })
             ->mapWithKeys(fn (array $cierre, $cursoId) => [(int) $cursoId => $cierre]);
+    }
+
+    /**
+     * Tareas de la semana actual de cada curso, para la tarjeta de la
+     * pantalla Cursos. Una sola consulta para todos los cursos.
+     *
+     * - "semana": tareas del módulo de la semana actual (modulo.semana), con
+     *   su título tal como está guardado.
+     * - "practicas": prácticas de campo (tareas.practica) cuya fecha de
+     *   entrega cae dentro del rango de la semana actual. No tienen semana:
+     *   la fecha es la única relación fiable, no se asume "práctica N = semana N".
+     *
+     * En ambas listas va primero la más próxima por vencer y después las ya vencidas.
+     *
+     * @param  Collection<int, Curso>  $cursos
+     * @param  array<int, array{numero_semana_actual: ?int}>  $resumen  de resumen()
+     * @return array<int, array{semana: list<array{titulo: string, fecha: Carbon}>, practicas: list<array{titulo: string, fecha: Carbon}>}>
+     */
+    public function tareasDeLaSemanaActual(Collection $cursos, array $resumen, ?Carbon $ahora = null): array
+    {
+        $ahora ??= now();
+        $conSemana = $cursos->filter(fn (Curso $curso) => ($resumen[$curso->id]['numero_semana_actual'] ?? null) !== null)->keyBy('id');
+
+        if ($conSemana->isEmpty()) {
+            return [];
+        }
+
+        $tareas = Tarea::query()
+            ->leftJoin('modulos', 'modulos.id', '=', 'tareas.modulo_id')
+            ->whereIn('tareas.curso_id', $conSemana->keys())
+            ->whereNotNull('tareas.fecha_entrega')
+            ->get(['tareas.curso_id', 'tareas.titulo', 'tareas.fecha_entrega', 'tareas.practica', 'modulos.semana', 'modulos.tipo_seccion'])
+            ->groupBy('curso_id');
+
+        $ordenar = fn (Collection $lista) => $lista
+            ->sortBy(fn (Tarea $tarea) => [$tarea->fecha_entrega->lt($ahora) ? 1 : 0, $tarea->fecha_entrega->lt($ahora) ? -$tarea->fecha_entrega->getTimestamp() : $tarea->fecha_entrega->getTimestamp()])
+            ->map(fn (Tarea $tarea) => ['titulo' => (string) $tarea->titulo, 'fecha' => $tarea->fecha_entrega])
+            ->values()
+            ->all();
+
+        return $conSemana->map(function (Curso $curso) use ($tareas, $resumen, $ordenar) {
+            $actual = (int) $resumen[$curso->id]['numero_semana_actual'];
+            [$inicio, $fin] = $curso->rangoSemana($actual);
+            $delCurso = $tareas->get($curso->id, collect());
+
+            return [
+                'semana' => $ordenar($delCurso->filter(fn (Tarea $tarea) => $tarea->practica === null
+                    && $tarea->tipo_seccion !== Modulo::TIPO_PRACTICAS
+                    && (int) $tarea->semana === $actual)),
+                'practicas' => $curso->tiene_practicas_campo
+                    ? $ordenar($delCurso->filter(fn (Tarea $tarea) => $tarea->practica !== null && $tarea->fecha_entrega->between($inicio, $fin)))
+                    : [],
+            ];
+        })->all();
     }
 
     /** Fecha completa con el formato configurado en la plataforma. */
