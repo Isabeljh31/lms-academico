@@ -79,6 +79,8 @@ class RevisionPantallasTest extends TestCase
             'S esquema' => ['supervisor', 'cursos.esquema', ['curso'], 'Suma de pesos'],
             'S matrícula' => ['supervisor', 'cursos.matriculas', ['curso'], 'Matricular estudiante'],
             'S comunicados' => ['supervisor', 'admin.comunicados.index', [], 'Aviso institucional'],
+            'S reprogramaciones' => ['supervisor', 'admin.solicitudes-cambio-clase.index', [], 'Reprogramaciones'],
+            'S sedes y salones' => ['supervisor', 'admin.sedes-salones.index', [], 'Sedes, salones y facultades'],
             'S dashboard' => ['supervisor', 'admin.metricas', [], 'Tasa de abandono'],
             'S riesgo' => ['supervisor', 'admin.analitica-riesgo', [], 'Estudiantes en riesgo'],
             'S configuración' => ['supervisor', 'admin.configuracion', [], 'Nota mínima aprobatoria'],

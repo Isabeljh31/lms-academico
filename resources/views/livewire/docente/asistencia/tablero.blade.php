@@ -8,13 +8,13 @@
 @php
     $enfoque = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--p700)]';
     $tarjeta = 'rounded-[20px] bg-white shadow-[0_1px_2px_rgba(9,59,59,0.06),0_6px_20px_rgba(9,59,59,0.05)]';
-    $etiqueta = 'text-[11px] font-bold uppercase tracking-[0.12em] text-[#5b706c]';
+    $etiqueta = 'text-[11px] font-bold uppercase tracking-[0.12em] text-[#6B6559]';
     $cifra = 'text-[34px] font-extrabold leading-none tracking-[-0.02em] text-[var(--p900)]';
     $enlace = "inline-flex min-h-8 items-center gap-1.5 rounded text-[13px] font-bold text-[var(--p700)] hover:underline {$enfoque}";
     $editable = $curso->usa_asistencia && ! $curso->estaFinalizado();
     // Colores de los estados de asistencia (justificado: gris azulado neutro).
     $coloresEstado = [
-        'presente' => ['texto' => 'Presente', 'color' => '#136E61'],
+        'presente' => ['texto' => 'Presente', 'color' => '#2F5A44'],
         'tardanza' => ['texto' => 'Tardanza', 'color' => '#F2B233'],
         'justificado' => ['texto' => 'Justificado', 'color' => '#8A9BB3'],
         'ausente' => ['texto' => 'Ausente', 'color' => '#E04B55'],
@@ -35,15 +35,15 @@
     @endif
 
     <section class="{{ $tarjeta }} overflow-hidden" aria-label="Asistencia por semana y por estudiante">
-        <div class="flex flex-wrap items-end justify-between gap-3 border-b border-[#e8f0ee] px-7">
+        <div class="flex flex-wrap items-end justify-between gap-3 border-b border-[#ECE6DA] px-7">
             <div class="flex gap-7" role="tablist" aria-label="Vista de asistencia">
                 @foreach (['semana' => ['Por semana', $sinFechas ? null : $totalSemanas], 'resumen' => ['Resumen por estudiante', $virtual ? null : $resumen['activos']]] as $clave => [$texto, $cuenta])
                     <button type="button" role="tab" id="pestana-{{ $clave }}" aria-controls="panel-asistencia" aria-selected="{{ $pestana === $clave ? 'true' : 'false' }}"
                         wire:click="verPestana('{{ $clave }}')"
-                        class="relative inline-flex min-h-[56px] items-center gap-2 text-[15px] {{ $enfoque }} {{ $pestana === $clave ? 'font-bold text-[var(--p900)] after:absolute after:inset-x-0 after:bottom-0 after:h-[3px] after:rounded-t-[3px] after:bg-[var(--p900)]' : 'text-[#4b625e] hover:text-[var(--p900)]' }}">
+                        class="relative inline-flex min-h-[56px] items-center gap-2 text-[15px] {{ $enfoque }} {{ $pestana === $clave ? 'font-bold text-[var(--p900)] after:absolute after:inset-x-0 after:bottom-0 after:h-[3px] after:rounded-t-[3px] after:bg-[var(--p900)]' : 'text-[#57524A] hover:text-[var(--p900)]' }}">
                         {{ $texto }}
                         @if ($cuenta)
-                            <span class="rounded-full bg-[#eaf1ef] px-[7px] py-px text-[11.5px] font-bold text-[#4b625e]">{{ $cuenta }}</span>
+                            <span class="rounded-full bg-[#ECE6DA] px-[7px] py-px text-[11.5px] font-bold text-[#57524A]">{{ $cuenta }}</span>
                         @endif
                     </button>
                 @endforeach
@@ -53,9 +53,9 @@
                 <div class="flex flex-wrap gap-2 pb-3" role="group" aria-label="Filtrar estudiantes por nivel">
                     @foreach (['todos' => ['Todos', $resumen['activos'], null], 'riesgo' => ['En riesgo', $resumen['niveles']['riesgo'], '#E04B55'], 'atencion' => ['Atención', $resumen['niveles']['atencion'], '#F2B233'], 'al_dia' => ['Al día', $resumen['niveles']['al_dia'], null]] as $clave => [$texto, $cuenta, $punto])
                         <button type="button" wire:click="verNivel('{{ $clave }}')" aria-pressed="{{ $filtro === $clave ? 'true' : 'false' }}"
-                            class="inline-flex h-9 items-center gap-2 rounded-full border-[1.5px] px-3.5 text-[13px] font-bold transition-colors motion-reduce:transition-none {{ $enfoque }} {{ $filtro === $clave ? 'border-[var(--p900)] bg-[var(--p900)] text-white' : 'border-[#d6e6e2] bg-white text-[#3d5753] hover:bg-[var(--mint)]' }}">
+                            class="inline-flex h-9 items-center gap-2 rounded-full border-[1.5px] px-3.5 text-[13px] font-bold transition-colors motion-reduce:transition-none {{ $enfoque }} {{ $filtro === $clave ? 'border-[var(--p900)] bg-[var(--p900)] text-white' : 'border-[#E0D8C8] bg-white text-[#3F3B34] hover:bg-[var(--mint)]' }}">
                             @if ($punto)<span class="h-2 w-2 rounded-full" style="background-color: {{ $punto }}" aria-hidden="true"></span>@endif
-                            {{ $texto }} <span class="text-[11.5px] {{ $filtro === $clave ? 'text-white/80' : 'text-[#5b706c]' }}">{{ $cuenta }}</span>
+                            {{ $texto }} <span class="text-[11.5px] {{ $filtro === $clave ? 'text-white/80' : 'text-[#6B6559]' }}">{{ $cuenta }}</span>
                         </button>
                     @endforeach
                 </div>

@@ -86,6 +86,13 @@
                 </dl>
             </x-gestion.tarjeta>
 
+            <x-gestion.tarjeta titulo="Sede y facultad">
+                <dl class="space-y-2 text-sm">
+                    <div class="flex items-center justify-between gap-3"><dt class="text-stone-500 dark:text-stone-400">Sede</dt><dd class="font-medium text-stone-800 dark:text-stone-100">{{ $estudiante->sede?->nombre ?? 'sin registrar' }}</dd></div>
+                    <div class="flex items-center justify-between gap-3"><dt class="text-stone-500 dark:text-stone-400">Facultad</dt><dd class="font-medium text-stone-800 dark:text-stone-100">{{ $estudiante->facultad?->nombre ?? 'sin registrar' }}</dd></div>
+                </dl>
+            </x-gestion.tarjeta>
+
             <x-gestion.tarjeta titulo="Apoderado">
                 @if ($estudiante->apoderado_nombre || $estudiante->apoderado_celular)
                     <dl class="space-y-3 text-sm">

@@ -68,6 +68,8 @@ class Curso extends Model
         'tiene_practicas_campo',
         // Sede del curso (reprogramación con salones reales; null = sin definir).
         'sede_id',
+        // Facultad del curso (de la misma sede; null = sin definir).
+        'facultad_id',
         // Enlace fijo de reunión de las clases remotas (lo valida EnlacesClaseRemota).
         'enlace_remoto',
     ];
@@ -279,6 +281,12 @@ class Curso extends Model
         return $this->belongsTo(Sede::class);
     }
 
+    /** Facultad del curso, dentro de su sede (null mientras no se defina). */
+    public function facultad(): BelongsTo
+    {
+        return $this->belongsTo(Facultad::class);
+    }
+
     public function profesor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'profesor_id');
@@ -457,11 +465,12 @@ class Curso extends Model
     /**
      * Resumen legible del horario semanal para pantallas de solo lectura
      * (ej. "Lun 08:00-10:00 (Aula 204), Vie 14:00-16:00"), o null si el
-     * curso es virtual o aún no tiene bloques de horario.
+     * curso aún no tiene bloques de horario. En un curso virtual el horario
+     * es solo informativo (no genera sesiones).
      */
     public function horarioResumen(): ?string
     {
-        if (! in_array($this->modalidad, self::MODALIDADES_CON_HORARIO, true) || blank($this->horario_bloques)) {
+        if (blank($this->horario_bloques)) {
             return null;
         }
 
@@ -498,6 +507,10 @@ class Curso extends Model
 
         $numero = 0;
         $filas = [];
+        // Presencial con sede: el aula del bloque es el código de un salón de esa sede y la clase nace con su salón.
+        $salonesPorCodigo = $this->modalidad === 'presencial' && $this->sede_id
+            ? Salon::where('sede_id', $this->sede_id)->pluck('id', 'codigo')
+            : collect();
 
         foreach (CarbonPeriod::create($this->fecha_inicio, $this->fecha_fin) as $fecha) {
             $bloque = $bloquesPorDia->get($fecha->isoWeekday());
@@ -518,6 +531,7 @@ class Curso extends Model
                 'curso_id' => $this->id,
                 'titulo' => "Sesión {$numero}",
                 'descripcion' => filled($bloque['aula'] ?? null) ? "Aula: {$bloque['aula']}" : null,
+                'salon_id' => $salonesPorCodigo->get($bloque['aula'] ?? ''),
                 'fecha' => $fecha->copy()->setTimeFromTimeString($horaInicio->format('H:i:s')),
                 'duracion_minutos' => $duracionMinutos,
                 'numero_sesion' => $numero,

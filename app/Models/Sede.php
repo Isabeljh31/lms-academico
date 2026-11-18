@@ -36,4 +36,9 @@ class Sede extends Model
     {
         return $this->hasMany(Curso::class);
     }
+
+    public function facultades(): HasMany
+    {
+        return $this->hasMany(Facultad::class);
+    }
 }

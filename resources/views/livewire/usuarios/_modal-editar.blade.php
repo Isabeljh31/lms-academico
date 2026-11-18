@@ -30,6 +30,9 @@
             <x-gestion.control id="editarCorreoPersonal" icono="sobre" type="email" wire:model="editarCorreoPersonal" />
         </x-gestion.campo>
 
+        <p class="pt-1 text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500">Sede y facultad</p>
+        <x-gestion.sede-facultad campo-sede="editarSedeId" campo-facultad="editarFacultadId" :sede-id="$editarSedeId" />
+
         <p class="pt-1 text-xs font-semibold uppercase tracking-wide text-stone-400 dark:text-stone-500">Apoderado</p>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <x-gestion.campo etiqueta="Nombre del apoderado" nombre="editarApoderadoNombre" ayuda="Opcional.">

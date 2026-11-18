@@ -14,7 +14,7 @@
     $enfoque = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--p700)]';
     $tarjeta = 'rounded-[20px] bg-white shadow-[0_1px_2px_rgba(9,59,59,0.06),0_6px_20px_rgba(9,59,59,0.05)]';
     $etiquetaEstado = 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-[9px] py-0.5 text-[11px] font-bold';
-    $botonContorno = "inline-flex h-[38px] items-center justify-center gap-[7px] whitespace-nowrap rounded-[10px] border-[1.5px] border-[#c9ddd8] bg-white px-3.5 text-[13px] font-bold text-[var(--p700)] transition-colors hover:bg-[var(--mint)] motion-reduce:transition-none {$enfoque}";
+    $botonContorno = "inline-flex h-[38px] items-center justify-center gap-[7px] whitespace-nowrap rounded-[10px] border-[1.5px] border-[#E0D8C8] bg-white px-3.5 text-[13px] font-bold text-[var(--p700)] transition-colors hover:bg-[var(--mint)] motion-reduce:transition-none {$enfoque}";
     $prioridades = ['urgente' => 'bg-[var(--err100)] text-[var(--err700)]', 'importante' => 'bg-[var(--warn200)] text-[var(--warn800)]'];
     $totalArchivos = $carpetas->sum(fn ($carpeta) => count($carpeta->recursos ?? []));
     $erroresAnuncio = $errors->hasAny(['nuevoAnuncioTitulo', 'nuevoAnuncioTexto', 'nuevoAnuncioPrioridad']);
@@ -50,7 +50,7 @@
                 <section aria-labelledby="titulo-proxima-clase" class="rounded-[20px] bg-[var(--p800)] px-6 py-[22px] text-white">
                     <h2 id="titulo-proxima-clase" class="text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--sec2)]">Próxima clase</h2>
                     <p class="mb-1 mt-2 text-[30px] font-extrabold leading-tight tracking-[-0.02em]">{{ DetalleCursoProfesor::fechaCorta($sesion->fecha) }} · {{ $sesion->fecha->format('H:i') }}</p>
-                    <p class="text-[13px] text-[#d3e3df]">{{ collect([$sesion->numero_sesion ? 'Sesión '.$sesion->numero_sesion : $sesion->titulo, $proxima['aula'], $modalidad])->filter()->join(' · ') }}</p>
+                    <p class="text-[13px] text-[#E0D8C8]">{{ collect([$sesion->numero_sesion ? 'Sesión '.$sesion->numero_sesion : $sesion->titulo, $proxima['aula'], $modalidad])->filter()->join(' · ') }}</p>
                     <div class="mt-4 flex flex-wrap gap-2.5">
                         <a href="{{ route('asistencia.index', $curso) }}" wire:navigate
                             class="inline-flex h-10 items-center gap-[7px] rounded-[11px] bg-white px-[15px] text-[13px] font-bold text-[var(--p900)] transition-colors hover:bg-[var(--mint)] motion-reduce:transition-none focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--lime)]">
@@ -76,24 +76,24 @@
             {{-- Anuncios del curso (RF-81): el formulario existente se despliega solo al pulsar "Nuevo anuncio". --}}
             <section aria-labelledby="titulo-anuncios" class="{{ $tarjeta }} px-[22px] py-5" x-data="{ nuevo: @js($erroresAnuncio) }">
                 <h2 id="titulo-anuncios" class="text-[17px] font-extrabold text-[var(--p900)]">Anuncios del curso</h2>
-                <p class="mt-[3px] text-[12.5px] text-[#5b706c]">Cada anuncio llega como notificación a los estudiantes matriculados.</p>
+                <p class="mt-[3px] text-[12.5px] text-[#6B6559]">Cada anuncio llega como notificación a los estudiantes matriculados.</p>
 
                 <div class="mt-2">
                     @forelse ($anunciosCurso as $anuncio)
-                        <article class="flex items-start gap-2.5 border-t border-[#edf3f1] py-3 first:border-t-0" wire:key="anuncio-doc-{{ $anuncio->id }}">
+                        <article class="flex items-start gap-2.5 border-t border-[#F4F0E8] py-3 first:border-t-0" wire:key="anuncio-doc-{{ $anuncio->id }}">
                             <div class="min-w-0 flex-1">
                                 <h3 class="break-words text-[13.5px] font-bold text-[var(--p900)]">{{ $anuncio->titulo }}</h3>
-                                <p class="mt-0.5 line-clamp-2 whitespace-pre-line break-words text-xs text-[#4b625e]">{{ $anuncio->contenido }}</p>
-                                <p class="mt-0.5 text-xs text-[#5b706c]">Publicado el {{ ($anuncio->publicar_en ?? $anuncio->created_at)->format('d/m/Y') }}@if ($anuncio->autor) · {{ $anuncio->autor->name }}@endif</p>
+                                <p class="mt-0.5 line-clamp-2 whitespace-pre-line break-words text-xs text-[#57524A]">{{ $anuncio->contenido }}</p>
+                                <p class="mt-0.5 text-xs text-[#6B6559]">Publicado el {{ ($anuncio->publicar_en ?? $anuncio->created_at)->format('d/m/Y') }}@if ($anuncio->autor) · {{ $anuncio->autor->name }}@endif</p>
                             </div>
                             <div class="flex shrink-0 items-center gap-1">
                                 @if (isset($prioridades[$anuncio->prioridad]))
                                     <span class="{{ $etiquetaEstado }} {{ $prioridades[$anuncio->prioridad] }}">{{ ucfirst($anuncio->prioridad) }}</span>
                                 @endif
-                                <span class="{{ $etiquetaEstado }} {{ $anuncio->activo ? 'bg-[var(--ok100)] text-[var(--ok900)]' : 'bg-[#ECF1F0] text-[#4b625e]' }}">{{ $anuncio->activo ? 'Activo' : 'Vencido' }}</span>
+                                <span class="{{ $etiquetaEstado }} {{ $anuncio->activo ? 'bg-[var(--ok100)] text-[var(--ok900)]' : 'bg-[#F4F0E8] text-[#57524A]' }}">{{ $anuncio->activo ? 'Activo' : 'Vencido' }}</span>
                                 @if ($this->puedeGestionar)
                                     <button type="button" wire:click="eliminarAnuncio({{ $anuncio->id }})" wire:confirm="¿Eliminar el anuncio {{ $anuncio->titulo }}?"
-                                        class="-my-2 -mr-2 flex h-11 w-11 items-center justify-center rounded-lg text-[#5b706c] transition-colors hover:bg-[var(--err100)] hover:text-[var(--err700)] motion-reduce:transition-none {{ $enfoque }}"
+                                        class="-my-2 -mr-2 flex h-11 w-11 items-center justify-center rounded-lg text-[#6B6559] transition-colors hover:bg-[var(--err100)] hover:text-[var(--err700)] motion-reduce:transition-none {{ $enfoque }}"
                                         aria-label="Eliminar anuncio {{ $anuncio->titulo }}">
                                         <x-icono nombre="papelera" class="h-4 w-4" />
                                     </button>
@@ -101,7 +101,7 @@
                             </div>
                         </article>
                     @empty
-                        <p class="flex items-center gap-3 rounded-xl border-[1.5px] border-dashed border-[#c9ddd8] p-3.5 text-sm text-[#4b625e]">
+                        <p class="flex items-center gap-3 rounded-xl border-[1.5px] border-dashed border-[#E0D8C8] p-3.5 text-sm text-[#57524A]">
                             <span class="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-[var(--mint)] text-[var(--p700)]"><x-icono nombre="megafono" class="h-5 w-5" /></span>
                             Aún no publicaste anuncios en este curso.
                         </p>
@@ -116,7 +116,7 @@
                     </button>
                     <form id="formulario-anuncio" wire:submit="publicarAnuncio" x-show="nuevo"
                         @unless ($erroresAnuncio) style="display: none" @endunless
-                        class="mt-3.5 space-y-3 border-t border-[#edf3f1] pt-3.5">
+                        class="mt-3.5 space-y-3 border-t border-[#F4F0E8] pt-3.5">
                         <x-gestion.campo etiqueta="Título" nombre="nuevoAnuncioTitulo" requerido>
                             <x-gestion.control id="nuevoAnuncioTitulo" x-ref="tituloAnuncio" wire:model="nuevoAnuncioTitulo" placeholder="Recordatorio de la práctica 1" />
                         </x-gestion.campo>
@@ -138,23 +138,61 @@
                 @endif
             </section>
 
-            {{-- Información del curso: carpetas que administra el Supervisor (solo lectura), plegada por defecto. --}}
+            {{-- Información del curso: datos que registra el Supervisor (modalidad, sede, facultad, horario y salón de
+                 cada día) y sus carpetas (solo lectura), plegada por defecto. --}}
+            @php
+                $diasSemana = ['1' => 'Lunes', '2' => 'Martes', '3' => 'Miércoles', '4' => 'Jueves', '5' => 'Viernes', '6' => 'Sábado', '7' => 'Domingo'];
+                $bloquesHorario = collect($curso->horario_bloques ?? [])->filter(fn (array $bloque) => filled($bloque['dia'] ?? null) && filled($bloque['hora_inicio'] ?? null))
+                    ->sortBy(fn (array $bloque) => (int) $bloque['dia'])->values();
+                // Salón real de cada aula (por código, en la sede del curso), para mostrar su tipo y capacidad.
+                $salonesHorario = $curso->modalidad === 'presencial' && $curso->sede_id
+                    ? \App\Models\Salon::with('tipo:id,nombre')->where('sede_id', $curso->sede_id)->whereIn('codigo', $bloquesHorario->pluck('aula')->filter())->get()->keyBy('codigo')
+                    : collect();
+                $modalidadTexto = ['presencial' => 'Presencial', 'remoto' => 'Remoto (en vivo)', 'virtual' => 'Virtual (asíncrono)'][$curso->modalidad] ?? ucfirst((string) $curso->modalidad);
+            @endphp
             <details class="{{ $tarjeta }} group/info">
                 <summary class="flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-[20px] px-[22px] py-4 [&::-webkit-details-marker]:hidden {{ $enfoque }}">
                     <span class="grid h-10 w-10 shrink-0 place-items-center rounded-[10px] bg-[var(--mint)] text-[var(--p700)]"><x-icono nombre="documento" class="h-5 w-5" /></span>
                     <span class="min-w-0 flex-1">
                         <span class="block text-[15px] font-extrabold text-[var(--p900)]">Información del curso</span>
-                        <span class="text-[12.5px] text-[#5b706c]">Sílabo, actas y enlaces administrativos · {{ $totalArchivos === 1 ? '1 archivo' : $totalArchivos.' archivos' }}</span>
+                        <span class="text-[12.5px] text-[#6B6559]">{{ $curso->horarioResumen() ? $curso->horarioResumen().' · ' : '' }}Sílabo, actas y enlaces administrativos · {{ $totalArchivos === 1 ? '1 archivo' : $totalArchivos.' archivos' }}</span>
                     </span>
-                    <x-icono nombre="flecha-abajo" class="h-5 w-5 shrink-0 text-[#4b625e] transition-transform group-open/info:rotate-180 motion-reduce:transition-none" />
+                    <x-icono nombre="flecha-abajo" class="h-5 w-5 shrink-0 text-[#57524A] transition-transform group-open/info:rotate-180 motion-reduce:transition-none" />
                 </summary>
-                <div class="space-y-2 border-t border-[#edf3f1] px-[22px] py-3">
+                <dl class="space-y-2 border-t border-[#F4F0E8] px-[22px] py-3 text-sm" aria-label="Datos del curso">
+                    <div class="flex flex-wrap justify-between gap-x-3"><dt class="text-[#6B6559]">Modalidad</dt><dd class="font-semibold text-[var(--p900)]">{{ $modalidadTexto }}</dd></div>
+                    @if ($curso->modalidad === 'presencial')
+                        <div class="flex flex-wrap justify-between gap-x-3"><dt class="text-[#6B6559]">Sede</dt><dd class="font-semibold text-[var(--p900)]">{{ $curso->sede?->nombre ?? 'Sin definir' }}</dd></div>
+                    @endif
+                    <div class="flex flex-wrap justify-between gap-x-3"><dt class="text-[#6B6559]">Facultad</dt><dd class="font-semibold text-[var(--p900)]">{{ $curso->facultad?->nombre ?? 'Sin definir' }}</dd></div>
+                    <div>
+                        <dt class="text-[#6B6559]">Horario{{ $curso->modalidad === 'presencial' ? ' y salón' : '' }}{{ $curso->modalidad === 'virtual' ? ' (referencial)' : '' }}</dt>
+                        @forelse ($bloquesHorario as $bloque)
+                            @php $salonBloque = $salonesHorario->get($bloque['aula'] ?? ''); @endphp
+                            <dd class="mt-1 flex flex-wrap items-baseline justify-between gap-x-3" wire:key="horario-{{ $bloque['dia'] }}">
+                                <span class="font-semibold text-[var(--p900)]">{{ $diasSemana[(string) $bloque['dia']] ?? '' }} <span class="font-mono text-[13px]">{{ $bloque['hora_inicio'] }}–{{ $bloque['hora_fin'] }}</span></span>
+                                @if ($curso->modalidad === 'presencial')
+                                    <span class="text-[13px] text-[#57524A]">
+                                        @if ($salonBloque)
+                                            Salón <b class="font-mono">{{ $salonBloque->codigo }}</b> · {{ $salonBloque->tipo->nombre }} · {{ $salonBloque->capacidad }} plazas
+                                        @else
+                                            {{ filled($bloque['aula'] ?? null) ? 'Aula '.$bloque['aula'] : 'Sin salón asignado' }}
+                                        @endif
+                                    </span>
+                                @endif
+                            </dd>
+                        @empty
+                            <dd class="mt-1 text-[#57524A]">El Supervisor aún no registró el horario.</dd>
+                        @endforelse
+                    </div>
+                </dl>
+                <div class="space-y-2 border-t border-[#F4F0E8] px-[22px] py-3">
                     @forelse ($carpetas as $carpeta)
                         <div wire:key="carpeta-{{ $carpeta->id }}">
                             <h3 class="flex items-center gap-2 text-sm font-bold text-[var(--p900)]">
                                 <x-icono nombre="archivo" class="h-4 w-4 shrink-0 text-[var(--p700)]" />
                                 {{ $carpeta->nombre }}
-                                <span class="text-xs font-normal text-[#5b706c]">({{ count($carpeta->recursos ?? []) }})</span>
+                                <span class="text-xs font-normal text-[#6B6559]">({{ count($carpeta->recursos ?? []) }})</span>
                             </h3>
                             <ul class="mt-1 pl-6">
                                 @forelse ($carpeta->recursos ?? [] as $i => $recurso)
@@ -166,12 +204,12 @@
                                         </a>
                                     </li>
                                 @empty
-                                    <li class="py-1.5 text-xs text-[#5b706c]">Sin archivos ni enlaces todavía.</li>
+                                    <li class="py-1.5 text-xs text-[#6B6559]">Sin archivos ni enlaces todavía.</li>
                                 @endforelse
                             </ul>
                         </div>
                     @empty
-                        <p class="text-sm text-[#4b625e]">Aún no hay carpetas. El Supervisor publica aquí el sílabo y los documentos administrativos.</p>
+                        <p class="text-sm text-[#57524A]">Aún no hay carpetas. El Supervisor publica aquí el sílabo y los documentos administrativos.</p>
                     @endforelse
                 </div>
             </details>
@@ -188,14 +226,14 @@
                 <div>
                     <p class="mb-1 text-sm font-semibold text-[var(--ink)]" aria-hidden="true">Semana <span class="text-[var(--err700)]">*</span></p>
                     <x-docente.desplegable wire:model="moduloSemana" :opciones="collect(range(1, $curso->totalSemanas()))->mapWithKeys(fn ($numero) => [$numero => 'Semana '.$numero])->all()" etiqueta="Semana" placeholder="Semana" variante="borde" />
-                    <p class="mt-1 text-xs text-[#5b706c]">Mueve todo el contenido (lecciones, tareas y quizzes) a otra semana libre.</p>
+                    <p class="mt-1 text-xs text-[#6B6559]">Mueve todo el contenido (lecciones, tareas y quizzes) a otra semana libre.</p>
                     @error('moduloSemana') <p class="mt-1 text-xs text-[var(--err700)]">{{ $message }}</p> @enderror
                 </div>
             @endif
             <div>
                 <p class="mb-1 text-sm font-semibold text-[var(--ink)]" aria-hidden="true">Estado <span class="text-[var(--err700)]">*</span></p>
                 <x-docente.desplegable wire:model.live="moduloEstado" :opciones="['borrador' => 'Borrador', 'publicado' => 'Publicado', 'programado' => 'Programado']" etiqueta="Estado" placeholder="Estado" variante="borde" />
-                <p class="mt-1 text-xs text-[#5b706c]">Borrador y Programado no son visibles para los estudiantes hasta su publicación.</p>
+                <p class="mt-1 text-xs text-[#6B6559]">Borrador y Programado no son visibles para los estudiantes hasta su publicación.</p>
                 @error('moduloEstado') <p class="mt-1 text-xs text-[var(--err700)]">{{ $message }}</p> @enderror
             </div>
             @if ($moduloEstado === 'programado')
@@ -206,7 +244,7 @@
             <div>
                 <p class="mb-1 text-sm font-semibold text-[var(--ink)]" aria-hidden="true">Se considera completado al <span class="text-[var(--err700)]">*</span></p>
                 <x-docente.desplegable wire:model="moduloCondicion" :opciones="\App\Models\Modulo::CONDICIONES" etiqueta="Se considera completado al" placeholder="Condición" variante="borde" />
-                <p class="mt-1 text-xs text-[#5b706c]">Los estudiantes ven el avance de la sección según esta condición.</p>
+                <p class="mt-1 text-xs text-[#6B6559]">Los estudiantes ven el avance de la sección según esta condición.</p>
                 @error('moduloCondicion') <p class="mt-1 text-xs text-[var(--err700)]">{{ $message }}</p> @enderror
             </div>
             <x-slot name="pie">

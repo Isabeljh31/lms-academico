@@ -12,26 +12,26 @@
         'realizada' => ['Realizada', 'bg-[var(--ok100)] text-[var(--ok900)]', 'check'],
         'sin_lista' => ['Sin lista', 'bg-[var(--warn200)] text-[var(--warn800)]', null],
         'proxima' => ['Próxima', 'bg-[var(--inf100)] text-[var(--inf700)]', null],
-        'programada' => ['Programada', 'bg-[#eef3f1] text-[#4b625e]', null],
+        'programada' => ['Programada', 'bg-[#F4F0E8] text-[#57524A]', null],
     ];
     $botonAccion = "inline-flex h-10 min-w-[128px] items-center justify-center gap-2 whitespace-nowrap rounded-[11px] px-4 text-[13.5px] font-bold transition-colors motion-reduce:transition-none {$enfoque}";
-    $contorno = 'border-[1.5px] border-[#c9ddd8] bg-white text-[var(--p700)] hover:bg-[var(--mint)]';
+    $contorno = 'border-[1.5px] border-[#E0D8C8] bg-white text-[var(--p700)] hover:bg-[var(--mint)]';
     $oscuro = 'bg-[var(--p900)] text-white shadow-[0_6px_16px_rgba(9,59,59,0.22)] hover:bg-[var(--p800)]';
 @endphp
 
-<div class="border-t border-[#e1ece9] bg-[#f3f9f7]">
+<div class="border-t border-[#ECE6DA] bg-[#F4F0E8]">
     <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2 px-7 py-4">
         <h2 class="flex items-baseline gap-3">
             @if ($sinFechas)
                 <span class="text-[20px] font-extrabold text-[var(--p900)]">Todas las clases</span>
-                <span class="text-[13.5px] text-[#4b625e]">El curso no tiene fecha de inicio, por eso las clases no se agrupan por semana.</span>
+                <span class="text-[13.5px] text-[#57524A]">El curso no tiene fecha de inicio, por eso las clases no se agrupan por semana.</span>
             @else
                 <span class="text-[22px] font-extrabold tracking-[-0.01em] text-[var(--p900)]">Semana {{ $semana }}</span>
-                <span class="text-[14px] text-[#4b625e]">{{ $rangoTexto($actual['rango']) }}</span>
+                <span class="text-[14px] text-[#57524A]">{{ $rangoTexto($actual['rango']) }}</span>
             @endif
         </h2>
         @unless ($sinFechas)
-            <p class="flex flex-wrap gap-x-6 gap-y-1 text-[14px] text-[#3d5753]">
+            <p class="flex flex-wrap gap-x-6 gap-y-1 text-[14px] text-[#3F3B34]">
                 <span><strong class="text-[var(--p900)]">{{ $actual['clases']->count() }}</strong> {{ $actual['clases']->count() === 1 ? 'clase' : 'clases' }}</span>
                 <span><strong class="text-[var(--p900)]">{{ $actual['con_lista'] }}</strong> con lista</span>
                 <span><strong class="{{ $actual['sin_lista'] > 0 ? 'text-[var(--warn800)]' : 'text-[var(--p900)]' }}">{{ $actual['sin_lista'] }}</strong> sin lista</span>
@@ -42,10 +42,10 @@
 </div>
 
 @if ($clasesVista->isEmpty())
-    <div class="flex flex-col items-center gap-2 border-t border-[#e8f0ee] px-6 py-12 text-center">
+    <div class="flex flex-col items-center gap-2 border-t border-[#ECE6DA] px-6 py-12 text-center">
         <x-icono nombre="calendario" class="h-7 w-7 text-[var(--p700)]" />
         <p class="font-bold text-[var(--p900)]">{{ $resumen['clases']->isEmpty() ? 'Este curso aún no tiene clases' : 'No hay clases en esta semana' }}</p>
-        <p class="max-w-md text-[13px] text-[#4b625e]">
+        <p class="max-w-md text-[13px] text-[#57524A]">
             {{ $resumen['clases']->isEmpty() ? 'Las clases se generan desde el horario del curso al crearlo. También puedes agregar una con «Nueva clase».' : 'Elige otra semana en el selector o en la cinta de semanas.' }}
         </p>
     </div>
@@ -53,7 +53,7 @@
     <div class="overflow-x-auto">
         <table class="w-full min-w-[860px] text-left">
             <caption class="sr-only">Clases {{ $sinFechas ? 'del curso' : 'de la semana '.$semana }} con su asistencia</caption>
-            <thead class="border-t border-[#e8f0ee] bg-[#f6faf9] text-[11.5px] font-bold uppercase tracking-[0.12em] text-[#5b706c]">
+            <thead class="border-t border-[#ECE6DA] bg-[#F4F0E8] text-[11.5px] font-bold uppercase tracking-[0.12em] text-[#6B6559]">
                 <tr>
                     <th scope="col" class="px-7 py-3">Clase</th>
                     <th scope="col" class="px-3 py-3">Hora y aula</th>
@@ -64,9 +64,9 @@
             </thead>
             @foreach ($porDia as $dia => $clasesDia)
                 @php $fechaDia = $clasesDia->first()['sesion']->fecha; @endphp
-                <tbody class="border-t border-[#e8f0ee]" wire:key="dia-{{ $dia }}">
+                <tbody class="border-t border-[#ECE6DA]" wire:key="dia-{{ $dia }}">
                     <tr>
-                        <th scope="colgroup" colspan="5" class="px-7 pb-1 pt-4 text-[12.5px] font-bold uppercase tracking-[0.1em] text-[#4b625e]">
+                        <th scope="colgroup" colspan="5" class="px-7 pb-1 pt-4 text-[12.5px] font-bold uppercase tracking-[0.1em] text-[#57524A]">
                             {{ str_replace('.', '', \Illuminate\Support\Str::upper($fechaDia->copy()->locale('es')->isoFormat('dddd D MMM'))) }} · {{ $clasesDia->count() === 1 ? '1 clase' : $clasesDia->count().' clases' }}
                         </th>
                     </tr>
@@ -98,13 +98,13 @@
                             <td class="px-3 py-3.5">
                                 <p class="text-[15px] font-bold text-[var(--p900)]">{{ $sesion->fecha->format('H:i') }} – {{ $clase['fin']->format('H:i') }}</p>
                                 @if ($clase['aula'])
-                                    <p class="text-[13px] text-[#4b625e]">Aula {{ $clase['aula'] }}</p>
+                                    <p class="text-[13px] text-[#57524A]">Aula {{ $clase['aula'] }}</p>
                                 @endif
                             </td>
                             <td class="px-3 py-3.5">
                                 @if ($clase['estado'] === 'realizada')
                                     <div class="flex items-center gap-3">
-                                        <span class="flex h-2.5 w-44 overflow-hidden rounded-full bg-[#e1ebe8]" role="img" aria-label="{{ $detalleBarra }}" title="{{ $detalleBarra }}">
+                                        <span class="flex h-2.5 w-44 overflow-hidden rounded-full bg-[#ECE6DA]" role="img" aria-label="{{ $detalleBarra }}" title="{{ $detalleBarra }}">
                                             @foreach ($segmentos as $estado => $cantidad)
                                                 @if ($cantidad > 0)
                                                     <span class="h-full" style="width: {{ round($cantidad * 100 / $base, 2) }}%; background-color: {{ $coloresEstado[$estado]['color'] }}"></span>
@@ -113,13 +113,13 @@
                                         </span>
                                         <span>
                                             <span class="block text-[15px] font-extrabold text-[var(--p900)]">{{ AsistenciaProfesor::porcentajeTexto($clase['porcentaje']) }}</span>
-                                            <span class="block text-[12px] text-[#5b706c]" aria-hidden="true">{{ implode(' · ', $segmentos) }}</span>
+                                            <span class="block text-[12px] text-[#6B6559]" aria-hidden="true">{{ implode(' · ', $segmentos) }}</span>
                                         </span>
                                     </div>
                                 @elseif ($clase['estado'] === 'sin_lista')
                                     <span class="text-[14px] font-medium text-[var(--warn800)]">Aún no se pasó lista</span>
                                 @else
-                                    <span class="text-[13.5px] text-[#6b7f7b]">—</span>
+                                    <span class="text-[13.5px] text-[#6B6559]">—</span>
                                 @endif
                             </td>
                             <td class="px-3 py-3.5">
@@ -137,7 +137,7 @@
                                     @if (! $clase['permite_lista'])
                                         {{-- Clase de un día futuro: no hay lista que ver ni se puede pasar todavía. --}}
                                         @if ($clase['estado'] === 'proxima')
-                                            <span class="min-w-[128px] text-center text-[12.5px] font-semibold text-[#5b706c]">Disponible el día de la clase</span>
+                                            <span class="min-w-[128px] text-center text-[12.5px] font-semibold text-[#6B6559]">Disponible el día de la clase</span>
                                         @else
                                             <span class="min-w-[128px]" aria-hidden="true"></span>
                                         @endif
@@ -158,11 +158,11 @@
                                     @if ($editable && (! $clase['con_lista'] || $clase['admite_enlace']))
                                         <div class="relative" x-data="{ abierto: false }" x-on:click.outside="abierto = false" x-on:keydown.escape.stop="abierto = false; $refs.menu.focus()">
                                             <button type="button" x-ref="menu" x-on:click="abierto = ! abierto" aria-haspopup="menu" aria-expanded="false" x-bind:aria-expanded="abierto ? 'true' : 'false'"
-                                                aria-label="Más acciones de {{ $sesion->titulo }}" class="grid h-9 w-9 place-items-center rounded-lg text-[#4b625e] hover:bg-[var(--mint)] {{ $enfoque }}">
+                                                aria-label="Más acciones de {{ $sesion->titulo }}" class="grid h-9 w-9 place-items-center rounded-lg text-[#57524A] hover:bg-[var(--mint)] {{ $enfoque }}">
                                                 <x-icono nombre="puntos" class="h-5 w-5" />
                                             </button>
                                             <div x-show="abierto" x-cloak style="display: none" role="menu"
-                                                class="absolute right-0 top-full z-30 mt-1 min-w-[230px] rounded-xl border border-[#e1ece9] bg-white p-1.5 shadow-[0_10px_30px_rgba(9,59,59,0.14)]">
+                                                class="absolute right-0 top-full z-30 mt-1 min-w-[230px] rounded-xl border border-[#ECE6DA] bg-white p-1.5 shadow-[0_10px_30px_rgba(9,59,59,0.14)]">
                                                 @if ($clase['admite_enlace'])
                                                     <button type="button" role="menuitem" x-on:click="abierto = false; Livewire.dispatch('abrir-enlace-clase', { sesion: {{ $sesion->id }} })"
                                                         class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-semibold text-[var(--p900)] hover:bg-[var(--mint)] {{ $enfoque }}">
@@ -189,9 +189,9 @@
                                                 @endif
                                                 @if ($clase['cambio_pendiente'])
                                                     <button type="button" role="menuitem" aria-disabled="true" disabled aria-describedby="bloqueo-eliminar-{{ $sesion->id }}"
-                                                        class="flex w-full cursor-not-allowed flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left text-[13px] font-semibold text-[#9aa9a6]">
+                                                        class="flex w-full cursor-not-allowed flex-col items-start gap-0.5 rounded-lg px-3 py-2 text-left text-[13px] font-semibold text-[#8F887B]">
                                                         <span class="inline-flex items-center gap-2"><x-icono nombre="papelera" class="h-4 w-4" /> Eliminar clase</span>
-                                                        <span id="bloqueo-eliminar-{{ $sesion->id }}" class="text-[11.5px] font-medium text-[#5b706c]">Tiene una reprogramación pendiente: cancélala para poder eliminar la clase.</span>
+                                                        <span id="bloqueo-eliminar-{{ $sesion->id }}" class="text-[11.5px] font-medium text-[#6B6559]">Tiene una reprogramación pendiente: cancélala para poder eliminar la clase.</span>
                                                     </button>
                                                 @else
                                                     <button type="button" role="menuitem"
@@ -216,7 +216,7 @@
     </div>
 @endif
 
-<div class="flex flex-wrap items-center justify-between gap-3 border-t border-[#e8f0ee] bg-[#fafcfb] px-7 py-3.5 text-[12.5px] text-[#4b625e]">
+<div class="flex flex-wrap items-center justify-between gap-3 border-t border-[#ECE6DA] bg-[#F7F4EE] px-7 py-3.5 text-[12.5px] text-[#57524A]">
     <p>Las clases salen del horario del curso o de «Nueva clase». Una clase sin registros se puede eliminar desde su menú ⋮.</p>
     <ul class="flex flex-wrap gap-x-4 gap-y-1" aria-label="Leyenda de asistencia">
         @foreach ($coloresEstado as $estilo)

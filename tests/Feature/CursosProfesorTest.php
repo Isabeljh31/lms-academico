@@ -11,8 +11,11 @@ use App\Models\Comunicado;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Models\EsquemaEvaluacion;
+use App\Models\Facultad;
 use App\Models\Modulo;
 use App\Models\Quiz;
+use App\Models\Salon;
+use App\Models\Sede;
 use App\Models\SesionClase;
 use App\Models\Tarea;
 use App\Models\User;
@@ -103,6 +106,22 @@ class CursosProfesorTest extends TestCase
             ->assertSee('Rol: Profesor')
             ->assertSee('Química Orgánica')
             ->assertDontSee('sidebarAbierto');
+    }
+
+    public function test_la_informacion_del_curso_muestra_sede_facultad_horario_y_salon_de_cada_dia(): void
+    {
+        $profesor = $this->usuarioConRol('profesor');
+        $sede = Sede::factory()->create(['nombre' => 'Sede Los Olivos']);
+        $salon = Salon::factory()->create(['sede_id' => $sede->id, 'codigo' => 'LO-305', 'capacidad' => 35]);
+        $facultad = Facultad::factory()->create(['sede_id' => $sede->id, 'nombre' => 'Facultad de Ingeniería']);
+        $curso = $this->cursoDe($profesor, [
+            'modalidad' => 'presencial', 'sede_id' => $sede->id, 'facultad_id' => $facultad->id,
+            'horario_bloques' => [['dia' => 3, 'hora_inicio' => '14:00', 'hora_fin' => '16:00', 'aula' => 'LO-305']],
+        ]);
+
+        $this->actingAs($profesor)->get(route('cursos.show', $curso))
+            ->assertOk()
+            ->assertSeeInOrder(['Información del curso', 'Mié 14:00-16:00 (LO-305)', 'Presencial', 'Sede Los Olivos', 'Facultad de Ingeniería', 'Miércoles', '14:00–16:00', 'LO-305', $salon->tipo->nombre, '35 plazas']);
     }
 
     public function test_supervisor_y_estudiante_siguen_con_sus_pantallas_de_siempre(): void
@@ -388,7 +407,7 @@ class CursosProfesorTest extends TestCase
         $semana3->lecciones()->create(['titulo' => 'Lectura', 'estado' => 'publicado', 'orden' => 1]);
         $this->assertSame(['semana_siguiente'], $this->tiposParaHacer($profesor, $curso));
         Livewire::actingAs($profesor)->test(ListaCursos::class)
-            ->assertSeeHtml('<b class="font-bold text-[var(--lime)]">1 curso</b><span> sin contenido para la próxima semana</span>');
+            ->assertSeeHtml('<b class="font-semibold text-[var(--ink)]">1 curso</b><span> sin contenido para la próxima semana</span>');
 
         // Con contenido también en la siguiente, y sin nada más: todo al día.
         $semana4 = Modulo::create(['curso_id' => $curso->id, 'semana' => 4, 'titulo' => 'Semana 4', 'materiales' => []]);

@@ -9,14 +9,14 @@
     $activa = $seleccionada && $seleccionada['tarea']->id === $grupoTarea['tarea']->id;
     $primeraLista = $grupoTarea['primera'];
     $avance = $grupoTarea['avance'];
-    $etiqueta = 'whitespace-nowrap inline-flex items-center gap-1 rounded-full bg-[#ECF1F0] px-[7px] py-px text-[11px] font-bold text-[#4b625e]';
+    $etiqueta = 'whitespace-nowrap inline-flex items-center gap-1 rounded-full bg-[#F4F0E8] px-[7px] py-px text-[11px] font-bold text-[#57524A]';
 @endphp
 
 <button type="button" wire:click="$set('tarea', {{ $grupoTarea['tarea']->id }})" wire:key="tarea-lista-{{ $grupoTarea['tarea']->id }}"
     @if ($activa) aria-current="true" @endif
-    class="my-0.5 block rounded-[10px] border-[1.5px] px-3 py-[9px] text-left transition-colors motion-reduce:transition-none {{ $conCurso ? 'w-full' : 'ml-11 w-[calc(100%-2.75rem)]' }} {{ $activa ? 'border-[var(--p700)] bg-[var(--mint)]' : 'border-transparent hover:bg-[#f6faf9]' }} {{ $grupoTarea['completa'] && ! $activa ? 'opacity-70' : '' }} {{ $enfoque }}">
+    class="my-0.5 block rounded-[10px] border-[1.5px] px-3 py-[9px] text-left transition-colors motion-reduce:transition-none {{ $conCurso ? 'w-full' : 'ml-11 w-[calc(100%-2.75rem)]' }} {{ $activa ? 'border-[var(--p700)] bg-[var(--mint)]' : 'border-transparent hover:bg-[#F4F0E8]' }} {{ $grupoTarea['completa'] && ! $activa ? 'opacity-70' : '' }} {{ $enfoque }}">
     @if ($conCurso)
-        <span class="block break-words text-[11px] font-bold uppercase tracking-[0.08em] text-[#4b6b66]">{{ $grupoTarea['tarea']->curso->nombre }} · {{ $Index::etiquetaSemana($grupoTarea['semana']) }}</span>
+        <span class="block break-words text-[11px] font-bold uppercase tracking-[0.08em] text-[#57524A]">{{ $grupoTarea['tarea']->curso->nombre }} · {{ $Index::etiquetaSemana($grupoTarea['semana']) }}</span>
     @endif
     <span class="flex items-start gap-1.5">
         @if ($grupoTarea['completa'])
@@ -33,7 +33,7 @@
             <span class="{{ $etiqueta }}">{{ $Index::TIPOS[$grupoTarea['tipo']] }}</span>
         @endif
     </span>
-    <span class="mt-1 block text-[12.5px] text-[#3d5753]">
+    <span class="mt-1 block text-[12.5px] text-[#3F3B34]">
         {{ $avance['calificadas'] }} de {{ $avance['total'] }} {{ $grupoTarea['grupal'] ? ($avance['total'] === 1 ? 'grupo calificado' : 'grupos calificados') : ($avance['total'] === 1 ? 'calificada' : 'calificadas') }}
         @if ($grupoTarea['total'] > 0)
             · <strong class="text-[var(--p900)]">{{ $grupoTarea['total'] }}</strong> por calificar

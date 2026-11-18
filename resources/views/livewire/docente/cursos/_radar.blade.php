@@ -18,19 +18,19 @@
     </h2>
 
     @if ($radar->isEmpty())
-        <p class="text-[12.5px] text-[#5b706c] sm:col-span-2 lg:col-span-4 lg:border-l lg:border-[#e3ece9] lg:pl-4">Nada vence esta semana.</p>
+        <p class="text-[12.5px] text-[#6B6559] sm:col-span-2 lg:col-span-4 lg:border-l lg:border-[#ECE6DA] lg:pl-4">Nada vence esta semana.</p>
     @else
         <ul class="contents" role="list">
             @foreach ($radar as $cursoId => $datos)
                 @php $fecha = $datos['cierre']['fecha']; @endphp
-                <li wire:key="radar-{{ $cursoId }}" class="flex min-w-0 items-center gap-2.5 lg:border-l lg:border-[#e3ece9] lg:pl-4">
+                <li wire:key="radar-{{ $cursoId }}" class="flex min-w-0 items-center gap-2.5 lg:border-l lg:border-[#ECE6DA] lg:pl-4">
                     <span class="flex h-10 min-w-[38px] shrink-0 flex-col items-center justify-center rounded-[10px] bg-[var(--warn100)] text-[var(--warn800)]">
                         <span class="text-sm font-extrabold leading-none tabular-nums">{{ $fecha->format('d') }}</span>
                         <span class="mt-[3px] text-[9px] font-extrabold uppercase tracking-[0.08em]">{{ rtrim($fecha->locale('es')->isoFormat('MMM'), '.') }}</span>
                     </span>
                     <span class="min-w-0">
                         <span class="block break-words text-[12.5px] font-bold leading-tight text-[var(--p900)]">{{ $datos['cierre']['titulo'] }}</span>
-                        <span class="block break-words text-[11.5px] text-[#5b706c]">{{ $todosLosCursos->get($cursoId)?->nombre }}@if ($datos['cierre']['tipo'] !== 'evaluacion') · {{ $fecha->format('H:i') }}@endif</span>
+                        <span class="block break-words text-[11.5px] text-[#6B6559]">{{ $todosLosCursos->get($cursoId)?->nombre }}@if ($datos['cierre']['tipo'] !== 'evaluacion') · {{ $fecha->format('H:i') }}@endif</span>
                     </span>
                 </li>
             @endforeach

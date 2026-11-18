@@ -69,10 +69,10 @@ class SolicitudCambioSupervisorTest extends TestCase
             ->assertSee('Pidió: Presencial')
             ->assertSee('href="'.route('admin.solicitudes-cambio-clase.index').'"', false)
             ->assertSee('href="'.route('admin.sedes-salones.index').'"', false)
-            ->assertSee('Sedes y salones');
+            ->assertSee('Sedes, salones y facultades');
 
-        $this->actingAs($this->estudiante)->get(route('dashboard'))->assertDontSee('Reprogramaciones')->assertDontSee('Sedes y salones');
-        $this->actingAs($this->profesor)->get(route('dashboard'))->assertDontSee('Reprogramaciones')->assertDontSee('Sedes y salones');
+        $this->actingAs($this->estudiante)->get(route('dashboard'))->assertDontSee('Reprogramaciones')->assertDontSee('Sedes, salones y facultades');
+        $this->actingAs($this->profesor)->get(route('dashboard'))->assertDontSee('Reprogramaciones')->assertDontSee('Sedes, salones y facultades');
     }
 
     public function test_la_pantalla_usa_el_diseno_del_supervisor_y_no_el_del_profesor(): void

@@ -5,6 +5,7 @@ namespace App\Livewire\Usuarios\Concerns;
 use App\Enums\Rol;
 use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
+use App\Models\Facultad;
 use App\Models\User;
 use App\Services\Asistencia\CalculadoraAsistencia;
 use App\Services\Evaluacion\CalculadoraNotas;
@@ -47,6 +48,11 @@ trait GestionaEstudiante
     public string $editarApoderadoNombre = '';
 
     public string $editarApoderadoCelular = '';
+
+    /** Sede y facultad propias del estudiante. */
+    public string $editarSedeId = '';
+
+    public string $editarFacultadId = '';
 
     /** Solo se puede corregir si la cuenta aún no tiene historial (ver UsuarioPolicy::corregirRol). */
     public string $editarRol = '';
@@ -100,7 +106,11 @@ trait GestionaEstudiante
      *
      * @return array{nivel: ?string, motivos: list<string>}
      */
-    private function calcularRiesgo(User $estudiante, Collection $cursosActivos, CalculadoraAsistencia $asistencia, CalculadoraNotas $notas): array
+    /**
+     * @param  array{asistencia: array<int, array<int, float|null>>, rendimiento: array<int, array<int, float|null>>}|null  $precalculado
+     *                                                                                                                        valores ya calculados por curso (curso_id => estudiante_id => valor) para no consultar por estudiante
+     */
+    private function calcularRiesgo(User $estudiante, Collection $cursosActivos, CalculadoraAsistencia $asistencia, CalculadoraNotas $notas, ?array $precalculado = null): array
     {
         $notaMinima = $notas->notaMinima();
         $motivos = [];
@@ -111,7 +121,9 @@ trait GestionaEstudiante
             $critico = false;
 
             if ($curso->usa_asistencia) {
-                $porcentaje = $asistencia->porcentajeDe($estudiante, $curso);
+                $porcentaje = $precalculado !== null
+                    ? ($precalculado['asistencia'][$curso->id][$estudiante->id] ?? null)
+                    : $asistencia->porcentajeDe($estudiante, $curso);
 
                 if ($porcentaje !== null && $porcentaje < self::ASISTENCIA_MINIMA_RIESGO) {
                     $critico = true;
@@ -119,7 +131,9 @@ trait GestionaEstudiante
                 }
             }
 
-            $rendimiento = $notas->rendimientoDe($estudiante, $curso);
+            $rendimiento = $precalculado !== null
+                ? ($precalculado['rendimiento'][$curso->id][$estudiante->id] ?? null)
+                : $notas->rendimientoDe($estudiante, $curso);
 
             if ($rendimiento !== null && $rendimiento < $notaMinima) {
                 $critico = true;
@@ -132,6 +146,39 @@ trait GestionaEstudiante
         return [
             'nivel' => $cursosCriticos > 0 ? ($cursosCriticos > 1 ? 'Alto' : 'Medio') : null,
             'motivos' => $motivos,
+        ];
+    }
+
+    /** Otra sede: la facultad elegida era de la anterior. */
+    public function updatedEditarSedeId(): void
+    {
+        $this->editarFacultadId = '';
+    }
+
+    /**
+     * Sede y facultad propias del estudiante: obligatorias cuando hay
+     * facultades registradas; la facultad debe ser de esa sede.
+     *
+     * @return array<string, list<mixed>>
+     */
+    protected function reglasUbicacionEstudiante(string $campoSede, string $campoFacultad): array
+    {
+        $obligatoria = Facultad::where('activa', true)->exists() ? 'required' : 'nullable';
+
+        return [
+            $campoSede => [$obligatoria, Rule::exists('sedes', 'id')->where('activa', true)],
+            $campoFacultad => [$obligatoria, Rule::exists('facultades', 'id')->where('sede_id', (int) $this->{$campoSede})->where('activa', true)],
+        ];
+    }
+
+    /** @return array<string, string> */
+    protected function mensajesUbicacionEstudiante(string $campoSede, string $campoFacultad): array
+    {
+        return [
+            "{$campoSede}.required" => 'Elige la sede del estudiante.',
+            "{$campoSede}.exists" => 'Elige una sede activa de la lista.',
+            "{$campoFacultad}.required" => 'Elige la facultad del estudiante.',
+            "{$campoFacultad}.exists" => 'Elige una facultad activa de esa sede.',
         ];
     }
 
@@ -230,6 +277,8 @@ trait GestionaEstudiante
         $this->editarCelular = (string) $estudiante->celular;
         $this->editarApoderadoNombre = (string) $estudiante->apoderado_nombre;
         $this->editarApoderadoCelular = (string) $estudiante->apoderado_celular;
+        $this->editarSedeId = (string) ($estudiante->sede_id ?? '');
+        $this->editarFacultadId = (string) ($estudiante->facultad_id ?? '');
         $this->editarRol = (string) $estudiante->rolPrincipal();
         $this->mostrarModalEditar = true;
     }
@@ -250,9 +299,11 @@ trait GestionaEstudiante
                 'editarCelular' => ['nullable', 'regex:/^9\d{8}$/'],
                 'editarApoderadoNombre' => ['nullable', 'string', 'max:120'],
                 'editarApoderadoCelular' => ['nullable', 'regex:/^9\d{8}$/'],
+                ...$this->reglasUbicacionEstudiante('editarSedeId', 'editarFacultadId'),
             ],
             [
                 ...GestorCuentas::mensajesIdentidad('editarDni', 'editarEmail'),
+                ...$this->mensajesUbicacionEstudiante('editarSedeId', 'editarFacultadId'),
                 'editarDni.unique' => 'Ya existe otra cuenta con este DNI.',
                 'editarEmail.unique' => 'Ya existe otra cuenta con este correo.',
                 'editarAnioNacimiento.max' => 'Revisa el año de nacimiento.',
@@ -286,7 +337,7 @@ trait GestionaEstudiante
             }
         }
 
-        $campos = ['nombres', 'apellidos', 'dni', 'email', 'anio_nacimiento', 'correo_personal', 'celular', 'apoderado_nombre', 'apoderado_celular'];
+        $campos = ['nombres', 'apellidos', 'dni', 'email', 'anio_nacimiento', 'correo_personal', 'celular', 'apoderado_nombre', 'apoderado_celular', 'sede_id', 'facultad_id'];
         $anterior = $estudiante->only($campos);
 
         $estudiante->update([
@@ -299,6 +350,8 @@ trait GestionaEstudiante
             'celular' => $this->editarCelular ?: null,
             'apoderado_nombre' => $this->editarApoderadoNombre ?: null,
             'apoderado_celular' => $this->editarApoderadoCelular ?: null,
+            'sede_id' => $this->editarSedeId !== '' ? (int) $this->editarSedeId : null,
+            'facultad_id' => $this->editarFacultadId !== '' ? (int) $this->editarFacultadId : null,
         ]);
 
         BitacoraAuditoria::registrarAccionAdmin(

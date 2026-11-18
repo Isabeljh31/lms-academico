@@ -8,12 +8,20 @@ use App\Livewire\Cursos\GestionMatricula;
 use App\Livewire\Usuarios\Index;
 use App\Mail\BienvenidaMail;
 use App\Models\Curso;
+use App\Models\Entrega;
+use App\Models\Facultad;
 use App\Models\Inscripcion;
+use App\Models\Modulo;
+use App\Models\Quiz;
+use App\Models\Sede;
 use App\Models\SesionClase;
+use App\Models\Tarea;
 use App\Models\User;
+use App\Services\Reportes\ProgresoAcademicoService;
 use App\Notifications\MatriculadoEnCurso;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -567,6 +575,130 @@ class UsuariosTest extends TestCase
         $html = Livewire::actingAs($admin)->test(Index::class)->html();
 
         $this->assertStringContainsString('Riesgo alto', $html);
+    }
+
+    public function test_el_directorio_no_hace_mas_consultas_con_mas_estudiantes(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $curso = Curso::factory()->create(['usa_asistencia' => true, 'estado' => 'publicado']);
+        SesionClase::create(['curso_id' => $curso->id, 'titulo' => 'Clase 1', 'fecha' => now()->subDay(), 'duracion_minutos' => 60, 'numero_sesion' => 1]);
+        $matricular = function (int $cantidad) use ($curso): void {
+            foreach (range(1, $cantidad) as $_) {
+                $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+                Inscripcion::factory()->create(['curso_id' => $curso->id, 'estudiante_id' => $estudiante->id]);
+            }
+        };
+        $consultasAlMostrar = function () use ($admin): int {
+            $consultas = 0;
+            DB::listen(function () use (&$consultas) {
+                $consultas++;
+            });
+            Livewire::actingAs($admin)->test(Index::class);
+
+            return $consultas;
+        };
+
+        // Una página completa (8 filas) desde el inicio: lo que cambia después es solo la cantidad total.
+        $matricular(8);
+        $consultasAlMostrar();
+        $conOcho = $consultasAlMostrar();
+
+        $matricular(8);
+
+        $this->assertSame($conOcho, $consultasAlMostrar());
+    }
+
+    public function test_las_tareas_pendientes_del_directorio_coinciden_con_las_del_panel_del_estudiante(): void
+    {
+        $curso = Curso::factory()->create(['estado' => 'publicado']);
+        $modulo = Modulo::factory()->create(['curso_id' => $curso->id]);
+        $tareas = Tarea::factory()->count(2)->create(['curso_id' => $curso->id, 'modulo_id' => $modulo->id, 'fecha_entrega' => now()->addWeek()]);
+        Quiz::factory()->create(['curso_id' => $curso->id, 'modulo_id' => $modulo->id, 'fecha_inicio' => now()->subDay(), 'fecha_limite' => now()->addDay()]);
+        Quiz::factory()->create(['curso_id' => $curso->id, 'modulo_id' => $modulo->id, 'fecha_inicio' => now()->subWeek(), 'fecha_limite' => now()->subDay()]);
+        $conEntrega = User::factory()->create()->assignRole(Rol::Estudiante->value);
+        $sinEntrega = User::factory()->create()->assignRole(Rol::Estudiante->value);
+        foreach ([$conEntrega, $sinEntrega] as $estudiante) {
+            Inscripcion::factory()->create(['curso_id' => $curso->id, 'estudiante_id' => $estudiante->id]);
+        }
+        Entrega::factory()->create(['tarea_id' => $tareas[0]->id, 'estudiante_id' => $conEntrega->id]);
+
+        $progreso = app(ProgresoAcademicoService::class);
+        $enLote = $progreso->totalPendientesDe(collect([$conEntrega->id, $sinEntrega->id]));
+
+        // 2 tareas + 1 quiz abierto sin intento; quien entregó una tarea tiene una pendiente menos.
+        $this->assertSame([$conEntrega->id => 2, $sinEntrega->id => 3], $enLote);
+        foreach ([$conEntrega, $sinEntrega] as $estudiante) {
+            $this->assertSame($progreso->resumenDashboardEstudiante($estudiante)['total_pendientes'], $enLote[$estudiante->id]);
+        }
+    }
+
+    public function test_con_facultades_los_estudiantes_se_listan_por_sede_y_facultad_y_aparte_los_virtuales(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $sede = Sede::factory()->create();
+        $facultad = Facultad::factory()->create(['sede_id' => $sede->id]);
+        $presencial = Curso::factory()->create(['modalidad' => 'presencial', 'sede_id' => $sede->id, 'facultad_id' => $facultad->id]);
+        $virtual = Curso::factory()->create(['modalidad' => 'virtual', 'facultad_id' => $facultad->id]);
+        foreach (['Alumna Presencial' => $presencial, 'Alumno Virtual' => $virtual, 'Alumno Sin Matricula' => null] as $nombre => $curso) {
+            $estudiante = User::factory()->create(['name' => $nombre])->assignRole(Rol::Estudiante->value);
+            if ($curso) {
+                Inscripcion::factory()->create(['curso_id' => $curso->id, 'estudiante_id' => $estudiante->id]);
+            }
+        }
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->assertSee('Elige la sede y la facultad')
+            ->assertDontSee('Alumna Presencial')
+            ->set('sedeUbicacion', (string) $sede->id)->set('facultadUbicacion', (string) $facultad->id)
+            ->assertSee('Alumna Presencial')
+            ->assertDontSee('Alumno Virtual')
+            ->call('verVistaUbicacion', 'virtual')
+            ->assertSee('Alumno Virtual')
+            ->assertDontSee('Alumna Presencial')
+            ->call('verVistaUbicacion', 'sin_cursos')
+            ->assertSee('Alumno Sin Matricula')
+            ->assertDontSee('Alumno Virtual');
+    }
+
+    public function test_el_estudiante_aparece_por_su_sede_propia_y_por_cada_sede_donde_cursa(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        [$olivos, $comas] = Sede::factory()->count(2)->create()->all();
+        $ingOlivos = Facultad::factory()->create(['sede_id' => $olivos->id]);
+        $saludComas = Facultad::factory()->create(['sede_id' => $comas->id]);
+        $cursoComas = Curso::factory()->create(['modalidad' => 'presencial', 'sede_id' => $comas->id, 'facultad_id' => $saludComas->id]);
+        // Su sede propia es Los Olivos, pero también lleva un curso en Comas.
+        $viajera = User::factory()->create(['name' => 'Alumna Dos Sedes', 'sede_id' => $olivos->id, 'facultad_id' => $ingOlivos->id])->assignRole(Rol::Estudiante->value);
+        Inscripcion::factory()->create(['curso_id' => $cursoComas->id, 'estudiante_id' => $viajera->id]);
+
+        Livewire::actingAs($admin)->test(Index::class)
+            ->set('sedeUbicacion', (string) $olivos->id)->set('facultadUbicacion', (string) $ingOlivos->id)
+            ->assertSee('Alumna Dos Sedes')
+            ->set('sedeUbicacion', (string) $comas->id)->set('facultadUbicacion', (string) $saludComas->id)
+            ->assertSee('Alumna Dos Sedes');
+    }
+
+    public function test_al_crear_un_estudiante_con_facultades_se_eligen_su_sede_y_facultad(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $sede = Sede::factory()->create();
+        $facultad = Facultad::factory()->create(['sede_id' => $sede->id]);
+        $deOtraSede = Facultad::factory()->create();
+
+        $formulario = Livewire::actingAs($admin)->test(Index::class)
+            ->call('abrirCrear')
+            ->set('nuevoNombres', 'Lucía')->set('nuevoApellidos', 'Ramos Díaz')->set('nuevoDni', '45678912')->set('nuevoEmail', 'lucia.ramos@example.com')
+            ->call('crearUsuario')
+            ->assertHasErrors(['nuevoSedeId' => 'required', 'nuevoFacultadId' => 'required'])
+            ->set('nuevoSedeId', (string) $sede->id)->set('nuevoFacultadId', (string) $deOtraSede->id)
+            ->call('crearUsuario')
+            ->assertHasErrors(['nuevoFacultadId' => 'exists']);
+
+        $formulario->set('nuevoFacultadId', (string) $facultad->id)->call('crearUsuario')->assertHasNoErrors();
+
+        $estudiante = User::where('email', 'lucia.ramos@example.com')->sole();
+        $this->assertSame([$sede->id, $facultad->id], [$estudiante->sede_id, $estudiante->facultad_id]);
     }
 
     public function test_la_ficha_de_estudiante_distingue_curso_finalizado_de_dado_de_baja(): void

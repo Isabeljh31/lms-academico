@@ -15,8 +15,8 @@
 @endphp
 
 <x-gestion.pagina>
-    <x-gestion.encabezado titulo="Sedes y salones" icono="base-datos"
-        descripcion="Catálogo de sedes, tipos de salón y salones que se usan para reprogramar clases." />
+    <x-gestion.encabezado titulo="Sedes, salones y facultades" icono="base-datos"
+        descripcion="Catálogo de sedes, facultades, tipos de salón y salones. Cada curso presencial se asigna a una sede (y facultad) y sus clases usan estos salones." />
 
     <x-gestion.alertas />
 
@@ -84,7 +84,7 @@
             @endif
         </x-gestion.tarjeta>
     @elseif ($pestana === 'sedes')
-        <x-gestion.tarjeta titulo="Sedes" descripcion="Una sede con salones o cursos no se borra: se desactiva." :relleno="false">
+        <x-gestion.tarjeta titulo="Sedes" descripcion="Una sede con salones, facultades o cursos no se borra: se desactiva." :relleno="false">
             <x-slot:acciones>
                 <x-gestion.boton icono="mas" tamano="sm" wire:click="nuevo('sede')">Nueva sede</x-gestion.boton>
             </x-slot:acciones>
@@ -99,6 +99,7 @@
                                 <th class="{{ $th }}">Código</th>
                                 <th class="{{ $th }}">Nombre</th>
                                 <th class="{{ $th }}">Salones</th>
+                                <th class="{{ $th }}">Facultades</th>
                                 <th class="{{ $th }}">Cursos</th>
                                 <th class="{{ $th }}">Estado</th>
                                 <th class="{{ $th }} text-right">Acciones</th>
@@ -110,6 +111,7 @@
                                     <td class="{{ $td }} font-mono">{{ $sede->codigo }}</td>
                                     <td class="{{ $td }}">{{ $sede->nombre }}</td>
                                     <td class="{{ $tdTenue }}">{{ $sede->salones_count }}</td>
+                                    <td class="{{ $tdTenue }}">{{ $sede->facultades_count }}</td>
                                     <td class="{{ $tdTenue }}">{{ $sede->cursos_count }}</td>
                                     <td class="px-4 py-2"><span class="{{ $pildora }} {{ $sede->activa ? $pildoraActiva : $pildoraInactiva }}">{{ $sede->activa ? 'Activa' : 'Inactiva' }}</span></td>
                                     <td class="px-4 py-2">
@@ -118,6 +120,55 @@
                                             <x-gestion.boton variante="fantasma" tamano="sm" wire:click="alternarActivo('sede', {{ $sede->id }})">{{ $sede->activa ? 'Desactivar' : 'Activar' }}</x-gestion.boton>
                                             <x-gestion.boton variante="fantasma-peligro" tamano="sm" icono="papelera" wire:click="eliminar('sede', {{ $sede->id }})"
                                                 wire:confirm="¿Borrar la sede {{ $sede->nombre }}?">Borrar</x-gestion.boton>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </x-gestion.tarjeta>
+    @elseif ($pestana === 'facultades')
+        <x-gestion.tarjeta titulo="Facultades" descripcion="Cada facultad pertenece a una sede. Una facultad con cursos no se borra: se desactiva." :relleno="false">
+            <x-slot:acciones>
+                <x-gestion.boton icono="mas" tamano="sm" wire:click="nuevo('facultad')">Nueva facultad</x-gestion.boton>
+            </x-slot:acciones>
+
+            <div class="border-b border-arena-medio p-4 dark:border-stone-700 sm:max-w-sm">
+                <x-gestion.desplegable id="filtro-sede-facultad" etiqueta="Sede" wire:model.live="filtroSede" :seleccionado="$filtroSede"
+                    :opciones="['' => 'Todas las sedes'] + $opcionesSede" />
+            </div>
+
+            @if ($facultades->isEmpty())
+                <div class="p-4"><x-gestion.vacio icono="base-datos" titulo="Aún no hay facultades" descripcion="Registra las facultades de cada sede para asignarlas a los cursos." /></div>
+            @else
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[640px] text-sm">
+                        <thead class="{{ $cabecera }}">
+                            <tr>
+                                <th class="{{ $th }}">Código</th>
+                                <th class="{{ $th }}">Nombre</th>
+                                <th class="{{ $th }}">Sede</th>
+                                <th class="{{ $th }}">Cursos</th>
+                                <th class="{{ $th }}">Estado</th>
+                                <th class="{{ $th }} text-right">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody class="{{ $cuerpo }}">
+                            @foreach ($facultades as $facultad)
+                                <tr wire:key="facultad-{{ $facultad->id }}">
+                                    <td class="{{ $td }} font-mono">{{ $facultad->codigo }}</td>
+                                    <td class="{{ $td }}">{{ $facultad->nombre }}</td>
+                                    <td class="{{ $tdTenue }}">{{ $facultad->sede->nombre }}</td>
+                                    <td class="{{ $tdTenue }}">{{ $facultad->cursos_count }}</td>
+                                    <td class="px-4 py-2"><span class="{{ $pildora }} {{ $facultad->activa ? $pildoraActiva : $pildoraInactiva }}">{{ $facultad->activa ? 'Activa' : 'Inactiva' }}</span></td>
+                                    <td class="px-4 py-2">
+                                        <div class="flex justify-end gap-1">
+                                            <x-gestion.boton variante="fantasma" tamano="sm" icono="lapiz" wire:click="editar('facultad', {{ $facultad->id }})" aria-label="Editar {{ $facultad->nombre }}">Editar</x-gestion.boton>
+                                            <x-gestion.boton variante="fantasma" tamano="sm" wire:click="alternarActivo('facultad', {{ $facultad->id }})">{{ $facultad->activa ? 'Desactivar' : 'Activar' }}</x-gestion.boton>
+                                            <x-gestion.boton variante="fantasma-peligro" tamano="sm" icono="papelera" wire:click="eliminar('facultad', {{ $facultad->id }})"
+                                                wire:confirm="¿Borrar la facultad {{ $facultad->nombre }}?">Borrar</x-gestion.boton>
                                         </div>
                                     </td>
                                 </tr>
@@ -246,6 +297,17 @@
                     </x-gestion.campo>
                     <x-gestion.campo etiqueta="Código corto" nombre="sedeCodigo" requerido ayuda="Hasta 10 caracteres, p. ej. LO.">
                         <x-gestion.control id="sedeCodigo" wire:model="sedeCodigo" maxlength="10" />
+                    </x-gestion.campo>
+                @elseif ($formulario === 'facultad')
+                    <div>
+                        <x-gestion.desplegable id="facultadSedeId" etiqueta="Sede" wire:model="facultadSedeId" :seleccionado="$facultadSedeId" :opciones="$opcionesSede" placeholder="Elige la sede" />
+                        @error('facultadSedeId') <p class="mt-1 text-xs text-red-700 dark:text-red-300">{{ $message }}</p> @enderror
+                    </div>
+                    <x-gestion.campo etiqueta="Nombre" nombre="facultadNombre" requerido>
+                        <x-gestion.control id="facultadNombre" wire:model="facultadNombre" maxlength="120" placeholder="Facultad de Ingeniería" />
+                    </x-gestion.campo>
+                    <x-gestion.campo etiqueta="Código corto" nombre="facultadCodigo" requerido ayuda="Único, hasta 15 caracteres, p. ej. FI-LO.">
+                        <x-gestion.control id="facultadCodigo" wire:model="facultadCodigo" maxlength="15" />
                     </x-gestion.campo>
                 @elseif ($formulario === 'tipo')
                     <x-gestion.campo etiqueta="Nombre" nombre="tipoNombre" requerido>

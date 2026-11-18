@@ -245,6 +245,39 @@ class ReprogramacionProfesorTest extends TestCase
         $this->assertSame('2026-11-23 18:00', $sinSalon->fresh()->fecha->format('Y-m-d H:i'));
     }
 
+    public function test_sin_salon_pero_con_sede_del_curso_ofrece_solo_horas_y_salones_libres_de_esa_sede(): void
+    {
+        $this->curso->update(['sede_id' => $this->actual->sede_id]);
+        $antigua = $this->clase($this->curso, '2026-11-23 18:00', 'Aula: 204');
+        // Sin salón original no hay tipo que respetar: entra un salón de otro tipo de la misma sede, no uno de otra sede.
+        $otroTipo = Salon::factory()->create(['codigo' => 'LAB-1', 'sede_id' => $this->actual->sede_id]);
+        Salon::factory()->create(['codigo' => 'OTRA-SEDE', 'tipo_salon_id' => $this->actual->tipo_salon_id]);
+        $ajeno = Curso::factory()->create(['profesor_id' => $this->usuarioConRol('profesor')->id]);
+        foreach ([$this->actual, $this->libre, $otroTipo] as $salon) {
+            $this->clase($ajeno, self::DIA.' 14:00', null, $salon, 60);
+        }
+
+        Livewire::actingAs($this->escenario['profesor'])->test(SolicitudCambio::class, ['curso' => $this->curso])
+            ->dispatch('abrir-solicitud-cambio', sesion: $antigua->id)
+            ->assertDontSee(SolicitudCambio::AVISO_SIN_SALON)
+            ->set('fechaPropuesta', self::DIA)
+            // A las 14:00 todos los salones de la sede están ocupados: esa hora no se ofrece.
+            ->assertViewHas('horas', fn (array $horas) => collect($horas)->firstWhere('hora', '14:00')['disponible'] === false
+                && collect($horas)->firstWhere('hora', '10:00')['disponible'] === true)
+            ->set('horaPropuesta', '10:00')
+            ->assertViewHas('salonesLibres', fn ($salones) => $salones->pluck('codigo')->all() === ['A-201', 'B-208', 'LAB-1'])
+            ->assertSee('de la sede del curso, con capacidad suficiente')
+            ->set('salonId', (string) $this->libre->id)
+            ->set('motivo', 'institucional')->set('detalle', self::DETALLE)
+            ->call('enviar')
+            ->assertHasNoErrors()
+            ->assertSee('Clase reprogramada');
+
+        $antigua->refresh();
+        $this->assertSame(self::DIA.' 10:00', $antigua->fecha->format('Y-m-d H:i'));
+        $this->assertSame($this->libre->id, $antigua->salon_id);
+    }
+
     public function test_ver_reprogramacion_muestra_lo_pedido_y_se_responde_el_sustento_una_vez_con_archivo(): void
     {
         Notification::fake();

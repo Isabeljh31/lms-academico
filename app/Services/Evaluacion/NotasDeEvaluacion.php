@@ -27,6 +27,8 @@ class NotasDeEvaluacion
             ->whereIn('estudiante_id', $estudianteIds)->get()->groupBy('estudiante_id');
         $automaticos = new Collection($rubros->filter->esAutomatico()->all());
         $automaticos->loadMissing(['tareas', 'quizzes']);
+        // La semana de cada tarea decide si el alumno la ve (notaDeTarea): se carga de una vez.
+        (new Collection($automaticos->flatMap->tareas->all()))->loadMissing('modulo');
 
         $entregas = $automaticos->isEmpty() ? collect() : Entrega::whereIn('tarea_id', $automaticos->flatMap->tareas->pluck('id')->unique())
             ->whereIn('estudiante_id', $estudianteIds)->get()

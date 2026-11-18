@@ -1,9 +1,10 @@
 @use('App\Services\Reportes\PanelProfesor')
 @php
     // Estilos del Panel del Profesor (mockup "Panel"), con los tokens de la paleta LearnUp.
-    $tarjeta = 'rounded-2xl border border-celeste bg-white shadow-sm';
-    $tituloSeccion = 'flex items-center gap-2.5 text-lg font-bold text-texto';
-    $iconoSeccion = 'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg';
+    $tarjeta = 'rounded-2xl border border-celeste bg-white';
+    // Títulos de sección en serif (tema del Profesor), sin el ícono de color.
+    $tituloSeccion = 'flex items-center gap-2.5 text-[26px] leading-tight text-texto';
+    $iconoSeccion = 'hidden';
     $eyebrow = 'text-xs font-semibold uppercase tracking-wide text-slate-500';
     $pastilla = 'inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold';
     $enfoque = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cielo focus-visible:ring-offset-2';
@@ -21,77 +22,69 @@
     $plural = fn (int $n, string $uno, string $varios) => $n === 1 ? "1 {$uno}" : "{$n} {$varios}";
     $nota = fn (?float $valor) => $valor === null ? null : number_format($valor, 1, ',', '');
     $hoy = now()->locale('es')->isoFormat('dddd D [de] MMMM');
-    $iconoProxima = [
-        'tarea' => 'bg-cielo-claro text-azul-fondo',
-        'quiz' => 'bg-cielo-claro text-azul-fondo',
-        'calendario' => 'bg-celeste text-azul-oscuro',
-        'check-circulo' => 'bg-amber-100 text-amber-800',
-    ];
     $tiposProximos = ['todo' => 'Todo', 'cierre' => 'Cierres', 'contenido' => 'Contenido por subir', 'evaluacion' => 'Evaluaciones'];
 @endphp
 
 <div class="flex flex-col gap-5">
-    {{-- Franja de bienvenida: saludo e indicadores en un solo bloque con el degradado de marca (imperial → persian → ocean). --}}
-    <section aria-label="Resumen" class="relative overflow-hidden rounded-2xl bg-gradient-to-br from-imperial via-azul-oscuro to-azul-fondo px-5 py-5 text-white shadow-lg shadow-azul-oscuro/20 sm:px-6">
-        <span class="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-cielo/30 blur-3xl" aria-hidden="true"></span>
-        <span class="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-lavanda-fondo/20 blur-3xl" aria-hidden="true"></span>
-
-        <header class="relative flex flex-wrap items-center justify-between gap-3">
+    {{-- Bienvenida: fecha en rótulo, saludo en serif (el nombre en cursiva) e indicadores. --}}
+    <section aria-label="Resumen" class="rounded-2xl border border-celeste bg-white px-5 py-6 sm:px-8 sm:py-7">
+        <header class="flex flex-wrap items-start justify-between gap-3">
             <div class="min-w-0">
-                <h1 class="break-words text-2xl font-bold leading-tight tracking-tight sm:text-[1.75rem]">Hola, {{ $profesor->name }}</h1>
-                <p class="mt-1 text-sm text-white/75">{{ mb_strtoupper(mb_substr($hoy, 0, 1)).mb_substr($hoy, 1) }}. Resumen de tus cursos y pendientes.</p>
+                <p class="rotulo text-[var(--muted)]">{{ $hoy }}</p>
+                {{-- El saludo se calcula en el navegador (hora local del profesor); el servidor envía "Hola". --}}
+                <h1 class="mt-2 break-words text-[40px] text-texto sm:text-[52px]">
+                    <span x-data="{ saludo: 'Hola' }"
+                        x-init="const hora = new Date().getHours(); saludo = hora >= 5 && hora < 12 ? 'Buenos días' : (hora >= 12 && hora < 19 ? 'Buenas tardes' : 'Buenas noches')"
+                        x-text="saludo">Hola</span>, <em>{{ \Illuminate\Support\Str::of((string) $profesor->name)->trim()->before(' ')->value() ?: $profesor->name }}</em>.
+                </h1>
+                <p class="mt-3 text-[15px] text-[var(--muted)]">Resumen de tus cursos y pendientes.</p>
             </div>
-            <span class="{{ $pastilla }} bg-white/15 px-3 py-1 text-[13px] text-white ring-1 ring-white/25">Rol: Profesor</span>
+            <span class="rotulo rounded-full bg-fondo px-3 py-1 text-[var(--p700)]">Rol: Profesor</span>
         </header>
 
         {{-- Indicadores --}}
-        <div aria-label="Indicadores" role="group" class="relative mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+        <div aria-label="Indicadores" role="group" class="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
             @php
                 $indicadores = [
-                    ['etiqueta' => 'Cursos a cargo', 'valor' => $indicadores['cursos'], 'detalle' => null, 'icono' => 'libro', 'tono' => 'bg-white/20 text-white',
+                    ['etiqueta' => 'Cursos a cargo', 'valor' => $indicadores['cursos'], 'detalle' => null,
                         'ruta' => route('cursos.index'), 'aria' => 'Cursos a cargo: '.$indicadores['cursos'].'. Ver mis cursos'],
-                    ['etiqueta' => 'Estudiantes', 'valor' => $indicadores['estudiantes'], 'detalle' => null, 'icono' => 'usuarios', 'tono' => 'bg-lavanda-fondo text-lavanda-oscuro'],
-                    ['etiqueta' => 'Por calificar', 'valor' => $indicadores['porCalificar'], 'detalle' => 'entregas', 'icono' => 'check-circulo', 'tono' => 'bg-amber-300 text-imperial', 'ayuda' => 'Cada grupo cuenta como 1.'],
-                    ['etiqueta' => 'Quizzes activos', 'valor' => $indicadores['quizzesActivos'], 'detalle' => null, 'icono' => 'quiz', 'tono' => 'bg-cielo text-imperial'],
-                    ['etiqueta' => 'Promedio a la fecha', 'valor' => $nota($indicadores['promedio']) ?? 'Sin notas', 'detalle' => $indicadores['promedio'] !== null ? 'sobre 20' : null, 'icono' => 'grafico', 'tono' => 'bg-verde-fondo text-exito-oscuro'],
+                    ['etiqueta' => 'Estudiantes', 'valor' => $indicadores['estudiantes'], 'detalle' => null],
+                    ['etiqueta' => 'Por calificar', 'valor' => $indicadores['porCalificar'], 'detalle' => 'entregas', 'ayuda' => 'Cada grupo cuenta como 1.'],
+                    ['etiqueta' => 'Quizzes activos', 'valor' => $indicadores['quizzesActivos'], 'detalle' => null],
+                    ['etiqueta' => 'Promedio a la fecha', 'valor' => $nota($indicadores['promedio']) ?? 'Sin notas', 'detalle' => $indicadores['promedio'] !== null ? 'sobre 20' : null],
                 ];
             @endphp
             @foreach ($indicadores as $indice => $indicador)
                 @php
-                    $celda = 'relative flex h-full min-w-0 items-center gap-3 rounded-xl bg-white/10 px-3.5 py-3 ring-1 ring-white/15 backdrop-blur-sm '.($indice === 4 ? 'col-span-2 sm:col-span-1' : '');
+                    $celda = 'relative flex h-full min-w-0 flex-col justify-between gap-2 rounded-xl border border-celeste bg-fondo/60 px-4 py-3.5 '.($indice === 4 ? 'col-span-2 sm:col-span-1' : '');
                     $esEnlace = isset($indicador['ruta']);
                 @endphp
                 @if ($esEnlace)
                     <a href="{{ $indicador['ruta'] }}" wire:navigate wire:key="indicador-{{ $indice }}" aria-label="{{ $indicador['aria'] }}"
-                        class="{{ $celda }} group transition hover:bg-white/20 motion-reduce:transition-none focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cielo">
+                        class="{{ $celda }} group transition hover:border-texto/30 hover:bg-fondo motion-reduce:transition-none {{ $enfoque }}">
                 @else
                     <div class="{{ $celda }}" wire:key="indicador-{{ $indice }}">
                 @endif
-                    <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg {{ $indicador['tono'] }}">
-                        <x-icono :nombre="$indicador['icono']" class="h-[18px] w-[18px]" />
-                    </span>
-                    <div class="min-w-0 flex-1">
-                        <p class="flex items-center gap-1 text-[11px] font-semibold uppercase leading-tight tracking-wide text-white/70">
-                            <span>{{ $indicador['etiqueta'] }}</span>
-                            @isset($indicador['ayuda'])
-                                {{-- Ayuda: aparece al pasar el mouse y al enfocar con el teclado; el texto se anuncia con aria-describedby. --}}
-                                <span class="group/ayuda relative inline-flex">
-                                    <button type="button" aria-label="Más información sobre {{ $indicador['etiqueta'] }}" aria-describedby="ayuda-indicador-{{ $indice }}"
-                                        class="relative inline-flex h-4 w-4 items-center justify-center rounded-full text-white/60 transition hover:text-white after:absolute after:-inset-3 after:content-[''] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cielo">
-                                        <x-icono nombre="info" class="h-3.5 w-3.5" />
-                                    </button>
-                                    <span id="ayuda-indicador-{{ $indice }}" role="tooltip"
-                                        class="pointer-events-none invisible absolute left-0 top-full z-20 mt-1.5 w-40 rounded-lg bg-texto px-2.5 py-1.5 text-xs font-medium normal-case tracking-normal text-white opacity-0 shadow-lg transition group-focus-within/ayuda:visible group-focus-within/ayuda:opacity-100 group-hover/ayuda:visible group-hover/ayuda:opacity-100 motion-reduce:transition-none sm:left-auto sm:right-0">{{ $indicador['ayuda'] }}</span>
-                                </span>
-                            @endisset
-                        </p>
-                        <p class="flex flex-wrap items-baseline gap-x-1.5">
-                            <span class="{{ is_string($indicador['valor']) && ! is_numeric(str_replace(',', '.', $indicador['valor'])) ? 'text-lg' : 'text-2xl' }} font-bold leading-tight text-white">{{ $indicador['valor'] }}</span>
-                            @if ($indicador['detalle'])
-                                <span class="text-xs text-white/65">{{ $indicador['detalle'] }}</span>
-                            @endif
-                        </p>
-                    </div>
+                    <p class="rotulo flex items-center gap-1 leading-tight text-[var(--muted)]">
+                        <span>{{ $indicador['etiqueta'] }}</span>
+                        @isset($indicador['ayuda'])
+                            {{-- Ayuda: aparece al pasar el mouse y al enfocar con el teclado; el texto se anuncia con aria-describedby. --}}
+                            <span class="group/ayuda relative inline-flex">
+                                <button type="button" aria-label="Más información sobre {{ $indicador['etiqueta'] }}" aria-describedby="ayuda-indicador-{{ $indice }}"
+                                    class="relative inline-flex h-4 w-4 items-center justify-center rounded-full text-[var(--muted)] transition hover:text-texto after:absolute after:-inset-3 after:content-[''] motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cielo">
+                                    <x-icono nombre="info" class="h-3.5 w-3.5" />
+                                </button>
+                                <span id="ayuda-indicador-{{ $indice }}" role="tooltip"
+                                    class="pointer-events-none invisible absolute left-0 top-full z-20 mt-1.5 w-40 rounded-lg bg-texto px-2.5 py-1.5 font-sans text-xs font-medium normal-case tracking-normal text-white opacity-0 shadow-lg transition group-focus-within/ayuda:visible group-focus-within/ayuda:opacity-100 group-hover/ayuda:visible group-hover/ayuda:opacity-100 motion-reduce:transition-none sm:left-auto sm:right-0">{{ $indicador['ayuda'] }}</span>
+                            </span>
+                        @endisset
+                    </p>
+                    <p class="flex flex-wrap items-baseline gap-x-1.5">
+                        <span class="font-serif {{ is_string($indicador['valor']) && ! is_numeric(str_replace(',', '.', $indicador['valor'])) ? 'text-2xl' : 'text-[38px]' }} leading-none text-texto">{{ $indicador['valor'] }}</span>
+                        @if ($indicador['detalle'])
+                            <span class="text-xs text-[var(--muted)]">{{ $indicador['detalle'] }}</span>
+                        @endif
+                    </p>
                 @if ($esEnlace)
                     </a>
                 @else
@@ -248,8 +241,10 @@
                     <ul>
                         @foreach ($proximas['filas'] as $item)
                             <li class="{{ $fila }} flex flex-wrap items-center gap-x-3.5 gap-y-2.5" wire:key="proxima-{{ $item['clave'] }}">
-                                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg {{ $iconoProxima[$item['icono']] ?? 'bg-celeste text-azul-oscuro' }}">
-                                    <x-icono :nombre="$item['icono']" class="h-[18px] w-[18px]" />
+                                {{-- Fecha grande: día en serif y día de la semana en rótulo. --}}
+                                <span class="w-10 shrink-0 text-center" aria-hidden="true">
+                                    <span class="block font-serif text-[30px] leading-none text-texto">{{ $item['fecha']->day }}</span>
+                                    <span class="rotulo mt-0.5 block text-[10px] text-[var(--muted)]">{{ $item['fecha']->locale('es')->isoFormat('ddd') }}</span>
                                 </span>
                                 <div class="min-w-0 max-w-prose flex-1 basis-48">
                                     <p class="truncate text-[11px] font-bold uppercase tracking-wide" style="color: {{ $colores[$item['curso_id']] ?? \App\Services\Calendario\ColoresCursos::NEUTRO }}">{{ $secciones->nombreVisible($item['curso_id']) }}</p>

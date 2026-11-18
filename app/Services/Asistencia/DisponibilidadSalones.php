@@ -18,9 +18,10 @@ use Illuminate\Support\Facades\DB;
  * (extensión fuera del ERS). Una reprogramación se aplica sola solo si
  * evaluar() no devuelve razones:
  *
- * - Presencial: la clase ya tiene salón (de él salen la sede y el tipo) y el
- *   salón elegido está activo, es de la misma sede y del mismo tipo, tiene
- *   capacidad para los matriculados activos y está libre.
+ * - Presencial: la clase tiene salón (de él salen la sede y el tipo) o, si no,
+ *   su curso tiene sede; el salón elegido está activo, es de esa sede (y del
+ *   mismo tipo, si la clase tenía salón), tiene capacidad para los
+ *   matriculados activos y está libre.
  * - Remota: no usa salón.
  * - Siempre: ningún docente del curso (titular o co-docente) tiene otra
  *   clase que se cruce, de cualquier curso; la clase original y la nueva
@@ -63,24 +64,36 @@ class DisponibilidadSalones
     }
 
     /**
+     * ¿Se puede elegir salón al reprogramar? Sí si la clase tiene salón o, si
+     * no lo tiene (clase antigua), si su curso tiene sede.
+     */
+    public function conSalones(SesionClase $sesion): bool
+    {
+        return $sesion->salon_id !== null || $sesion->curso->sede_id !== null;
+    }
+
+    /**
      * Salones a los que se puede mover la clase: activos, de una sede activa,
      * de la misma sede y tipo que su salón actual y con capacidad para los
-     * matriculados. Vacío si la clase no tiene salón.
+     * matriculados. Una clase sin salón cuyo curso tiene sede no tiene tipo
+     * original: vale cualquier tipo de la sede del curso. Vacío si no hay ni
+     * salón ni sede.
      *
      * @return Collection<int, Salon>
      */
     public function candidatos(SesionClase $sesion): Collection
     {
         $actual = $sesion->salon;
+        $sedeId = $actual?->sede_id ?? $sesion->curso->sede_id;
 
-        if ($actual === null) {
+        if ($sedeId === null) {
             return collect();
         }
 
         return Salon::query()
             ->activos()
-            ->where('sede_id', $actual->sede_id)
-            ->where('tipo_salon_id', $actual->tipo_salon_id)
+            ->where('sede_id', $sedeId)
+            ->when($actual !== null, fn ($consulta) => $consulta->where('tipo_salon_id', $actual->tipo_salon_id))
             ->where('capacidad', '>=', $this->matriculados($sesion->curso))
             ->whereHas('sede', fn ($consulta) => $consulta->where('activa', true))
             ->with('tipo:id,nombre')
@@ -209,8 +222,10 @@ class DisponibilidadSalones
 
         if ($presencial) {
             $actual = $sesion->salon;
+            // Sin salón actual, la sede es la del curso y no hay tipo que respetar.
+            $sedeId = $actual?->sede_id ?? $sesion->curso->sede_id;
 
-            if ($actual === null) {
+            if ($sedeId === null) {
                 $razones[] = 'La clase no tiene salón asignado.';
             } elseif ($salon === null) {
                 $razones[] = 'No se eligió un salón.';
@@ -220,8 +235,8 @@ class DisponibilidadSalones
 
                 array_push($razones, ...array_values(array_filter([
                     ! $salon->activo || ! $salon->sede?->activa ? 'El salón elegido no está activo.' : null,
-                    $salon->sede_id !== $actual->sede_id ? 'El salón elegido es de otra sede.' : null,
-                    $salon->tipo_salon_id !== $actual->tipo_salon_id ? 'El salón elegido es de otro tipo.' : null,
+                    $salon->sede_id !== $sedeId ? 'El salón elegido es de otra sede.' : null,
+                    $actual !== null && $salon->tipo_salon_id !== $actual->tipo_salon_id ? 'El salón elegido es de otro tipo.' : null,
                     $salon->capacidad < $matriculados ? "El salón elegido no tiene capacidad para {$matriculados} matriculados." : null,
                 ])));
             }

@@ -19,6 +19,7 @@ use App\Services\Multimedia\SubidorArchivos;
 use App\Services\Reportes\AsistenciaProfesor;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -161,6 +162,7 @@ class SolicitudesCambioClase
             $solicitud = $this->bloquearPendiente($solicitud);
             $solicitud->update(['estado' => 'cancelada']);
             $this->registrar($profesor, $solicitud, 'Reprogramación cancelada', ['estado' => 'pendiente'], ['estado' => 'cancelada']);
+            $this->cerrarAvisosDeSupervisores($solicitud);
 
             return $solicitud;
         });
@@ -228,9 +230,25 @@ class SolicitudesCambioClase
 
             $solicitud->solicitante?->notify(new SolicitudCambioClaseResuelta($solicitud));
             Notification::send($this->estudiantesActivos($sesion->curso), new ClaseReprogramada($solicitud));
+            $this->cerrarAvisosDeSupervisores($solicitud);
 
             return $solicitud;
         });
+    }
+
+    /**
+     * Una vez decidida (o cancelada), la solicitud ya no espera a nadie: los
+     * avisos pendientes de los Supervisores sobre ella («en revisión»,
+     * «sustento recibido») se marcan como leídos, así la campana no sigue en rojo.
+     */
+    protected function cerrarAvisosDeSupervisores(SolicitudCambioClase $solicitud): void
+    {
+        DatabaseNotification::query()
+            ->whereIn('type', [SolicitudCambioClaseRecibida::class, ReprogramacionSustentoRespondido::class])
+            ->whereNull('read_at')
+            ->get()
+            ->filter(fn (DatabaseNotification $aviso) => (int) ($aviso->data['solicitud_id'] ?? 0) === $solicitud->id)
+            ->each->markAsRead();
     }
 
     /** El Supervisor rechaza con un comentario obligatorio; la clase no cambia. */
@@ -255,6 +273,7 @@ class SolicitudesCambioClase
 
             $this->registrar($supervisor, $solicitud, 'Reprogramación rechazada', ['estado' => 'pendiente'], ['estado' => 'rechazada'], $validos['comentario']);
             $solicitud->solicitante?->notify(new SolicitudCambioClaseResuelta($solicitud));
+            $this->cerrarAvisosDeSupervisores($solicitud);
 
             return $solicitud;
         });

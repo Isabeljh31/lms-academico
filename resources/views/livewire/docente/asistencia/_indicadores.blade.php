@@ -14,12 +14,12 @@
         <dt class="{{ $etiqueta }}">Asistencia del curso</dt>
         <dd class="mt-2 flex items-baseline gap-2">
             <span class="{{ $cifra }}">{{ AsistenciaProfesor::porcentajeTexto($promedio) }}</span>
-            @if ($promedio !== null)<span class="text-[14px] font-semibold text-[#5b706c]">promedio</span>@endif
+            @if ($promedio !== null)<span class="text-[14px] font-semibold text-[#6B6559]">promedio</span>@endif
         </dd>
-        <dd class="mt-3 h-1.5 overflow-hidden rounded-[3px] bg-[#e1ebe8]" role="progressbar" aria-label="Asistencia promedio del curso" aria-valuenow="{{ (int) round($promedio ?? 0) }}" aria-valuemin="0" aria-valuemax="100">
+        <dd class="mt-3 h-1.5 overflow-hidden rounded-[3px] bg-[#ECE6DA]" role="progressbar" aria-label="Asistencia promedio del curso" aria-valuenow="{{ (int) round($promedio ?? 0) }}" aria-valuemin="0" aria-valuemax="100">
             <span class="block h-full rounded-[3px] bg-[var(--p700)]" style="width: {{ min(100, $promedio ?? 0) }}%"></span>
         </dd>
-        <dd class="mt-2 text-[13px] text-[#4b625e]">
+        <dd class="mt-2 text-[13px] text-[#57524A]">
             {{ $resumen['pasadas'] === 0 ? 'Aún no hay clases realizadas' : ($resumen['realizadas'] === 1 ? '1 clase con lista pasada' : $resumen['realizadas'].' clases con lista pasada') }}
         </dd>
     </div>
@@ -28,12 +28,12 @@
         <dt class="{{ $etiqueta }}">Clases realizadas</dt>
         <dd class="mt-2 flex items-baseline gap-2">
             <span class="{{ $cifra }}">{{ $resumen['realizadas'] }}</span>
-            <span class="text-[14px] font-semibold text-[#5b706c]">de {{ $totalClases }}</span>
+            <span class="text-[14px] font-semibold text-[#6B6559]">de {{ $totalClases }}</span>
         </dd>
-        <dd class="mt-3 h-1.5 overflow-hidden rounded-[3px] bg-[#e1ebe8]" role="progressbar" aria-label="Clases realizadas" aria-valuenow="{{ $resumen['realizadas'] }}" aria-valuemin="0" aria-valuemax="{{ max(1, $totalClases) }}">
+        <dd class="mt-3 h-1.5 overflow-hidden rounded-[3px] bg-[#ECE6DA]" role="progressbar" aria-label="Clases realizadas" aria-valuenow="{{ $resumen['realizadas'] }}" aria-valuemin="0" aria-valuemax="{{ max(1, $totalClases) }}">
             <span class="block h-full rounded-[3px] bg-[var(--p700)]" style="width: {{ $totalClases > 0 ? round($resumen['realizadas'] * 100 / $totalClases) : 0 }}%"></span>
         </dd>
-        <dd class="mt-2 truncate text-[13px] text-[#4b625e]">
+        <dd class="mt-2 truncate text-[13px] text-[#57524A]">
             @if ($proxima)
                 Próxima: {{ DetalleCursoProfesor::fechaCorta($proxima['sesion']->fecha) }} · {{ $proxima['sesion']->fecha->format('H:i') }}
             @else
@@ -46,7 +46,7 @@
         <dt class="{{ $etiqueta }} {{ $sinLista->isNotEmpty() ? '!text-[var(--warn800)]' : '' }}">Sin pasar lista</dt>
         <dd class="mt-2 flex items-baseline gap-2">
             <span class="{{ $cifra }} {{ $sinLista->isNotEmpty() ? '!text-[var(--warn800)]' : '' }}">{{ $sinLista->count() }}</span>
-            <span class="text-[14px] font-semibold {{ $sinLista->isNotEmpty() ? 'text-[var(--warn800)]' : 'text-[#5b706c]' }}">{{ $sinLista->count() === 1 ? 'clase' : 'clases' }}</span>
+            <span class="text-[14px] font-semibold {{ $sinLista->isNotEmpty() ? 'text-[var(--warn800)]' : 'text-[#6B6559]' }}">{{ $sinLista->count() === 1 ? 'clase' : 'clases' }}</span>
         </dd>
         @if ($primeraSinLista)
             <dd class="mt-2 truncate text-[13px] text-[var(--warn800)]" title="{{ $primeraSinLista['sesion']->titulo }}">
@@ -60,7 +60,7 @@
                 </dd>
             @endif
         @else
-            <dd class="mt-2 text-[13px] text-[#4b625e]">Todas las clases pasadas tienen lista.</dd>
+            <dd class="mt-2 text-[13px] text-[#57524A]">Todas las clases pasadas tienen lista.</dd>
         @endif
     </div>
 
@@ -70,7 +70,7 @@
             <span class="{{ $cifra }}">{{ $resumen['niveles']['riesgo'] }}</span>
             <span class="rounded-full bg-[var(--err100)] px-2 py-0.5 text-[12px] font-bold text-[var(--err700)]">&lt; {{ AsistenciaProfesor::UMBRAL_RIESGO }} %</span>
         </dd>
-        <dd class="mt-2 text-[13px] text-[#4b625e]">
+        <dd class="mt-2 text-[13px] text-[#57524A]">
             @php $atencion = $resumen['niveles']['atencion']; @endphp
             {{ $atencion === 0 ? 'Nadie más en atención' : ($atencion === 1 ? '1 más con asistencia en atención' : $atencion.' más con asistencia en atención') }}
         </dd>

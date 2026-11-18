@@ -54,6 +54,9 @@ class SolicitudCambio extends Component
 
     public const SIN_SALONES_LIBRES = 'No hay salones libres de la misma sede, del mismo tipo y con capacidad suficiente a esa hora. Elige otra hora u otra fecha.';
 
+    /** Clase sin salón cuyo curso tiene sede: se ofrecen los salones de esa sede. */
+    public const SIN_SALONES_LIBRES_SEDE = 'No hay salones libres de la sede del curso con capacidad suficiente a esa hora. Elige otra hora u otra fecha.';
+
     public Curso $curso;
 
     #[Locked]
@@ -137,7 +140,7 @@ class SolicitudCambio extends Component
         $clase = $this->clase();
         $reprogramar = $this->tipo === 'reprogramar';
         $presencial = $reprogramar && $this->esPresencial($clase);
-        $conSalon = $presencial && $clase->salon_id !== null;
+        $conSalon = $presencial && app(DisponibilidadSalones::class)->conSalones($clase);
 
         $this->validate([
             'fechaPropuesta' => $reprogramar ? ['required', 'date_format:Y-m-d'] : ['nullable'],
@@ -220,8 +223,9 @@ class SolicitudCambio extends Component
 
     /**
      * Horas del día elegido (cada 30 min, 07:00–22:00, sin domingos) con su
-     * disponibilidad, y salones libres de la hora elegida. Sin salón actual,
-     * la disponibilidad solo mira a los docentes y no hay lista de salones.
+     * disponibilidad, y salones libres de la hora elegida. Sin salón actual ni
+     * sede del curso, la disponibilidad solo mira a los docentes y no hay
+     * lista de salones.
      *
      * @return array{horas: list<array{hora: string, disponible: bool}>, salones: Collection<int, Salon>, domingo: bool}
      */
@@ -239,7 +243,7 @@ class SolicitudCambio extends Component
             return $vacio;
         }
 
-        $conSalon = $presencial && $clase->salon_id !== null;
+        $conSalon = $presencial && $disponibilidad->conSalones($clase);
         $horas = $disponibilidad->horas($clase, $dia, $conSalon);
         $salones = collect();
 
@@ -267,7 +271,9 @@ class SolicitudCambio extends Component
             'clase' => $clase,
             'solicitud' => $solicitud,
             'presencial' => $presencial,
-            'sinSalon' => $presencial && $clase?->salon_id === null,
+            // Sin salón ni sede del curso: no hay salones que ofrecer y la propuesta va a revisión.
+            'sinSalon' => $presencial && $clase !== null && ! $disponibilidad->conSalones($clase),
+            'salonDeLaClase' => $clase?->salon !== null,
             'horas' => $formulario['horas'],
             'salonesLibres' => $formulario['salones'],
             'esDomingo' => $formulario['domingo'],

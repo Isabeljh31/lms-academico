@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Livewire\Admin\SedesSalones\Index;
 use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
+use App\Models\Facultad;
 use App\Models\Salon;
 use App\Models\Sede;
 use App\Models\SesionClase;
@@ -51,7 +52,7 @@ class SedesSalonesSupervisorTest extends TestCase
         $this->actingAs($this->usuarioConRol('estudiante'))->get(route('admin.sedes-salones.index'))->assertForbidden();
         $this->expectsAuthorization(fn () => app(AsignacionSalones::class)->asignar($this->usuarioConRol('profesor'), Curso::factory()->create()));
 
-        $this->actingAs($this->supervisor)->get(route('admin.sedes-salones.index'))->assertOk()->assertSee('Sedes y salones');
+        $this->actingAs($this->supervisor)->get(route('admin.sedes-salones.index'))->assertOk()->assertSee('Sedes, salones y facultades');
 
         $html = Livewire::actingAs($this->supervisor)->test(Index::class)->call('nuevo', 'salon')->html();
         foreach (['var(--p900)', 'var(--p700)', 'var(--mint)', '#093B3B', 'tema-profesor', '<select'] as $marcaAjena) {
@@ -93,6 +94,31 @@ class SedesSalonesSupervisorTest extends TestCase
         ], BitacoraAuditoria::where('tipo_evento', 'catalogo_salones')->orderBy('id')->pluck('descripcion')->all());
     }
 
+    public function test_las_facultades_se_registran_por_sede_y_con_cursos_no_se_borran(): void
+    {
+        $pantalla = Livewire::actingAs($this->supervisor)->test(Index::class)
+            ->call('verPestana', 'facultades')
+            ->call('nuevo', 'facultad')
+            ->set('facultadSedeId', (string) $this->sede->id)->set('facultadNombre', 'Facultad de Ingeniería')->set('facultadCodigo', ' fi-lo ')
+            ->call('guardar')->assertHasNoErrors()
+            ->assertSee('Facultad de Ingeniería')
+            ->call('nuevo', 'facultad')
+            ->set('facultadSedeId', '')->set('facultadNombre', 'Otra')->set('facultadCodigo', 'FI-LO')
+            ->call('guardar')->assertHasErrors(['facultadSedeId', 'facultadCodigo']);
+
+        $facultad = Facultad::sole();
+        $this->assertSame(['FI-LO', $this->sede->id], [$facultad->codigo, $facultad->sede_id]);
+
+        Curso::factory()->create(['sede_id' => $this->sede->id, 'facultad_id' => $facultad->id]);
+        $pantalla->call('eliminar', 'facultad', $facultad->id)->assertSee('Esta facultad tiene cursos')
+            ->call('eliminar', 'sede', $this->sede->id)->assertSee('Esta sede tiene salones, facultades o cursos')
+            ->call('alternarActivo', 'facultad', $facultad->id);
+
+        $this->assertModelExists($facultad);
+        $this->assertFalse($facultad->fresh()->activa);
+        $this->assertContains('Alta de facultad «FI-LO · Facultad de Ingeniería».', BitacoraAuditoria::where('tipo_evento', 'catalogo_salones')->pluck('descripcion')->all());
+    }
+
     public function test_un_salon_con_clases_futuras_no_se_borra_y_sin_ellas_si(): void
     {
         $salon = $this->salon('A-201');
@@ -111,7 +137,7 @@ class SedesSalonesSupervisorTest extends TestCase
 
         $otro = $this->salon('B-208');
         Livewire::actingAs($this->supervisor)->test(Index::class)
-            ->call('eliminar', 'sede', $this->sede->id)->assertSee('Esta sede tiene salones o cursos')
+            ->call('eliminar', 'sede', $this->sede->id)->assertSee('Esta sede tiene salones, facultades o cursos')
             ->call('eliminar', 'tipo', $this->tipo->id)->assertSee('Este tipo tiene salones');
         $this->assertModelExists($otro->sede);
         $this->assertModelExists($this->tipo);

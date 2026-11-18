@@ -12,7 +12,7 @@
     $nombreSeccion = $esForo ? 'Foro de preguntas' : \App\Models\Leccion::SECCIONES[$seccionLeccion]['etiqueta'];
     $nombreSemana = $semanaLeccion === \App\Livewire\Cursos\Show::CLAVE_PRACTICAS ? 'Prácticas de campo' : 'Semana '.$semanaLeccion;
     $claseError = 'flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-400';
-    $claseSegmento = 'cursor-pointer rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-[#E8F6F3] has-[:checked]:bg-[#093B3B] has-[:checked]:text-white has-[:checked]:shadow-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#093B3B] has-[:focus-visible]:ring-offset-1 dark:text-slate-300 dark:has-[:checked]:bg-[#093B3B]';
+    $claseSegmento = 'cursor-pointer rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-[#F4F0E8] has-[:checked]:bg-[#1D1C19] has-[:checked]:text-white has-[:checked]:shadow-sm has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#1D1C19] has-[:focus-visible]:ring-offset-1 dark:text-slate-300 dark:has-[:checked]:bg-[#1D1C19]';
 @endphp
 <x-gestion.modal :titulo="($leccionEditId ? 'Editar' : 'Agregar').' — '.$nombreSeccion" cerrar="cerrarFormularioLeccion()" ancho="max-w-2xl"
     :icono="$esForo ? 'chat' : \App\Models\Leccion::SECCIONES[$seccionLeccion]['icono']"
@@ -97,7 +97,7 @@
                             ->map(fn ($extension) => '.'.$extension)->join(',');
                     @endphp
                     <input id="archivo" type="file" wire:model="archivo" accept="{{ $aceptar }}"
-                        class="block w-full text-sm text-stone-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#093B3B] file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white dark:text-stone-300">
+                        class="block w-full text-sm text-stone-600 file:mr-4 file:rounded-lg file:border-0 file:bg-[#1D1C19] file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white dark:text-stone-300">
                     <p wire:loading wire:target="archivo" class="text-xs text-stone-500">Cargando archivo...</p>
                 </x-gestion.campo>
             @elseif ($fuente === 'enlace')
@@ -159,7 +159,7 @@
     <x-slot name="pie">
         <x-gestion.boton variante="secundario" wire:click="cerrarFormularioLeccion">Cancelar</x-gestion.boton>
         <button type="button" wire:click="guardarLeccion" wire:loading.attr="disabled" wire:target="guardarLeccion,archivo"
-            class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#093B3B] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#093B3B]/90 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#093B3B] focus:ring-offset-1 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100">
+            class="inline-flex items-center justify-center gap-2 rounded-lg bg-[#1D1C19] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#1D1C19]/90 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#1D1C19] focus:ring-offset-1 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100">
             <x-icono nombre="check" class="h-4 w-4" />
             Guardar
         </button>

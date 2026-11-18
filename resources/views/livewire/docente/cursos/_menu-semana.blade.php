@@ -15,13 +15,13 @@
         x-on:click="abierto = ! abierto; if (abierto) $nextTick(() => $focus.within($refs.menu).first())"
         aria-haspopup="menu" aria-expanded="false" x-bind:aria-expanded="abierto.toString()"
         aria-label="Más acciones de {{ $etiqueta }}"
-        class="flex h-11 w-11 items-center justify-center rounded-lg text-[#4b625e] transition hover:bg-[var(--mint)] hover:text-[var(--p900)] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--p700)] motion-reduce:transition-none">
+        class="flex h-11 w-11 items-center justify-center rounded-lg text-[#57524A] transition hover:bg-[var(--mint)] hover:text-[var(--p900)] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--p700)] motion-reduce:transition-none">
         <x-icono nombre="puntos" class="h-5 w-5" />
     </button>
     <div x-ref="menu" x-show="abierto" style="display: none" role="menu" aria-label="Acciones de {{ $etiqueta }}"
         x-on:keydown.arrow-down.prevent="$focus.within($refs.menu).wrap().next()"
         x-on:keydown.arrow-up.prevent="$focus.within($refs.menu).wrap().previous()"
-        class="absolute right-0 z-20 mt-1 w-56 overflow-hidden rounded-xl border border-[#e1ece9] bg-white p-1 shadow-xl shadow-black/10">
+        class="absolute right-0 z-20 mt-1 w-56 overflow-hidden rounded-xl border border-[#ECE6DA] bg-white p-1 shadow-xl shadow-black/10">
         <button type="button" role="menuitem" x-on:click="abierto = false"
             wire:click="{{ $modulo ? 'abrirEditarModulo('.$modulo->id.')' : 'prepararSeccion('.$numero.')' }}"
             class="{{ $claseItem }} rounded-lg text-[var(--ink)] hover:bg-[var(--mint)] focus:bg-[var(--mint)]">

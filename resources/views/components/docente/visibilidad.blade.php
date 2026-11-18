@@ -26,7 +26,7 @@
     $enfoque = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--p700)]';
     $estilos = [
         'publicado' => ['pastilla' => 'bg-[#F5FCD2] text-[#3B6506]', 'icono' => 'ojo'],
-        'borrador' => ['pastilla' => 'bg-[#EEF2F1] text-[#475569]', 'icono' => 'ojo-tachado'],
+        'borrador' => ['pastilla' => 'bg-[#F4F0E8] text-[#475569]', 'icono' => 'ojo-tachado'],
     ];
 @endphp
 
@@ -95,8 +95,8 @@
         x-on:keydown.arrow-down.prevent="abrir()"
         x-on:keydown.arrow-up.prevent="abrir()"
         @if ($esCampo)
-            x-bind:class="abierto ? 'border-[var(--p700)] ring-[3px] ring-[rgba(19,110,97,0.14)]' : 'border-[#d3dedb]'"
-            class="flex h-11 w-full items-center gap-2.5 rounded-[10px] border-[1.5px] border-[#d3dedb] bg-white px-2.5 text-left text-[13px] font-semibold text-[var(--ink)] transition-[border-color,box-shadow] duration-150 motion-reduce:transition-none {{ $enfoque }}"
+            x-bind:class="abierto ? 'border-[var(--p700)] ring-[3px] ring-[rgba(19,110,97,0.14)]' : 'border-[#E0D8C8]'"
+            class="flex h-11 w-full items-center gap-2.5 rounded-[10px] border-[1.5px] border-[#E0D8C8] bg-white px-2.5 text-left text-[13px] font-semibold text-[var(--ink)] transition-[border-color,box-shadow] duration-150 motion-reduce:transition-none {{ $enfoque }}"
         @else
             x-bind:class="actual === 'publicado' ? @js($estilos['publicado']['pastilla']) : @js($estilos['borrador']['pastilla'])"
             class="inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-xs font-bold transition-colors motion-reduce:transition-none {{ $estilos[$valor]['pastilla'] }} {{ $enfoque }}"
@@ -126,29 +126,29 @@
         x-on:keydown.arrow-down.prevent="mover(1)" x-on:keydown.arrow-up.prevent="mover(-1)"
         x-on:keydown.home.prevent="extremo(false)" x-on:keydown.end.prevent="extremo(true)"
         x-on:keydown.tab="cerrar(false)"
-        class="fixed z-50 flex w-max min-w-[280px] max-w-[360px] flex-col rounded-xl border border-[#d3dedb] bg-white p-[5px] shadow-[0_12px_28px_rgba(9,59,59,0.16)]">
+        class="fixed z-50 flex w-max min-w-[280px] max-w-[360px] flex-col rounded-xl border border-[#E0D8C8] bg-white p-[5px] shadow-[0_12px_28px_rgba(9,59,59,0.16)]">
         @foreach ($opciones as $clave => $opcion)
             <button type="button" role="menuitemradio" data-opcion="{{ $clave }}" tabindex="-1"
                 aria-checked="{{ $clave === $valor ? 'true' : 'false' }}" x-bind:aria-checked="actual === '{{ $clave }}' ? 'true' : 'false'"
                 x-on:click="elegir('{{ $clave }}')"
-                x-bind:class="actual === '{{ $clave }}' ? 'bg-[var(--mint)]' : 'hover:bg-[#F1F7F5]'"
-                class="flex w-full items-center gap-2.5 rounded-[9px] px-[9px] py-2 text-left focus:outline-none focus-visible:bg-[#F1F7F5] focus-visible:ring-2 focus-visible:ring-[var(--p700)]">
+                x-bind:class="actual === '{{ $clave }}' ? 'bg-[var(--mint)]' : 'hover:bg-[#F4F0E8]'"
+                class="flex w-full items-center gap-2.5 rounded-[9px] px-[9px] py-2 text-left focus:outline-none focus-visible:bg-[#F4F0E8] focus-visible:ring-2 focus-visible:ring-[var(--p700)]">
                 <span class="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lg {{ $estilos[$clave]['pastilla'] }}" aria-hidden="true">
                     <x-icono :nombre="$estilos[$clave]['icono']" class="h-4 w-4" />
                 </span>
                 <span class="min-w-0 flex-1">
                     <span class="block text-[13px] font-bold text-[var(--p900)]">{{ $opcion['etiqueta'] }}</span>
-                    <span class="block text-[11.5px] text-[#5b706c]">{{ $opcion['detalle'] }}</span>
+                    <span class="block text-[11.5px] text-[#6B6559]">{{ $opcion['detalle'] }}</span>
                 </span>
                 <x-icono nombre="check" class="h-4 w-4 shrink-0 text-[var(--p700)]" x-show="actual === '{{ $clave }}'" :style="$clave === $valor ? null : 'display: none'" aria-hidden="true" />
             </button>
         @endforeach
         @if (! $esCampo && $editar)
-            <div role="separator" class="my-[5px] border-t border-[#e2ece9]"></div>
+            <div role="separator" class="my-[5px] border-t border-[#ECE6DA]"></div>
             <button type="button" role="menuitem" data-opcion="editar" tabindex="-1"
                 x-on:click="cerrar(false); $wire.editarLeccion({{ (int) $leccion }})"
-                class="flex w-full items-center gap-2.5 rounded-[9px] px-[9px] py-2 text-left text-[13px] font-bold text-[var(--p900)] hover:bg-[#F1F7F5] focus:outline-none focus-visible:bg-[#F1F7F5] focus-visible:ring-2 focus-visible:ring-[var(--p700)]">
-                <span class="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lg bg-[#EEF2F1] text-[#475569]" aria-hidden="true">
+                class="flex w-full items-center gap-2.5 rounded-[9px] px-[9px] py-2 text-left text-[13px] font-bold text-[var(--p900)] hover:bg-[#F4F0E8] focus:outline-none focus-visible:bg-[#F4F0E8] focus-visible:ring-2 focus-visible:ring-[var(--p700)]">
+                <span class="grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lg bg-[#F4F0E8] text-[#475569]" aria-hidden="true">
                     <x-icono nombre="lapiz" class="h-4 w-4" />
                 </span>
                 Editar contenido

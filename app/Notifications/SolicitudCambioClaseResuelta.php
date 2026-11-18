@@ -29,11 +29,11 @@ class SolicitudCambioClaseResuelta extends Notification
         $original = $this->solicitud->fecha_original->format('d/m/Y H:i');
 
         $mensaje = $this->solicitud->estado === 'aprobada'
-            ? "Se aprobó la reprogramación de la clase del {$original} de {$curso->nombre}: ahora es el {$this->solicitud->fecha_nueva->format('d/m/Y H:i')}."
+            ? "El supervisor aprobó tu solicitud: la clase del {$original} de {$curso->nombre} quedó reprogramada para el {$this->solicitud->fecha_nueva->format('d/m/Y H:i')}. Ya se avisó a tus estudiantes."
             : "Se rechazó la reprogramación de la clase del {$original} de {$curso->nombre}: {$this->solicitud->comentario_decision}";
 
         return [
-            'titulo' => $this->solicitud->estado === 'aprobada' ? 'Reprogramación aprobada' : 'Reprogramación rechazada',
+            'titulo' => $this->solicitud->estado === 'aprobada' ? 'Clase reprogramada' : 'Reprogramación rechazada',
             'mensaje' => $mensaje,
             'url' => route('asistencia.index', $curso),
             'solicitud_id' => $this->solicitud->id,

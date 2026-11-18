@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "design-system-font",
+        "value": "instrument serif",
+        "createdAt": "2026-11-17T23:03:37.334Z",
+        "reason": "Profesor theme: serif headings from the mockup the user asked to apply (2026-11-17)"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "jetbrains mono",
+        "createdAt": "2026-11-17T23:03:38.192Z",
+        "reason": "Profesor theme: mono labels from the mockup the user asked to apply (2026-11-17)"
+      },
+      {
+        "rule": "overused-font",
+        "value": "instrument serif",
+        "createdAt": "2026-11-17T23:10:31.467Z",
+        "reason": "Profesor theme: serif face matches the mockup the user asked to apply (2026-11-17)"
+      }
+    ]
+  }
+}

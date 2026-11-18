@@ -38,6 +38,9 @@
             </x-gestion.tarjeta>
         @endif
 
+        <x-gestion.ubicacion :vista="$vistaUbicacion" :sede="$sedeUbicacion" :facultad="$facultadUbicacion" :activa="$ubicacionActiva"
+            :opciones="$opcionesUbicacion" :vistas="$this::VISTAS_UBICACION" personas="profesores" />
+
         <x-gestion.tarjeta>
             <div class="grid grid-cols-1 items-end gap-4 lg:grid-cols-[1fr_auto_auto]">
                 <x-gestion.campo etiqueta="Buscar" nombre="busqueda-profesor">
@@ -75,7 +78,12 @@
         </x-gestion.tarjeta>
 
         <x-gestion.tarjeta :relleno="false">
-            @if ($profesoresConMetricas->isEmpty())
+            @if ($faltaUbicacion)
+                <div class="p-4">
+                    <x-gestion.vacio icono="base-datos" titulo="Elige la sede y la facultad"
+                        descripcion="Los profesores de cursos presenciales se listan por sede y facultad. Para los de cursos virtuales y remotos, usa «Ver profesores virtuales y remotos»." />
+                </div>
+            @elseif ($profesoresConMetricas->isEmpty())
                 <div class="p-4">
                     <x-gestion.vacio icono="birrete" titulo="No se encontraron profesores"
                         descripcion="Registra un profesor o ajusta la búsqueda." />

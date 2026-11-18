@@ -33,9 +33,9 @@
     ]);
 
     $estilosBoton = [
-        'filtro' => 'h-[34px] w-full rounded-[10px] border border-transparent bg-[#F1F7F5] pl-2.5 pr-2 text-[12.5px]',
+        'filtro' => 'h-[34px] w-full rounded-[10px] border border-transparent bg-[#F4F0E8] pl-2.5 pr-2 text-[12.5px]',
         'texto' => 'h-6 rounded-md border border-transparent bg-transparent pl-1 pr-0.5 text-xs',
-        'borde' => 'h-[30px] rounded-lg border border-[#d6e6e2] bg-white pl-2.5 pr-1.5 text-[13px]',
+        'borde' => 'h-[30px] rounded-lg border border-[#E0D8C8] bg-white pl-2.5 pr-1.5 text-[13px]',
         'pastilla' => 'h-10 rounded-[10px] border border-transparent bg-white pl-1 pr-2.5 text-[13px]',
     ][$variante] ?? '';
 @endphp
@@ -129,7 +129,7 @@
         x-bind:class="abierto ? 'border-[var(--p700)] ring-[3px] ring-[rgba(19,110,97,0.16)]' : ''"
         class="flex min-w-0 items-center gap-1.5 text-left font-semibold text-[var(--p900)] transition-[border-color,box-shadow] duration-150 focus:outline-none focus-visible:border-[var(--p700)] focus-visible:ring-[3px] focus-visible:ring-[rgba(19,110,97,0.16)] motion-reduce:transition-none {{ $estilosBoton }}">
         <span class="min-w-0 flex-1 truncate">
-            <span x-text="actual ? actual.etiqueta : placeholder">{{ $opcionActual['etiqueta'] ?? $placeholder }}</span><span x-show="actual?.detalle" class="font-medium text-[#5b706c]" @if (! ($opcionActual['detalle'] ?? null)) style="display: none" @endif x-text="actual?.detalle ? ' · ' + actual.detalle : ''">{{ ($opcionActual['detalle'] ?? null) ? ' · '.$opcionActual['detalle'] : '' }}</span>
+            <span x-text="actual ? actual.etiqueta : placeholder">{{ $opcionActual['etiqueta'] ?? $placeholder }}</span><span x-show="actual?.detalle" class="font-medium text-[#6B6559]" @if (! ($opcionActual['detalle'] ?? null)) style="display: none" @endif x-text="actual?.detalle ? ' · ' + actual.detalle : ''">{{ ($opcionActual['detalle'] ?? null) ? ' · '.$opcionActual['detalle'] : '' }}</span>
         </span>
         <svg class="h-3.5 w-3.5 shrink-0 text-[var(--p700)] transition-transform duration-150 motion-reduce:transition-none" x-bind:class="abierto ? 'rotate-180' : ''"
             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
@@ -137,11 +137,11 @@
 
     <div x-ref="panel" x-show="abierto" x-cloak
         x-transition:enter="transition-opacity duration-100 motion-reduce:transition-none" x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-        class="fixed z-50 flex max-h-72 w-max max-w-[360px] flex-col overflow-hidden rounded-xl border border-[#e1ece9] bg-white shadow-[0_10px_30px_rgba(9,59,59,0.14),0_2px_6px_rgba(9,59,59,0.06)]"
+        class="fixed z-50 flex max-h-72 w-max max-w-[360px] flex-col overflow-hidden rounded-xl border border-[#ECE6DA] bg-white shadow-[0_10px_30px_rgba(9,59,59,0.14),0_2px_6px_rgba(9,59,59,0.06)]"
         x-on:keydown.tab="cerrar(false)">
         @if ($conBusqueda)
-            <div class="border-b border-[#eef4f2] p-2">
-                <label class="flex h-8 items-center gap-2 rounded-lg bg-[#F1F7F5] px-2.5 text-[#5b706c] focus-within:ring-[3px] focus-within:ring-[rgba(19,110,97,0.16)]">
+            <div class="border-b border-[#F4F0E8] p-2">
+                <label class="flex h-8 items-center gap-2 rounded-lg bg-[#F4F0E8] px-2.5 text-[#6B6559] focus-within:ring-[3px] focus-within:ring-[rgba(19,110,97,0.16)]">
                     <x-icono nombre="lupa" class="h-3.5 w-3.5 shrink-0" />
                     <span class="sr-only">Filtrar opciones</span>
                     <input type="search" x-ref="busqueda" x-model="busqueda" x-on:input="filtrar()" autocomplete="off" placeholder="Buscar…"
@@ -149,7 +149,7 @@
                         x-bind:aria-activedescendant="activo >= 0 ? '{{ $id }}-opcion-' + activo : null"
                         x-on:keydown.arrow-down.prevent="mover(1)" x-on:keydown.arrow-up.prevent="mover(-1)"
                         x-on:keydown.enter.prevent="elegir(activo)"
-                        class="w-full min-w-0 border-0 bg-transparent p-0 text-[13px] text-[var(--ink)] placeholder:text-[#5b706c] focus:outline-none focus:ring-0">
+                        class="w-full min-w-0 border-0 bg-transparent p-0 text-[13px] text-[var(--ink)] placeholder:text-[#6B6559] focus:outline-none focus:ring-0">
                 </label>
             </div>
         @endif
@@ -170,13 +170,13 @@
                     x-bind:class="{ 'bg-[var(--mint)]': activo === {{ $indice }}, 'font-bold text-[var(--p900)]': indiceActual === {{ $indice }} }"
                     class="flex min-h-9 cursor-pointer items-center gap-3 rounded-lg px-2.5 py-1.5 text-[13px] text-[var(--ink)]">
                     <span class="min-w-0 flex-1">
-                        {{ $opcion['etiqueta'] }}@if ($opcion['detalle'])<span class="ml-1 text-[11.5px] font-medium text-[#6b7f7b]">· {{ $opcion['detalle'] }}</span>@endif
+                        {{ $opcion['etiqueta'] }}@if ($opcion['detalle'])<span class="ml-1 text-[11.5px] font-medium text-[#6B6559]">· {{ $opcion['detalle'] }}</span>@endif
                     </span>
                     <svg x-show="indiceActual === {{ $indice }}" @if ($indice !== $indiceActual) style="display: none" @endif
                         class="h-4 w-4 shrink-0 text-[var(--p700)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
                 </li>
             @endforeach
-            <li x-show="visibles.length === 0" style="display: none" class="px-2.5 py-2 text-[13px] text-[#5b706c]" role="presentation">Sin resultados</li>
+            <li x-show="visibles.length === 0" style="display: none" class="px-2.5 py-2 text-[13px] text-[#6B6559]" role="presentation">Sin resultados</li>
         </ul>
     </div>
 </div>

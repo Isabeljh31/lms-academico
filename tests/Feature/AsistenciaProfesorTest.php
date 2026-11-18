@@ -253,7 +253,7 @@ class AsistenciaProfesorTest extends TestCase
             ->assertOk()
             ->assertSee('sesiones registradas')
             ->assertDontSee('Modo: lista por clase')
-            ->assertDontSee('--p900: #093B3B', false);
+            ->assertDontSee('tema-profesor', false);
 
         // El Supervisor sigue consultando cualquier lista, también la de una clase futura (solo lectura).
         Livewire::actingAs($supervisor)->test(Index::class, ['curso' => $this->curso])
@@ -266,7 +266,7 @@ class AsistenciaProfesorTest extends TestCase
     {
         $this->actingAs($this->profesor)->get(route('asistencia.index', $this->curso))
             ->assertOk()
-            ->assertSee('--p900: #093B3B', false)
+            ->assertSee('class="tema-profesor', false)
             ->assertDontSee('< wire:id', false);
 
         Livewire::actingAs($this->profesor)->test(Index::class, ['curso' => $this->curso])

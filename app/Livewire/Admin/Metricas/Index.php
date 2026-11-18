@@ -38,7 +38,21 @@ class Index extends Component
             ->with(['inscripciones' => fn ($q) => $q->where('estado', 'activo')->where('activo_local', true)->with('curso.esquemaEvaluacion.rubros')])
             ->get();
 
-        $enRiesgo = $estudiantes->map(function (User $estudiante) use ($asistencia, $notas, $notaMinima) {
+        // Asistencia y rendimiento en lote por curso (unas pocas consultas por curso, no varias por estudiante y curso).
+        $porcentajes = [];
+        $rendimientos = [];
+        $cursos = $estudiantes->flatMap(fn (User $estudiante) => $estudiante->inscripciones->pluck('curso'))
+            ->filter(fn ($curso) => $curso && ! $curso->estaFinalizado())
+            ->unique('id');
+        foreach ($cursos as $curso) {
+            $ids = $estudiantes->filter(fn (User $estudiante) => $estudiante->inscripciones->contains('curso_id', $curso->id))->pluck('id')->values();
+            $rendimientos[$curso->id] = collect($notas->resumenDelCurso($curso, $ids))->map(fn (array $resumen) => $resumen['rendimiento'])->all();
+            if ($curso->usa_asistencia) {
+                $porcentajes[$curso->id] = $asistencia->porcentajesDelCurso($curso, $ids);
+            }
+        }
+
+        $enRiesgo = $estudiantes->map(function (User $estudiante) use ($porcentajes, $rendimientos, $notaMinima) {
             $motivos = [];
             $cursosCriticos = 0;
 
@@ -52,7 +66,7 @@ class Index extends Component
                 }
 
                 if ($curso->usa_asistencia) {
-                    $porcentaje = $asistencia->porcentajeDe($estudiante, $curso);
+                    $porcentaje = $porcentajes[$curso->id][$estudiante->id] ?? null;
 
                     if ($porcentaje !== null && $porcentaje < self::ASISTENCIA_MINIMA) {
                         $critico = true;
@@ -60,7 +74,7 @@ class Index extends Component
                     }
                 }
 
-                $rendimiento = $notas->rendimientoDe($estudiante, $curso);
+                $rendimiento = $rendimientos[$curso->id][$estudiante->id] ?? null;
 
                 if ($rendimiento !== null && $rendimiento < $notaMinima) {
                     $critico = true;

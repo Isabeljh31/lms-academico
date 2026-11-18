@@ -6,7 +6,7 @@
     $colorUrgencia = ['alta' => 'text-[var(--err700)]', 'media' => 'text-[var(--warn800)]', 'baja' => 'text-[var(--p700)]'];
     $puntoUrgencia = ['alta' => 'bg-[#E0505B]', 'media' => 'bg-[#F0B73A]', 'baja' => 'bg-[#8CC21B]'];
     $sombra = 'shadow-[0_1px_2px_rgba(9,59,59,0.06),0_4px_14px_rgba(9,59,59,0.04)]';
-    $interruptor = fn (bool $activo) => 'relative inline-flex h-5 w-[34px] shrink-0 rounded-full transition-colors motion-reduce:transition-none '.($activo ? 'bg-[var(--p700)]' : 'bg-[#c9d8d4]');
+    $interruptor = fn (bool $activo) => 'relative inline-flex h-5 w-[34px] shrink-0 rounded-full transition-colors motion-reduce:transition-none '.($activo ? 'bg-[var(--p700)]' : 'bg-[#E0D8C8]');
     $perilla = fn (bool $activo) => 'absolute top-[3px] h-3.5 w-3.5 rounded-full bg-white transition-all motion-reduce:transition-none '.($activo ? 'right-[3px]' : 'left-[3px]');
     $colorCurso = fn (int $cursoId) => $colores[$cursoId] ?? \App\Services\Calendario\ColoresCursos::NEUTRO;
     $alDia = $totalPorCalificar === 0;
@@ -38,7 +38,7 @@
                     <span class="text-[var(--lime)]">{{ $totalPorCalificar }}</span> {{ $totalPorCalificar === 1 ? 'entrega por calificar' : 'entregas por calificar' }}
                 @endif
             </h1>
-            <p class="text-sm text-[#d3e3df]">
+            <p class="text-sm text-[#E0D8C8]">
                 @if ($alDia)
                     No tienes entregas por calificar.
                 @else
@@ -48,15 +48,15 @@
         </div>
         <dl class="flex">
             <div class="flex min-w-24 flex-col px-[22px] first:pl-0">
-                <dt class="order-2 text-xs text-[#cfe0db]">Por calificar</dt>
+                <dt class="order-2 text-xs text-[#E0D8C8]">Por calificar</dt>
                 <dd class="order-1 text-[26px] font-extrabold leading-tight tabular-nums">{{ $totalPorCalificar }}</dd>
             </div>
             <div class="flex min-w-24 flex-col border-l border-white/20 px-[22px]">
-                <dt class="order-2 text-xs text-[#cfe0db]">Urgentes (+7 días)</dt>
+                <dt class="order-2 text-xs text-[#E0D8C8]">Urgentes (+7 días)</dt>
                 <dd class="order-1 text-[26px] font-extrabold leading-tight tabular-nums text-[#FFD96B]">{{ $urgentes }}</dd>
             </div>
             <div class="flex min-w-24 flex-col border-l border-white/20 px-[22px] pr-0">
-                <dt class="order-2 text-xs text-[#cfe0db]">Cursos con pendientes</dt>
+                <dt class="order-2 text-xs text-[#E0D8C8]">Cursos con pendientes</dt>
                 <dd class="order-1 whitespace-nowrap text-[26px] font-extrabold leading-tight tabular-nums">{{ $cursosConPendientes }} de {{ $cursosActivos->count() }}</dd>
             </div>
         </dl>
@@ -70,23 +70,23 @@
                 <x-icono nombre="check-circulo" class="h-6 w-6" />
             </span>
             <h2 class="text-lg font-bold text-[var(--p900)]">Estás al día, no tienes entregas por calificar</h2>
-            <p class="max-w-md text-sm text-[#4b625e]">Cuando tus estudiantes entreguen tareas aparecerán aquí, empezando por las que más esperan. Crear o editar tareas se hace en Actividades, dentro de cada curso.</p>
+            <p class="max-w-md text-sm text-[#57524A]">Cuando tus estudiantes entreguen tareas aparecerán aquí, empezando por las que más esperan. Crear o editar tareas se hace en Actividades, dentro de cada curso.</p>
             @if ($hayCalificadas)
                 <button type="button" wire:click="$set('incluirCalificadas', true)"
-                    class="inline-flex h-9 items-center rounded-[10px] border-[1.5px] border-[#c9ddd8] bg-white px-4 text-[13px] font-bold text-[var(--p700)] hover:bg-[var(--mint)] {{ $enfoque }}">Ver notas puestas</button>
+                    class="inline-flex h-9 items-center rounded-[10px] border-[1.5px] border-[#E0D8C8] bg-white px-4 text-[13px] font-bold text-[var(--p700)] hover:bg-[var(--mint)] {{ $enfoque }}">Ver notas puestas</button>
             @endif
         </section>
     @else
         <div class="mt-5 grid grid-cols-1 items-start gap-5 lg:grid-cols-[392px_minmax(0,1fr)]">
             {{-- Izquierda: tareas con pendientes --}}
             <aside aria-label="Tareas con entregas por calificar" class="overflow-hidden rounded-[18px] bg-white {{ $sombra }}">
-                <div class="border-b border-[#e8f0ee] px-3.5 pb-3 pt-3.5">
-                    <label class="mb-2.5 flex h-10 items-center gap-2.5 rounded-[10px] bg-[var(--mint)] px-3.5 text-[#5b706c] focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-[color:var(--p700)]">
+                <div class="border-b border-[#ECE6DA] px-3.5 pb-3 pt-3.5">
+                    <label class="mb-2.5 flex h-10 items-center gap-2.5 rounded-[10px] bg-[var(--mint)] px-3.5 text-[#6B6559] focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-[color:var(--p700)]">
                         <x-icono nombre="lupa" class="h-[17px] w-[17px] shrink-0" />
                         <span class="sr-only">Buscar estudiante o tarea</span>
                         <input type="search" x-ref="buscador" wire:model.live.debounce.300ms="busqueda" placeholder="Buscar estudiante o tarea" autocomplete="off" aria-keyshortcuts="/"
-                            class="w-full min-w-0 border-0 bg-transparent p-0 text-sm text-[var(--ink)] placeholder:text-[#5b706c] focus:outline-none focus:ring-0">
-                        <kbd class="shrink-0 rounded-md border border-[#cfe2dd] bg-white px-[7px] py-0.5 font-sans text-[11px] font-semibold text-[#4b625e]" aria-hidden="true">/</kbd>
+                            class="w-full min-w-0 border-0 bg-transparent p-0 text-sm text-[var(--ink)] placeholder:text-[#6B6559] focus:outline-none focus:ring-0">
+                        <kbd class="shrink-0 rounded-md border border-[#E0D8C8] bg-white px-[7px] py-0.5 font-sans text-[11px] font-semibold text-[#57524A]" aria-hidden="true">/</kbd>
                     </label>
 
                     @php
@@ -118,14 +118,14 @@
                     </div>
                 </div>
 
-                <div class="flex items-center justify-between gap-3 px-4 pb-1.5 pt-2.5 text-xs text-[#4b625e]">
+                <div class="flex items-center justify-between gap-3 px-4 pb-1.5 pt-2.5 text-xs text-[#57524A]">
                     <x-docente.desplegable wire:model.live="orden" :opciones="$Index::ORDENES" etiqueta="Ordenar" placeholder="Ordenar" variante="texto" />
                     <span class="whitespace-nowrap">{{ $agruparPorCurso ? $plural($cursosLista->count(), 'curso', 'cursos') : $plural($tareas->count(), 'tarea', 'tareas') }}</span>
                 </div>
 
                 <div class="max-h-[640px] overflow-y-auto px-2 pb-2">
                     @if ($tareas->isEmpty())
-                        <p class="px-3 py-6 text-center text-[13px] text-[#4b625e]">No hay entregas con esos filtros.</p>
+                        <p class="px-3 py-6 text-center text-[13px] text-[#57524A]">No hay entregas con esos filtros.</p>
                     @elseif ($agruparPorCurso)
                         @foreach ($cursosLista as $resumenCurso)
                             @php
@@ -135,15 +135,15 @@
                             @endphp
                             <div wire:key="curso-lista-{{ $cursoLista->id }}" x-data="{ abierto: @js($abiertoAlInicio) }" class="mt-1.5">
                                 <button type="button" x-on:click="abierto = ! abierto" x-bind:aria-expanded="abierto" aria-controls="tareas-curso-{{ $cursoLista->id }}"
-                                    x-bind:class="abierto && 'bg-[#F6FAF9]'"
-                                    class="flex w-full items-center gap-[11px] rounded-xl px-2.5 py-2.5 text-left hover:bg-[#F6FAF9] {{ $enfoque }}">
-                                    <span class="relative grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[10px] border-[1.5px] border-[#cfe2dd] bg-[#F1F7F5] text-xs font-extrabold text-[var(--p900)]" aria-hidden="true">
+                                    x-bind:class="abierto && 'bg-[#F4F0E8]'"
+                                    class="flex w-full items-center gap-[11px] rounded-xl px-2.5 py-2.5 text-left hover:bg-[#F4F0E8] {{ $enfoque }}">
+                                    <span class="relative grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[10px] border-[1.5px] border-[#E0D8C8] bg-[#F4F0E8] text-xs font-extrabold text-[var(--p900)]" aria-hidden="true">
                                         {{ $resumenCurso['iniciales'] }}
                                         <span class="absolute -right-1 -top-1 h-[11px] w-[11px] rounded-full border-2 border-white" style="background-color: {{ $colorCurso($cursoLista->id) }}"></span>
                                     </span>
                                     <span class="min-w-0 flex-1">
                                         <span class="block break-words text-sm font-bold leading-tight text-[var(--p900)]">{{ $cursoLista->nombre }}</span>
-                                        <span x-show="abierto" class="text-xs text-[#4b625e]">{{ $cursoLista->codigo }}</span>
+                                        <span x-show="abierto" class="text-xs text-[#57524A]">{{ $cursoLista->codigo }}</span>
                                         @if ($resumenCurso['total'] > 0)
                                             <span x-show="! abierto" x-cloak class="inline-flex items-center gap-1.5 text-xs font-semibold {{ $colorUrgencia[$resumenCurso['primera']['urgencia']] }}">
                                                 <span class="h-[9px] w-[9px] rounded-full {{ $puntoUrgencia[$resumenCurso['primera']['urgencia']] }}" aria-hidden="true"></span>espera {{ $Index::textoEspera($resumenCurso['primera']['dias']) }}
@@ -152,21 +152,21 @@
                                             <span x-show="! abierto" x-cloak class="text-xs font-semibold text-[var(--p700)]">Todo calificado</span>
                                         @endif
                                     </span>
-                                    <span class="whitespace-nowrap text-[12.5px] text-[#3d5753]"><b class="text-[15px] text-[var(--p900)]">{{ $resumenCurso['total'] }}</b> por calificar</span>
-                                    <x-icono nombre="flecha-abajo" class="h-[14px] w-[14px] shrink-0 text-[#5b706c] transition-transform motion-reduce:transition-none" x-bind:class="abierto && 'rotate-180'" />
+                                    <span class="whitespace-nowrap text-[12.5px] text-[#3F3B34]"><b class="text-[15px] text-[var(--p900)]">{{ $resumenCurso['total'] }}</b> por calificar</span>
+                                    <x-icono nombre="flecha-abajo" class="h-[14px] w-[14px] shrink-0 text-[#6B6559] transition-transform motion-reduce:transition-none" x-bind:class="abierto && 'rotate-180'" />
                                 </button>
                                 <div id="tareas-curso-{{ $cursoLista->id }}" x-show="abierto" @unless ($abiertoAlInicio) x-cloak @endunless>
                                     @foreach ($resumenCurso['semanas'] as $semanaLista)
                                         @php $porcentaje = $semanaLista['total'] > 0 ? round($semanaLista['calificadas'] / $semanaLista['total'] * 100) : 0; @endphp
                                         <div wire:key="semana-{{ $cursoLista->id }}-{{ $semanaLista['clave'] }}" class="ml-11 mt-2 pr-2">
-                                            <p class="flex items-center gap-1.5 text-[11.5px] font-bold text-[#4b625e]">
+                                            <p class="flex items-center gap-1.5 text-[11.5px] font-bold text-[#57524A]">
                                                 @if ($semanaLista['completa'])
                                                     <x-icono nombre="check-circulo" class="h-[13px] w-[13px] shrink-0 text-[var(--p700)]" />
                                                 @endif
                                                 <span>{{ $semanaLista['etiqueta'] }}</span>
                                                 <span class="font-semibold">· {{ $semanaLista['calificadas'] }} de {{ $semanaLista['total'] }} calificadas</span>
                                             </p>
-                                            <div class="mt-1 h-1 overflow-hidden rounded-full bg-[#e3ecea]" role="progressbar" aria-label="Avance de {{ $semanaLista['etiqueta'] }}"
+                                            <div class="mt-1 h-1 overflow-hidden rounded-full bg-[#ECE6DA]" role="progressbar" aria-label="Avance de {{ $semanaLista['etiqueta'] }}"
                                                 aria-valuemin="0" aria-valuemax="{{ $semanaLista['total'] }}" aria-valuenow="{{ $semanaLista['calificadas'] }}">
                                                 <div class="h-full rounded-full bg-[#8CC21B]" style="width: {{ $porcentaje }}%"></div>
                                             </div>
@@ -185,7 +185,7 @@
                     @endif
                 </div>
 
-                <div x-data="{ verSinPendientes: false }" class="border-t border-[#e8f0ee] bg-[#fafcfb] px-4 py-3 text-[12.5px] text-[#4b625e]">
+                <div x-data="{ verSinPendientes: false }" class="border-t border-[#ECE6DA] bg-[#F7F4EE] px-4 py-3 text-[12.5px] text-[#57524A]">
                     <div class="flex items-center justify-between gap-3">
                         <span>Mostrando {{ $cursosLista->count() }} de {{ $plural($cursosActivos->count(), 'curso', 'cursos') }}</span>
                         @if ($cursosSinPendientes->isNotEmpty())
@@ -207,7 +207,7 @@
                         </ul>
                     @endif
                 </div>
-                <p class="border-t border-[#e8f0ee] bg-[#fafcfb] px-4 py-3 text-[12.5px] text-[#4b625e]"><b class="text-[var(--p900)]">¿Quieres crear o editar tareas?</b> Eso se hace en Actividades, dentro de cada curso.</p>
+                <p class="border-t border-[#ECE6DA] bg-[#F7F4EE] px-4 py-3 text-[12.5px] text-[#57524A]"><b class="text-[var(--p900)]">¿Quieres crear o editar tareas?</b> Eso se hace en Actividades, dentro de cada curso.</p>
             </aside>
 
             {{-- Derecha: entregas de la tarea elegida --}}
@@ -218,9 +218,9 @@
                             <x-icono nombre="lupa" class="h-5 w-5" />
                         </span>
                         <h2 class="text-base font-bold text-[var(--p900)]">No hay entregas con esos filtros</h2>
-                        <p class="text-sm text-[#4b625e]">Prueba con otra búsqueda, otro curso, otra semana u otra modalidad.</p>
+                        <p class="text-sm text-[#57524A]">Prueba con otra búsqueda, otro curso, otra semana u otra modalidad.</p>
                         <button type="button" wire:click="limpiarFiltros"
-                            class="inline-flex h-9 items-center rounded-[10px] border-[1.5px] border-[#c9ddd8] bg-white px-4 text-[13px] font-bold text-[var(--p700)] hover:bg-[var(--mint)] {{ $enfoque }}">Limpiar filtros</button>
+                            class="inline-flex h-9 items-center rounded-[10px] border-[1.5px] border-[#E0D8C8] bg-white px-4 text-[13px] font-bold text-[var(--p700)] hover:bg-[var(--mint)] {{ $enfoque }}">Limpiar filtros</button>
                     </div>
                 @else
                     @php
@@ -232,16 +232,16 @@
                         $hasta = $desde + $filasPagina->count() - 1;
                         $unidad = $grupal ? ['grupo', 'grupos'] : ['entrega', 'entregas'];
                         $avanceSel = $seleccionada['avance'];
-                        $etiquetaNeutra = 'inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-[#ECF1F0] px-[9px] py-0.5 text-[11px] font-bold text-[#4b625e]';
+                        $etiquetaNeutra = 'inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-[#F4F0E8] px-[9px] py-0.5 text-[11px] font-bold text-[#57524A]';
                         $todoCalificado = $seleccionada['completa'] && ! $incluirCalificadas;
                     @endphp
                     <header class="mb-3 flex flex-wrap items-center gap-3.5 rounded-[18px] bg-white px-5 py-4 {{ $sombra }}">
-                        <span class="relative grid h-[46px] w-[46px] shrink-0 place-items-center rounded-xl border-[1.5px] border-[#cfe2dd] bg-white font-extrabold text-[var(--p900)]" aria-hidden="true">
+                        <span class="relative grid h-[46px] w-[46px] shrink-0 place-items-center rounded-xl border-[1.5px] border-[#E0D8C8] bg-white font-extrabold text-[var(--p900)]" aria-hidden="true">
                             {{ \App\Services\Reportes\PanelProfesor::iniciales($tareaSel->curso->nombre) }}
                             <span class="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white" style="background-color: {{ $colorCurso($tareaSel->curso_id) }}"></span>
                         </span>
                         <div class="min-w-0 flex-[1_1_18rem]">
-                            <p class="break-words text-[11px] font-bold uppercase tracking-[0.09em] text-[#4b6b66]">{{ collect([$tareaSel->curso->nombre, $tareaSel->curso->codigo, $Index::etiquetaSemana($seleccionada['semana'])])->filter()->join(' · ') }}</p>
+                            <p class="break-words text-[11px] font-bold uppercase tracking-[0.09em] text-[#57524A]">{{ collect([$tareaSel->curso->nombre, $tareaSel->curso->codigo, $Index::etiquetaSemana($seleccionada['semana'])])->filter()->join(' · ') }}</p>
                             <h2 class="mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xl font-extrabold tracking-[-0.01em] text-[var(--p900)]">
                                 <span class="break-words">{{ $tareaSel->titulo }}</span>
                                 <span class="{{ $etiquetaNeutra }}">
@@ -252,7 +252,7 @@
                                     <span class="{{ $etiquetaNeutra }}">{{ $Index::TIPOS[$seleccionada['tipo']] }}</span>
                                 @endif
                             </h2>
-                            <p class="mt-1.5 text-[13.5px] text-[#3d5753]">
+                            <p class="mt-1.5 text-[13.5px] text-[#3F3B34]">
                                 @if ($totalTarea > 0)
                                     <b class="text-[var(--p900)]">{{ $plural($totalTarea, $unidad[0], $unidad[1]) }} por calificar</b>
                                     @if ($seleccionada['urgentes'] > 0)
@@ -284,26 +284,26 @@
                                 <x-icono nombre="check-circulo" class="h-6 w-6" />
                             </span>
                             <h3 class="text-base font-bold text-[var(--p900)]">Todo calificado en esta tarea ✓</h3>
-                            <p class="text-sm text-[#4b625e]">No quedan entregas por calificar. Puedes revisar las notas puestas.</p>
+                            <p class="text-sm text-[#57524A]">No quedan entregas por calificar. Puedes revisar las notas puestas.</p>
                             <button type="button" wire:click="$set('incluirCalificadas', true)"
-                                class="inline-flex h-9 items-center rounded-[10px] border-[1.5px] border-[#c9ddd8] bg-white px-4 text-[13px] font-bold text-[var(--p700)] hover:bg-[var(--mint)] {{ $enfoque }}">Ver notas</button>
+                                class="inline-flex h-9 items-center rounded-[10px] border-[1.5px] border-[#E0D8C8] bg-white px-4 text-[13px] font-bold text-[var(--p700)] hover:bg-[var(--mint)] {{ $enfoque }}">Ver notas</button>
                         </div>
                     @else
 
                     <div class="mb-3 flex flex-wrap items-center justify-between gap-3.5 rounded-[14px] bg-white px-3.5 py-2.5 shadow-[0_1px_2px_rgba(9,59,59,0.06)]">
-                        <span class="text-[13px] text-[#4b625e]">Ordenadas: la que más espera, primero{{ $incluirCalificadas ? '; las calificadas, al final' : '' }}</span>
+                        <span class="text-[13px] text-[#57524A]">Ordenadas: la que más espera, primero{{ $incluirCalificadas ? '; las calificadas, al final' : '' }}</span>
                         <div class="flex flex-wrap items-center gap-4">
                             <button type="button" role="switch" aria-checked="{{ $siguienteAlGuardar ? 'true' : 'false' }}" wire:click="$toggle('siguienteAlGuardar')"
-                                class="flex items-center gap-2 whitespace-nowrap rounded-lg text-[12.5px] text-[#4b625e] {{ $enfoque }}">
+                                class="flex items-center gap-2 whitespace-nowrap rounded-lg text-[12.5px] text-[#57524A] {{ $enfoque }}">
                                 <span class="{{ $interruptor($siguienteAlGuardar) }}" aria-hidden="true"><span class="{{ $perilla($siguienteAlGuardar) }}"></span></span>
                                 Al guardar la nota, ir a la siguiente
                             </button>
                             <div class="flex rounded-[10px] bg-[var(--mint)] p-[3px]" role="group" aria-label="Densidad de la tabla">
                                 <button type="button" x-on:click="densidad = 'comoda'" x-bind:aria-pressed="densidad === 'comoda'"
-                                    x-bind:class="densidad === 'comoda' ? 'bg-[var(--p900)] text-white' : 'text-[#4b625e] hover:text-[var(--p900)]'"
+                                    x-bind:class="densidad === 'comoda' ? 'bg-[var(--p900)] text-white' : 'text-[#57524A] hover:text-[var(--p900)]'"
                                     class="rounded-lg px-[11px] py-[5px] text-[13px] font-semibold {{ $enfoque }}">Cómoda</button>
                                 <button type="button" x-on:click="densidad = 'compacta'" x-bind:aria-pressed="densidad === 'compacta'"
-                                    x-bind:class="densidad === 'compacta' ? 'bg-[var(--p900)] text-white' : 'text-[#4b625e] hover:text-[var(--p900)]'"
+                                    x-bind:class="densidad === 'compacta' ? 'bg-[var(--p900)] text-white' : 'text-[#57524A] hover:text-[var(--p900)]'"
                                     class="rounded-lg px-[11px] py-[5px] text-[13px] font-semibold {{ $enfoque }}">Compacta</button>
                             </div>
                         </div>
@@ -318,7 +318,7 @@
                                 <col class="w-[140px]">
                                 <col class="w-[128px]">
                             </colgroup>
-                            <thead class="h-[38px] border-b border-[#e1ece9] bg-[#F1F7F5] text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#4b6b66]">
+                            <thead class="h-[38px] border-b border-[#ECE6DA] bg-[#F4F0E8] text-[11.5px] font-bold uppercase tracking-[0.08em] text-[#57524A]">
                                 <tr>
                                     <th scope="col" class="whitespace-nowrap pl-[18px] pr-3">{{ $grupal ? 'Grupo' : 'Estudiante' }}</th>
                                     <th scope="col" class="whitespace-nowrap px-3">Entregó el</th>
@@ -332,7 +332,7 @@
                                 @endforeach
                             </tbody>
                         </table>
-                        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-[#e1ece9] bg-[#fafcfb] px-[18px] py-3 text-[13px] text-[#4b625e]">
+                        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-[#ECE6DA] bg-[#F7F4EE] px-[18px] py-3 text-[13px] text-[#57524A]">
                             <p aria-live="polite">
                                 Mostrando {{ $desde }}–{{ $hasta }} de {{ $plural($filasTarea, $unidad[0], $unidad[1]) }}.@if ($grupal) La nota de un grupo se aplica a todos sus integrantes.@endif
                             </p>
@@ -344,13 +344,13 @@
                                 @if ($paginas > 1)
                                     <nav class="flex gap-1.5" aria-label="Páginas">
                                         <button type="button" wire:click="irAPagina({{ $pagina - 1 }})" @disabled($pagina <= 1) aria-label="Página anterior"
-                                            class="grid h-8 min-w-8 place-items-center rounded-lg border border-[#d6e6e2] bg-white font-semibold text-[var(--p900)] disabled:opacity-40 {{ $enfoque }}">‹</button>
+                                            class="grid h-8 min-w-8 place-items-center rounded-lg border border-[#E0D8C8] bg-white font-semibold text-[var(--p900)] disabled:opacity-40 {{ $enfoque }}">‹</button>
                                         @foreach (range(1, $paginas) as $numero)
                                             <button type="button" wire:click="irAPagina({{ $numero }})" @if ($numero === $pagina) aria-current="page" @endif
-                                                class="grid h-8 min-w-8 place-items-center rounded-lg border px-2 font-semibold {{ $numero === $pagina ? 'border-[var(--p900)] bg-[var(--p900)] text-white' : 'border-[#d6e6e2] bg-white text-[var(--p900)]' }} {{ $enfoque }}">{{ $numero }}</button>
+                                                class="grid h-8 min-w-8 place-items-center rounded-lg border px-2 font-semibold {{ $numero === $pagina ? 'border-[var(--p900)] bg-[var(--p900)] text-white' : 'border-[#E0D8C8] bg-white text-[var(--p900)]' }} {{ $enfoque }}">{{ $numero }}</button>
                                         @endforeach
                                         <button type="button" wire:click="irAPagina({{ $pagina + 1 }})" @disabled($pagina >= $paginas) aria-label="Página siguiente"
-                                            class="grid h-8 min-w-8 place-items-center rounded-lg border border-[#d6e6e2] bg-white font-semibold text-[var(--p900)] disabled:opacity-40 {{ $enfoque }}">›</button>
+                                            class="grid h-8 min-w-8 place-items-center rounded-lg border border-[#E0D8C8] bg-white font-semibold text-[var(--p900)] disabled:opacity-40 {{ $enfoque }}">›</button>
                                     </nav>
                                 @endif
                             </div>

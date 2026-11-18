@@ -4,6 +4,7 @@ namespace App\Livewire\Admin\SedesSalones;
 
 use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
+use App\Models\Facultad;
 use App\Models\Salon;
 use App\Models\Sede;
 use App\Models\TipoSalon;
@@ -37,12 +38,13 @@ class Index extends Component
     public const PESTANAS = [
         'salones' => 'Salones',
         'sedes' => 'Sedes',
+        'facultades' => 'Facultades',
         'tipos' => 'Tipos de salón',
         'asignar' => 'Asignar salones a un curso',
     ];
 
     /** @var array<string, string> */
-    public const ENTIDADES = ['sede' => 'sede', 'tipo' => 'tipo de salón', 'salon' => 'salón'];
+    public const ENTIDADES = ['sede' => 'sede', 'facultad' => 'facultad', 'tipo' => 'tipo de salón', 'salon' => 'salón'];
 
     #[Url(as: 'ver', except: 'salones')]
     public string $pestana = 'salones';
@@ -65,6 +67,12 @@ class Index extends Component
     public string $sedeCodigo = '';
 
     public string $tipoNombre = '';
+
+    public string $facultadSedeId = '';
+
+    public string $facultadNombre = '';
+
+    public string $facultadCodigo = '';
 
     public string $salonSedeId = '';
 
@@ -116,6 +124,7 @@ class Index extends Component
         $this->formulario = $entidad;
         $this->editandoId = null;
         $this->salonSedeId = $this->filtroSede;
+        $this->facultadSedeId = $this->filtroSede;
         $this->salonTipoId = $this->filtroTipo;
     }
 
@@ -130,6 +139,7 @@ class Index extends Component
 
         match ($entidad) {
             'sede' => [$this->sedeNombre, $this->sedeCodigo] = [$registro->nombre, $registro->codigo],
+            'facultad' => [$this->facultadSedeId, $this->facultadNombre, $this->facultadCodigo] = [(string) $registro->sede_id, $registro->nombre, $registro->codigo],
             'tipo' => $this->tipoNombre = $registro->nombre,
             'salon' => [$this->salonSedeId, $this->salonCodigo, $this->salonNombre, $this->salonTipoId, $this->salonCapacidad, $this->salonEquipamiento]
                 = [(string) $registro->sede_id, $registro->codigo, $registro->nombre, (string) $registro->tipo_salon_id, (string) $registro->capacidad, (string) $registro->equipamiento],
@@ -156,6 +166,7 @@ class Index extends Component
         if ($registro === null) {
             $registro = match ($entidad) {
                 'sede' => Sede::create($datos),
+                'facultad' => Facultad::create($datos),
                 'tipo' => TipoSalon::create($datos),
                 'salon' => Salon::create($datos),
             };
@@ -174,7 +185,7 @@ class Index extends Component
     {
         Gate::authorize('gestionar', Salon::class);
         $registro = $this->registro($entidad, $id);
-        $campo = $entidad === 'sede' ? 'activa' : 'activo';
+        $campo = in_array($entidad, ['sede', 'facultad'], true) ? 'activa' : 'activo';
         $activo = ! $registro->{$campo};
 
         $registro->update([$campo => $activo]);
@@ -194,8 +205,10 @@ class Index extends Component
         $bloqueo = match ($entidad) {
             'salon' => $registro->sesiones()->where('fecha', '>', now())->exists()
                 ? 'Este salón tiene clases futuras asignadas: no se puede borrar, desactívalo.' : null,
-            'sede' => $registro->salones()->exists() || $registro->cursos()->exists()
-                ? 'Esta sede tiene salones o cursos: no se puede borrar, desactívala.' : null,
+            'sede' => $registro->salones()->exists() || $registro->cursos()->exists() || $registro->facultades()->exists()
+                ? 'Esta sede tiene salones, facultades o cursos: no se puede borrar, desactívala.' : null,
+            'facultad' => $registro->cursos()->exists()
+                ? 'Esta facultad tiene cursos: no se puede borrar, desactívala.' : null,
             'tipo' => $registro->salones()->exists()
                 ? 'Este tipo tiene salones: no se puede borrar, desactívalo.' : null,
         };
@@ -246,12 +259,18 @@ class Index extends Component
         ];
 
         $this->sedeCodigo = mb_strtoupper(trim($this->sedeCodigo));
+        $this->facultadCodigo = mb_strtoupper(trim($this->facultadCodigo));
         $this->salonCodigo = trim($this->salonCodigo);
 
         return match ($entidad) {
             'sede' => (fn (array $v) => ['nombre' => trim($v['sedeNombre']), 'codigo' => $v['sedeCodigo']])($this->validate([
                 'sedeNombre' => ['required', 'string', 'max:100'],
                 'sedeCodigo' => ['required', 'string', 'max:10', Rule::unique('sedes', 'codigo')->ignore($registro?->id)],
+            ], $mensajes)),
+            'facultad' => (fn (array $v) => ['sede_id' => (int) $v['facultadSedeId'], 'nombre' => trim($v['facultadNombre']), 'codigo' => $v['facultadCodigo']])($this->validate([
+                'facultadSedeId' => ['required', Rule::exists('sedes', 'id')],
+                'facultadNombre' => ['required', 'string', 'max:120'],
+                'facultadCodigo' => ['required', 'string', 'max:15', Rule::unique('facultades', 'codigo')->ignore($registro?->id)],
             ], $mensajes)),
             'tipo' => (fn (array $v) => ['nombre' => trim($v['tipoNombre'])])($this->validate([
                 'tipoNombre' => ['required', 'string', 'max:80', Rule::unique('tipos_salon', 'nombre')->ignore($registro?->id)],
@@ -278,6 +297,7 @@ class Index extends Component
     {
         return match ($entidad) {
             'sede' => Sede::findOrFail($id),
+            'facultad' => Facultad::findOrFail($id),
             'tipo' => TipoSalon::findOrFail($id),
             'salon' => Salon::findOrFail($id),
             default => abort(404),
@@ -305,13 +325,18 @@ class Index extends Component
 
     protected function limpiarCampos(): void
     {
-        $this->reset(['sedeNombre', 'sedeCodigo', 'tipoNombre', 'salonSedeId', 'salonCodigo', 'salonNombre', 'salonTipoId', 'salonCapacidad', 'salonEquipamiento']);
+        $this->reset(['sedeNombre', 'sedeCodigo', 'facultadSedeId', 'facultadNombre', 'facultadCodigo', 'tipoNombre', 'salonSedeId', 'salonCodigo', 'salonNombre', 'salonTipoId', 'salonCapacidad', 'salonEquipamiento']);
         $this->resetErrorBag();
     }
 
     public function render(AsignacionSalones $asignacion): View
     {
-        $sedes = Sede::query()->withCount(['salones', 'cursos'])->orderBy('nombre')->get();
+        $sedes = Sede::query()->withCount(['salones', 'cursos', 'facultades'])->orderBy('nombre')->get();
+        $facultades = $this->pestana === 'facultades'
+            ? Facultad::query()->with('sede:id,nombre,codigo')->withCount('cursos')
+                ->when($this->filtroSede !== '', fn ($consulta) => $consulta->where('sede_id', (int) $this->filtroSede))
+                ->orderBy('nombre')->get()
+            : collect();
         $tipos = TipoSalon::query()->withCount('salones')->orderBy('nombre')->get();
 
         $salones = $this->pestana === 'salones'
@@ -328,6 +353,7 @@ class Index extends Component
 
         return view('livewire.admin.sedes-salones.index', [
             'sedes' => $sedes,
+            'facultades' => $facultades,
             'tipos' => $tipos,
             'salones' => $salones,
             'opcionesSede' => $sedes->mapWithKeys(fn (Sede $sede) => [(string) $sede->id => "{$sede->nombre} ({$sede->codigo})"])->all(),
@@ -338,6 +364,6 @@ class Index extends Component
                 : [],
             'cursoElegido' => $cursoElegido,
             'vistaPrevia' => $cursoElegido ? $asignacion->vistaPrevia($cursoElegido) : null,
-        ])->title('Sedes y salones — LearnUp');
+        ])->title('Sedes, salones y facultades — LearnUp');
     }
 }

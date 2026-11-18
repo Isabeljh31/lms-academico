@@ -27,7 +27,7 @@
             </span>
         @endif
         <div class="min-w-0">
-            <h1 class="text-2xl sm:text-3xl font-bold {{ $textoTitulo }} break-words">{{ $titulo }}</h1>
+            <h1 class="{{ $esAdmin || \App\View\Components\PanelProfesorLayout::aplicaA(auth()->user()) ?'text-[34px] sm:text-[42px]' : 'text-2xl sm:text-3xl' }} font-bold {{ $textoTitulo }} break-words">{{ $titulo }}</h1>
             @if ($descripcion)
                 <p class="mt-1 text-sm {{ $textoDesc }}">{{ $descripcion }}</p>
             @endif

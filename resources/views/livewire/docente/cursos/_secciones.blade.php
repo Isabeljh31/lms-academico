@@ -35,7 +35,7 @@
         return $leccion->video_url ? 'Enlace' : $leccion->tipoRecurso()['etiqueta'];
     };
 @endphp
-<div class="overflow-hidden rounded-[14px] border-[1.5px] border-[#d9e8e4] bg-white"
+<div class="overflow-hidden rounded-[14px] border-[1.5px] border-[#E0D8C8] bg-white"
     x-data="{
         get abierta() { return (this.$wire.seccionesAbiertas ?? {})[{{ $semanaClave }}] ?? null },
         alternar(clave, boton) {
@@ -60,30 +60,30 @@
             $primero = $elementos->first();
         @endphp
         <section wire:key="{{ $idSeccion }}" aria-labelledby="{{ $idSeccion }}-titulo" data-seccion="{{ $claveSeccion }}" data-vacia="{{ $vacia ? 'si' : 'no' }}"
-            @class(['border-t border-[#e6efec] first:border-t-0', 'bg-[#FAFCFB]' => $vacia])>
+            @class(['border-t border-[#ECE6DA] first:border-t-0', 'bg-[#F7F4EE]' => $vacia])>
             {{-- Encabezado clicable: el botón de abrir/cerrar cubre solo esta fila (absolute inset-0); "Agregar"/"Editar" queda encima (z-10). --}}
-            <div class="relative grid cursor-pointer grid-cols-[44px_1fr_auto] items-center gap-3.5 px-4 py-3.5 hover:bg-[#F3FAF8]">
-                <span @class(['grid h-11 w-11 place-items-center rounded-[13px] border-[1.5px] bg-white', 'border-dashed border-[#d4e5e0] text-[#7d918d]' => $vacia, 'border-[#d4e5e0] text-[var(--p700)]' => ! $vacia]) aria-hidden="true">
+            <div class="relative grid cursor-pointer grid-cols-[44px_1fr_auto] items-center gap-3.5 px-4 py-3.5 hover:bg-[#F4F0E8]">
+                <span @class(['grid h-11 w-11 place-items-center rounded-[13px] border-[1.5px] bg-white', 'border-dashed border-[#E0D8C8] text-[#8F887B]' => $vacia, 'border-[#E0D8C8] text-[var(--p700)]' => ! $vacia]) aria-hidden="true">
                     <x-icono :nombre="$datosSeccion['icono']" class="h-5 w-5" />
                 </span>
                 <div class="min-w-0">
                     <h5 id="{{ $idSeccion }}-titulo" class="flex flex-wrap items-center gap-2 text-[14.5px] font-bold text-[var(--p900)]">
                         {{ $datosSeccion['etiqueta'] }}
-                        <span @class(['min-w-[22px] rounded-full px-[7px] py-px text-center text-[11.5px] font-bold', 'bg-[#eef2f1] text-[#7d918d]' => $vacia, 'bg-[#E4EFEC] text-[var(--p700)]' => ! $vacia])
+                        <span @class(['min-w-[22px] rounded-full px-[7px] py-px text-center text-[11.5px] font-bold', 'bg-[#F4F0E8] text-[#8F887B]' => $vacia, 'bg-[#ECE6DA] text-[var(--p700)]' => ! $vacia])
                             aria-label="{{ $elementos->count() }} {{ $elementos->count() === 1 ? 'elemento' : 'elementos' }}">{{ $elementos->count() }}</span>
                     </h5>
-                    <p class="mt-[3px] text-[12.5px] text-[#5b706c]">{{ $datosSeccion['descripcion'] }}@if ($vacia) Aún no hay ninguna.@endif</p>
+                    <p class="mt-[3px] text-[12.5px] text-[#6B6559]">{{ $datosSeccion['descripcion'] }}@if ($vacia) Aún no hay ninguna.@endif</p>
 
                     {{-- Vista previa sin abrir nada. --}}
                     @if ($claveSeccion === 'mensaje_inicio' && $primero)
-                        <blockquote class="mt-[9px] max-w-[640px] border-l-[3px] border-[var(--p700)] pl-2.5 text-[12.5px] leading-[1.45] text-[#2d4541]">“{{ \Illuminate\Support\Str::limit(trim((string) ($primero->descripcion ?: $primero->titulo)), 160) }}”</blockquote>
+                        <blockquote class="mt-[9px] max-w-[640px] border-l-[3px] border-[var(--p700)] pl-2.5 text-[12.5px] leading-[1.45] text-[#3F3B34]">“{{ \Illuminate\Support\Str::limit(trim((string) ($primero->descripcion ?: $primero->titulo)), 160) }}”</blockquote>
                     @elseif (! $vacia)
                         <ul class="mt-[9px] flex flex-wrap gap-2" aria-label="Vista previa de {{ mb_strtolower($datosSeccion['etiqueta']) }}">
                             @foreach ($elementos->take(4) as $leccion)
-                                <li class="inline-flex max-w-[330px] items-center gap-[7px] rounded-[9px] bg-[#F1F7F5] px-2.5 py-[5px] text-[12.5px] text-[#2d4541]" wire:key="previa-{{ $leccion->id }}">
+                                <li class="inline-flex max-w-[330px] items-center gap-[7px] rounded-[9px] bg-[#F4F0E8] px-2.5 py-[5px] text-[12.5px] text-[#3F3B34]" wire:key="previa-{{ $leccion->id }}">
                                     <x-icono :nombre="$leccion->tipoRecurso()['icono']" class="h-3.5 w-3.5 shrink-0 text-[var(--p700)]" />
                                     <span class="truncate font-semibold" title="{{ $leccion->titulo }}">{{ $leccion->titulo }}</span>
-                                    <em class="whitespace-nowrap text-[11.5px] not-italic text-[#5b706c]">{{ $tipoCorto($leccion) }}</em>
+                                    <em class="whitespace-nowrap text-[11.5px] not-italic text-[#6B6559]">{{ $tipoCorto($leccion) }}</em>
                                 </li>
                             @endforeach
                             @if ($elementos->count() > 4)
@@ -95,7 +95,7 @@
                 <div class="flex items-center gap-2">
                     @if ($editable && ! $esHeredada)
                         <button type="button" wire:click="agregarLeccion('{{ $claveSeccion }}', {{ $semanaClave }})"
-                            @class(['relative z-10 inline-flex h-[34px] items-center gap-[7px] whitespace-nowrap rounded-[10px] border-[1.5px] px-3.5 text-[12.5px] font-bold text-[var(--p700)] transition-colors motion-reduce:transition-none', $enfoque, 'border-[var(--p700)] bg-[var(--mint)]' => $vacia, 'border-[#c9ddd8] bg-white hover:bg-[var(--mint)]' => ! $vacia])
+                            @class(['relative z-10 inline-flex h-[34px] items-center gap-[7px] whitespace-nowrap rounded-[10px] border-[1.5px] px-3.5 text-[12.5px] font-bold text-[var(--p700)] transition-colors motion-reduce:transition-none', $enfoque, 'border-[var(--p700)] bg-[var(--mint)]' => $vacia, 'border-[#E0D8C8] bg-white hover:bg-[var(--mint)]' => ! $vacia])
                             aria-label="{{ ($hayMensaje ? 'Editar ' : 'Agregar a ').mb_strtolower($datosSeccion['etiqueta']) }}">
                             <x-icono :nombre="$hayMensaje ? 'lapiz' : 'mas'" class="h-3.5 w-3.5" />
                             {{ $hayMensaje ? 'Editar' : 'Agregar' }}
@@ -112,7 +112,7 @@
                 x-show="abierta === '{{ $claveSeccion }}'" @unless ($estaAbierta) style="display: none" @endunless
                 class="pb-3.5 pl-[74px] pr-4">
                 @if ($vacia)
-                    <p class="rounded-lg border-[1.5px] border-dashed border-[#d4e5e0] px-3 py-2.5 text-[13px] text-[#5b706c]">Aún no hay elementos en esta sección.</p>
+                    <p class="rounded-lg border-[1.5px] border-dashed border-[#E0D8C8] px-3 py-2.5 text-[13px] text-[#6B6559]">Aún no hay elementos en esta sección.</p>
                 @else
                     @php $ordenable = $editable && $elementos->count() > 1; @endphp
                     {{-- Arrastrar y soltar SOLO dentro de esta sección (grupo propio de SortableJS, sin pull/put):
@@ -143,18 +143,18 @@
                                 });
                             },
                         }" x-init="montar()" @endif>
-                    <ul x-ref="lista" class="border-l-2 border-[#d4e5e0] pl-3.5" aria-label="Elementos de {{ mb_strtolower($datosSeccion['etiqueta']) }}">
+                    <ul x-ref="lista" class="border-l-2 border-[#E0D8C8] pl-3.5" aria-label="Elementos de {{ mb_strtolower($datosSeccion['etiqueta']) }}">
                         @foreach ($elementos as $leccion)
                             @php $tipo = $leccion->tipoRecurso(); @endphp
-                            <li class="flex items-start gap-3 border-t border-dashed border-[#d4e5e0] py-2 first:border-t-0 [&.leccion-fantasma]:bg-[var(--mint)] [&.leccion-fantasma]:outline-dashed [&.leccion-fantasma]:outline-2 [&.leccion-fantasma]:-outline-offset-2 [&.leccion-fantasma]:outline-[var(--p700)]"
+                            <li class="flex items-start gap-3 border-t border-dashed border-[#E0D8C8] py-2 first:border-t-0 [&.leccion-fantasma]:bg-[var(--mint)] [&.leccion-fantasma]:outline-dashed [&.leccion-fantasma]:outline-2 [&.leccion-fantasma]:-outline-offset-2 [&.leccion-fantasma]:outline-[var(--p700)]"
                                 wire:key="leccion-{{ $leccion->id }}" data-leccion="{{ $leccion->id }}">
                                 @if ($ordenable)
                                     <span data-asa title="Arrastra para cambiar el orden" aria-hidden="true"
-                                        class="-ml-1 mt-1 flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-[#7d918d] hover:bg-[var(--mint)] hover:text-[var(--p700)] active:cursor-grabbing">
+                                        class="-ml-1 mt-1 flex h-8 w-6 shrink-0 cursor-grab touch-none items-center justify-center rounded text-[#8F887B] hover:bg-[var(--mint)] hover:text-[var(--p700)] active:cursor-grabbing">
                                         <svg class="h-4 w-4" viewBox="0 0 16 16" fill="currentColor"><circle cx="5.5" cy="3.5" r="1.25" /><circle cx="10.5" cy="3.5" r="1.25" /><circle cx="5.5" cy="8" r="1.25" /><circle cx="10.5" cy="8" r="1.25" /><circle cx="5.5" cy="12.5" r="1.25" /><circle cx="10.5" cy="12.5" r="1.25" /></svg>
                                     </span>
                                 @endif
-                                <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border-[1.5px] border-[#d4e5e0] bg-white text-[var(--p700)]" title="{{ $tipo['etiqueta'] }}">
+                                <span class="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border-[1.5px] border-[#E0D8C8] bg-white text-[var(--p700)]" title="{{ $tipo['etiqueta'] }}">
                                     <x-icono :nombre="$tipo['icono']" class="h-4 w-4" />
                                 </span>
                                 <div class="min-w-0 flex-1">
@@ -162,9 +162,9 @@
                                         <span class="break-words text-[13px] font-semibold text-[var(--p900)]">{{ $leccion->titulo }}</span>
                                     </div>
                                     @if ($leccion->descripcion)
-                                        <p class="mt-0.5 line-clamp-2 text-xs text-[#5b706c]">{{ $leccion->descripcion }}</p>
+                                        <p class="mt-0.5 line-clamp-2 text-xs text-[#6B6559]">{{ $leccion->descripcion }}</p>
                                     @endif
-                                    <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[#4b625e]">
+                                    <div class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-[#57524A]">
                                         @if ($leccion->video_url)
                                             <a href="{{ $leccion->video_url }}" target="_blank" rel="noopener noreferrer" class="inline-flex min-h-6 items-center gap-1 rounded hover:text-[var(--p700)] hover:underline {{ $enfoque }}"><x-icono nombre="video" class="h-3.5 w-3.5" /> {{ $claveSeccion === 'grabacion' ? 'Grabación' : 'Video' }}</a>
                                         @endif

@@ -70,7 +70,7 @@
 
     {{-- Cuerpo: recorrido y próxima entrega. --}}
     <div class="flex-1 px-3 pb-2.5 pt-2">
-        <div class="mb-1 flex items-baseline justify-between gap-x-3 text-[11px] font-medium text-[#4b625e]">
+        <div class="mb-1 flex items-baseline justify-between gap-x-3 text-[11px] font-medium text-[#57524A]">
             <span class="truncate">{{ $datos['avance']['texto'] }}</span>
             @if ($datos['avance']['detalle'])
                 <span class="shrink-0 font-bold tabular-nums text-[var(--p900)]">{{ $datos['avance']['detalle'] }}</span>
@@ -80,18 +80,18 @@
             aria-valuenow="{{ $datos['avance']['porcentaje'] }}" aria-valuemin="0" aria-valuemax="100">
             @if ($totalSemanas <= 24)
                 @foreach (range(1, $totalSemanas) as $semana)
-                    <span class="h-[3px] flex-1 rounded-full {{ $semana > $semanasLlenas ? 'bg-[#e4eeeb]' : '' }}"
+                    <span class="h-[3px] flex-1 rounded-full {{ $semana > $semanasLlenas ? 'bg-[#ECE6DA]' : '' }}"
                         @if ($semana <= $semanasLlenas) style="background-color: {{ $color }}" @endif></span>
                 @endforeach
             @else
-                <span class="h-[3px] flex-1 rounded-full bg-[#e4eeeb]"><span class="block h-[3px] rounded-full" style="width: {{ $datos['avance']['porcentaje'] }}%; background-color: {{ $color }}"></span></span>
+                <span class="h-[3px] flex-1 rounded-full bg-[#ECE6DA]"><span class="block h-[3px] rounded-full" style="width: {{ $datos['avance']['porcentaje'] }}%; background-color: {{ $color }}"></span></span>
             @endif
         </div>
 
         @if ($numeroSemana !== null)
             {{-- Semana actual: tareas del módulo de la semana (título tal como está guardado) y, aparte, prácticas de campo con fecha en esta semana. --}}
             <div class="mt-2 flex min-w-0 flex-col gap-1.5">
-                <p class="text-[10.5px] font-bold uppercase tracking-[0.08em] text-[#5b706c]">Esta semana · Semana {{ $numeroSemana }}</p>
+                <p class="text-[10.5px] font-bold uppercase tracking-[0.08em] text-[#6B6559]">Esta semana · Semana {{ $numeroSemana }}</p>
                 @if ($semanaVacia)
                     <a href="{{ $semanaVacia['url'] }}" wire:navigate
                         class="relative z-10 inline-flex items-center gap-1 self-start whitespace-nowrap rounded-full bg-[var(--warn200)] px-2 py-px text-[11px] font-semibold text-[var(--warn800)] transition-colors hover:bg-[#ffe68a] motion-reduce:transition-none {{ $enfoque }}"
@@ -106,14 +106,14 @@
                             $otras = count($actividades) - 1;
                             [$textoFecha, $claseFecha] = $etiquetaFecha($primera['fecha']);
                         @endphp
-                        <div class="min-w-0 text-xs text-[#44605b]" data-actividad="{{ $tipoActividad }}">
+                        <div class="min-w-0 text-xs text-[#3F3B34]" data-actividad="{{ $tipoActividad }}">
                             <div class="flex min-w-0 items-center gap-1.5">
                                 <p class="min-w-0 flex-1 truncate font-bold text-[var(--p900)]" title="{{ $primera['titulo'] }}">{{ $primera['titulo'] }}</p>
                                 <time datetime="{{ $primera['fecha']->toDateString() }}" title="{{ $primera['fecha']->format('d/m/Y H:i') }}"
                                     class="shrink-0 whitespace-nowrap rounded-full px-1.5 py-px text-[11px] font-bold {{ $claseFecha }}">{{ $textoFecha }}</time>
                             </div>
                             <div class="mt-0.5 flex items-center gap-1.5">
-                                <span class="rounded bg-[#eef4f2] px-1.5 py-px text-[10.5px] font-semibold text-[#4b625e]">{{ $tipoActividad }}</span>
+                                <span class="rounded bg-[#F4F0E8] px-1.5 py-px text-[10.5px] font-semibold text-[#57524A]">{{ $tipoActividad }}</span>
                                 @if ($otras > 0)
                                     <span class="text-[11px] font-semibold text-[var(--p700)]"
                                         title="{{ collect($actividades)->map(fn (array $actividad) => $actividad['titulo'].' · '.$etiquetaFecha($actividad['fecha'])[0])->join("\n") }}">+{{ $otras }} más</span>
@@ -122,12 +122,12 @@
                         </div>
                     @endforeach
                     @if ($deLaSemana['semana'] === [] && $deLaSemana['practicas'] === [])
-                        <p class="text-xs text-[#5b706c]">Sin tareas esta semana</p>
+                        <p class="text-xs text-[#6B6559]">Sin tareas esta semana</p>
                     @endif
                 @endif
             </div>
         @else
-            <div class="mt-2 flex min-w-0 items-center gap-1.5 text-xs text-[#44605b]">
+            <div class="mt-2 flex min-w-0 items-center gap-1.5 text-xs text-[#3F3B34]">
                 <x-icono nombre="calendario" class="h-[14px] w-[14px] shrink-0 text-[var(--p700)]" />
                 <p class="min-w-0 flex-1 truncate" @if ($cierre) title="{{ $tituloCierre }}" @endif>
                     @if ($cierre)
@@ -145,14 +145,14 @@
     </div>
 
     {{-- Pie: matriculados, "Abrir" (su área cubre la tarjeta) y Calificar o "Al día". --}}
-    <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 border-t border-[#edf3f1] px-3 py-2">
-        <p class="flex items-baseline gap-1 text-[11.5px] text-[#4b625e]">
+    <div class="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5 border-t border-[#F4F0E8] px-3 py-2">
+        <p class="flex items-baseline gap-1 text-[11.5px] text-[#57524A]">
             <b class="text-[13px] font-bold tabular-nums text-[var(--p900)]">{{ $curso->inscripciones_activas_count }}{{ $curso->cupo_maximo ? ' / '.$curso->cupo_maximo : '' }}</b>
             matriculados
         </p>
         <div class="flex items-center gap-1.5">
             <a href="{{ route('cursos.show', $curso) }}" wire:navigate aria-label="Abrir curso {{ $curso->nombre }}"
-                class="inline-flex h-8 items-center gap-1 rounded-full border-[1.5px] border-[#c9ddd8] px-3 text-[12.5px] font-bold text-[var(--p700)] transition-colors after:absolute after:inset-0 after:rounded-[14px] after:content-[''] hover:bg-[var(--mint)] motion-reduce:transition-none {{ $enfoque }}">
+                class="inline-flex h-8 items-center gap-1 rounded-full border-[1.5px] border-[#E0D8C8] px-3 text-[12.5px] font-bold text-[var(--p700)] transition-colors after:absolute after:inset-0 after:rounded-[14px] after:content-[''] hover:bg-[var(--mint)] motion-reduce:transition-none {{ $enfoque }}">
                 Abrir
                 <x-icono nombre="flecha-derecha" class="h-[13px] w-[13px]" />
             </a>

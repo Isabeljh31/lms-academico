@@ -45,9 +45,9 @@
                     <p class="break-words text-[22px] font-extrabold leading-tight tracking-[-0.02em] text-[color:color-mix(in_srgb,var(--c)_45%,#000)]">{{ $curso->nombre }}</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="{{ $chip }} {{ $curso->estado === 'publicado' ? 'bg-[var(--ok100)] text-[var(--ok900)]' : 'bg-white/75 text-[#3d5753]' }}">{{ $estadoTexto }}</span>
+                    <span class="{{ $chip }} {{ $curso->estado === 'publicado' ? 'bg-[var(--ok100)] text-[var(--ok900)]' : 'bg-white/75 text-[#3F3B34]' }}">{{ $estadoTexto }}</span>
                     @if ($modalidad)
-                        <span class="{{ $chip }} bg-white/75 text-[#3d5753]">{{ $modalidad }}</span>
+                        <span class="{{ $chip }} bg-white/75 text-[#3F3B34]">{{ $modalidad }}</span>
                     @endif
                 </div>
             </div>
@@ -56,7 +56,7 @@
 @else
 @php
     $enfoque = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--p700)]';
-    $etiqueta = 'text-[11px] font-bold uppercase tracking-[0.12em] text-[#5b706c]';
+    $etiqueta = 'text-[11px] font-bold uppercase tracking-[0.12em] text-[#6B6559]';
     $chip = 'inline-flex items-center whitespace-nowrap rounded-full px-[11px] py-[3px] text-xs font-bold';
     $pastilla = 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-full px-[9px] py-0.5 text-[11.5px] font-bold';
     $servicio = app(\App\Services\Reportes\CursosProfesor::class);
@@ -104,12 +104,12 @@
                 @endif
                 <h1 class="mb-2 mt-[3px] break-words text-[30px] font-extrabold leading-[1.1] tracking-[-0.02em] text-[color:color-mix(in_srgb,var(--c)_45%,#000)]">{{ $curso->nombre }}</h1>
                 <div class="flex flex-wrap items-center gap-2">
-                    <span class="{{ $chip }} {{ $curso->estado === 'publicado' ? 'bg-[var(--ok100)] text-[var(--ok900)]' : 'bg-white/75 text-[#3d5753]' }}">{{ $estadoTexto }}</span>
+                    <span class="{{ $chip }} {{ $curso->estado === 'publicado' ? 'bg-[var(--ok100)] text-[var(--ok900)]' : 'bg-white/75 text-[#3F3B34]' }}">{{ $estadoTexto }}</span>
                     @if ($modalidad)
-                        <span class="{{ $chip }} bg-white/75 text-[#3d5753]">{{ $modalidad }}</span>
+                        <span class="{{ $chip }} bg-white/75 text-[#3F3B34]">{{ $modalidad }}</span>
                     @endif
                     @if ($estadoAviso)
-                        <span class="text-[12.5px] font-medium text-[#3d5753]">{{ $estadoAviso }}</span>
+                        <span class="text-[12.5px] font-medium text-[#3F3B34]">{{ $estadoAviso }}</span>
                     @endif
                 </div>
             </div>
@@ -121,7 +121,7 @@
                         <x-icono nombre="flecha-derecha" class="h-4 w-4" />
                     </a>
                     @if ($diasEspera !== null)
-                        <p class="flex items-center gap-[7px] text-[12.5px] text-[#3d5753]">
+                        <p class="flex items-center gap-[7px] text-[12.5px] text-[#3F3B34]">
                             <span class="h-[9px] w-[9px] shrink-0 rounded-full {{ $urgencia['punto'] }}" aria-hidden="true"></span>
                             La más antigua espera {{ PorCalificar::textoEspera($diasEspera) }}
                         </p>
@@ -135,22 +135,22 @@
         </div>
 
         @if ($meta !== [])
-            <ul class="flex flex-wrap gap-x-5 gap-y-1.5 px-7 pt-3.5 text-[13.5px] text-[#3d5753]" aria-label="Datos del curso">
+            <ul class="flex flex-wrap gap-x-5 gap-y-1.5 px-7 pt-3.5 text-[13.5px] text-[#3F3B34]" aria-label="Datos del curso">
                 @foreach ($meta as $icono => $texto)
                     <li class="flex items-center gap-[7px]"><x-icono :nombre="['calendario' => 'calendario', 'reloj' => 'reloj', 'ubicacion' => 'inicio', 'persona' => 'persona'][$icono]" class="h-[15px] w-[15px] shrink-0 text-[var(--p700)]" />{{ $texto }}</li>
                 @endforeach
             </ul>
         @endif
         @if ($curso->descripcion)
-            <p class="truncate px-7 pt-1 text-[13.5px] text-[#5b706c]" title="{{ $curso->descripcion }}">{{ $curso->descripcion }}</p>
+            <p class="truncate px-7 pt-1 text-[13.5px] text-[#6B6559]" title="{{ $curso->descripcion }}">{{ $curso->descripcion }}</p>
         @endif
 
-        <dl class="mt-4 grid grid-cols-[1.3fr_1fr_1fr_1.2fr] border-t border-[#e8f0ee]">
+        <dl class="mt-4 grid grid-cols-[1.3fr_1fr_1fr_1.2fr] border-t border-[#ECE6DA]">
             <div class="px-7 py-4">
                 <dt class="{{ $etiqueta }}">Avance del curso</dt>
                 <dd class="mt-1 flex items-baseline gap-2 text-[26px] font-extrabold tracking-[-0.02em] text-[var(--p900)]">
                     @if ($datos['avance']['estado'] === 'en_curso')
-                        Semana {{ $datos['numero_semana_actual'] }} <small class="text-[13px] font-semibold tracking-normal text-[#5b706c]">de {{ $totalSemanas }} · {{ $datos['avance']['porcentaje'] }} %</small>
+                        Semana {{ $datos['numero_semana_actual'] }} <small class="text-[13px] font-semibold tracking-normal text-[#6B6559]">de {{ $totalSemanas }} · {{ $datos['avance']['porcentaje'] }} %</small>
                     @else
                         <span class="text-lg">{{ $datos['avance']['texto'] }}</span>
                     @endif
@@ -159,27 +159,27 @@
                     <span class="mt-[9px] flex gap-[3px]" role="progressbar" aria-label="Avance del curso" aria-valuenow="{{ $datos['avance']['porcentaje'] }}" aria-valuemin="0" aria-valuemax="100">
                         @if ($totalSemanas <= 24)
                             @foreach (range(1, $totalSemanas) as $segmento)
-                                <span class="h-1.5 flex-1 rounded-[3px] {{ $segmento > $semanasLlenas ? 'bg-[#e1ebe8]' : '' }}" @if ($segmento <= $semanasLlenas) style="background-color: {{ $color }}" @endif></span>
+                                <span class="h-1.5 flex-1 rounded-[3px] {{ $segmento > $semanasLlenas ? 'bg-[#ECE6DA]' : '' }}" @if ($segmento <= $semanasLlenas) style="background-color: {{ $color }}" @endif></span>
                             @endforeach
                         @else
-                            <span class="h-1.5 flex-1 rounded-[3px] bg-[#e1ebe8]"><span class="block h-1.5 rounded-[3px]" style="width: {{ $datos['avance']['porcentaje'] }}%; background-color: {{ $color }}"></span></span>
+                            <span class="h-1.5 flex-1 rounded-[3px] bg-[#ECE6DA]"><span class="block h-1.5 rounded-[3px]" style="width: {{ $datos['avance']['porcentaje'] }}%; background-color: {{ $color }}"></span></span>
                         @endif
                     </span>
                 </dd>
             </div>
-            <div class="border-l border-[#e8f0ee] px-7 py-4">
+            <div class="border-l border-[#ECE6DA] px-7 py-4">
                 <dt class="{{ $etiqueta }}">Matriculados</dt>
                 <dd class="mt-1 flex items-baseline gap-2 text-[26px] font-extrabold tracking-[-0.02em] text-[var(--p900)]">
                     {{ $curso->inscripciones_activas_count }}
-                    <small class="text-[13px] font-semibold tracking-normal text-[#5b706c]">{{ $curso->cupo_maximo ? 'de '.$curso->cupo_maximo.' cupos' : 'estudiantes activos' }}</small>
+                    <small class="text-[13px] font-semibold tracking-normal text-[#6B6559]">{{ $curso->cupo_maximo ? 'de '.$curso->cupo_maximo.' cupos' : 'estudiantes activos' }}</small>
                 </dd>
                 @if ($curso->cupo_maximo)
-                    <dd class="mt-[9px] h-1.5 overflow-hidden rounded-[3px] bg-[#e1ebe8]" role="progressbar" aria-label="Cupos ocupados" aria-valuenow="{{ $curso->inscripciones_activas_count }}" aria-valuemin="0" aria-valuemax="{{ $curso->cupo_maximo }}">
+                    <dd class="mt-[9px] h-1.5 overflow-hidden rounded-[3px] bg-[#ECE6DA]" role="progressbar" aria-label="Cupos ocupados" aria-valuenow="{{ $curso->inscripciones_activas_count }}" aria-valuemin="0" aria-valuemax="{{ $curso->cupo_maximo }}">
                         <span class="block h-full rounded-[3px] bg-[var(--p700)]" style="width: {{ min(100, round($curso->inscripciones_activas_count * 100 / max(1, $curso->cupo_maximo))) }}%"></span>
                     </dd>
                 @endif
             </div>
-            <div class="border-l border-[#e8f0ee] px-7 py-4">
+            <div class="border-l border-[#ECE6DA] px-7 py-4">
                 <dt class="{{ $etiqueta }}">Por calificar</dt>
                 <dd class="mt-1 flex items-center gap-2 text-[26px] font-extrabold tracking-[-0.02em] text-[var(--p900)]">
                     {{ $pendientes }}
@@ -187,9 +187,9 @@
                         <span class="{{ $pastilla }} tracking-normal {{ $urgencia['pastilla'] }}"><span class="h-[9px] w-[9px] rounded-full {{ $urgencia['punto'] }}" aria-hidden="true"></span>{{ $diasEspera === 1 ? '1 día' : $diasEspera.' días' }}</span>
                     @endif
                 </dd>
-                <dd class="mt-[3px] text-[12.5px] text-[#4b625e]">{{ $diasEspera !== null ? 'la más antigua espera' : 'nada pendiente' }}</dd>
+                <dd class="mt-[3px] text-[12.5px] text-[#57524A]">{{ $diasEspera !== null ? 'la más antigua espera' : 'nada pendiente' }}</dd>
             </div>
-            <div class="border-l border-[#e8f0ee] px-7 py-4">
+            <div class="border-l border-[#ECE6DA] px-7 py-4">
                 <dt class="{{ $etiqueta }}">Próximo cierre</dt>
                 @if ($cierre)
                     <dd class="mt-1 flex items-center gap-2 text-[26px] font-extrabold tracking-[-0.02em] text-[var(--p900)]">
@@ -198,7 +198,7 @@
                             <span class="{{ $pastilla }} tracking-normal bg-[var(--warn200)] text-[var(--warn800)]">{{ PanelProfesor::textoDias($diasCierre) }}</span>
                         @endif
                     </dd>
-                    <dd class="mt-[3px] truncate text-[12.5px] text-[#4b625e]" title="{{ $cierre['titulo'] }}">{{ $cierre['titulo'] }}@if ($cierre['semana']) · Semana {{ $cierre['semana'] }}@endif</dd>
+                    <dd class="mt-[3px] truncate text-[12.5px] text-[#57524A]" title="{{ $cierre['titulo'] }}">{{ $cierre['titulo'] }}@if ($cierre['semana']) · Semana {{ $cierre['semana'] }}@endif</dd>
                 @else
                     <dd class="mt-1 text-[26px] font-extrabold text-[var(--p900)]">—</dd>
                 @endif

@@ -48,6 +48,26 @@ class ReportesTest extends TestCase
         $this->assertEquals(18.0, $progreso['promedio_tareas']);
     }
 
+    public function test_el_avance_en_lote_del_reporte_coincide_con_el_de_cada_estudiante(): void
+    {
+        $curso = Curso::factory()->create();
+        $modulo = Modulo::factory()->create(['curso_id' => $curso->id]);
+        $tareas = Tarea::factory()->count(3)->create(['curso_id' => $curso->id, 'modulo_id' => $modulo->id]);
+        $estudiantes = User::factory()->count(3)->create()->each(fn (User $estudiante) => $estudiante->assignRole(Rol::Estudiante->value));
+        // 2 entregas, 1 entrega y ninguna.
+        Entrega::factory()->create(['tarea_id' => $tareas[0]->id, 'estudiante_id' => $estudiantes[0]->id]);
+        Entrega::factory()->create(['tarea_id' => $tareas[1]->id, 'estudiante_id' => $estudiantes[0]->id]);
+        Entrega::factory()->create(['tarea_id' => $tareas[0]->id, 'estudiante_id' => $estudiantes[1]->id]);
+
+        $servicio = app(ProgresoAcademicoService::class);
+        $enLote = $servicio->avancesDelCurso($curso, $estudiantes->pluck('id'));
+
+        $this->assertSame([67, 33, 0], array_values($enLote));
+        foreach ($estudiantes as $estudiante) {
+            $this->assertSame($servicio->avance($estudiante, $curso), $enLote[$estudiante->id]);
+        }
+    }
+
     public function test_estudiante_ve_su_dashboard_de_progreso(): void
     {
         $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);

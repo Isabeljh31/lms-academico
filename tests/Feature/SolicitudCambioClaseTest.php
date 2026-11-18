@@ -178,6 +178,25 @@ class SolicitudCambioClaseTest extends TestCase
         $this->assertSame("{$nuevaFecha} 10:00", $sesion->fresh()->fecha->format('Y-m-d H:i'));
     }
 
+    public function test_al_decidir_se_apaga_el_aviso_del_supervisor_y_profesor_y_estudiantes_ven_la_clase_reprogramada(): void
+    {
+        $escenario = $this->escenario();
+        $curso = $escenario['curso'];
+        $aprobar = $this->servicio->solicitar($escenario['profesor'], $this->clase($curso, now()->addWeek(), 5, 'Aula: A-201'), self::PEDIDO);
+        $rechazar = $this->servicio->solicitar($escenario['profesor'], $this->clase($curso, now()->addDays(12), 6, 'Aula: A-201'), self::PEDIDO);
+        $this->assertSame(2, $escenario['supervisor']->unreadNotifications()->count());
+
+        $this->servicio->aprobar($escenario['supervisor'], $aprobar, $this->decision(['fecha' => now()->addDays(9)->format('Y-m-d'), 'hora_inicio' => '10:00', 'hora_fin' => '11:30', 'aula' => 'C-3']));
+
+        // Solo se apaga el aviso de la solicitud decidida; la otra sigue en revisión.
+        $this->assertSame([$rechazar->id], $escenario['supervisor']->unreadNotifications()->get()->map(fn ($aviso) => $aviso->data['solicitud_id'])->all());
+        $this->assertSame('Clase reprogramada', $escenario['profesor']->unreadNotifications()->sole()->data['titulo']);
+        $this->assertSame('Clase reprogramada', $escenario['estudiante']->unreadNotifications()->sole()->data['titulo']);
+
+        $this->servicio->rechazar($escenario['supervisor'], $rechazar, 'No hay salón disponible.');
+        $this->assertSame(0, $escenario['supervisor']->unreadNotifications()->count());
+    }
+
     public function test_aprobar_es_transaccional(): void
     {
         $escenario = $this->escenario();
