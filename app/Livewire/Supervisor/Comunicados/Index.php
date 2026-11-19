@@ -5,9 +5,12 @@ namespace App\Livewire\Supervisor\Comunicados;
 use App\Models\BitacoraAuditoria;
 use App\Models\Comunicado;
 use App\Notifications\NuevoComunicado;
+use App\Services\Multimedia\SubidorArchivos;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
+use Livewire\WithFileUploads;
 use Livewire\WithPagination;
 
 /**
@@ -19,11 +22,13 @@ use Livewire\WithPagination;
 #[Layout('layouts.app')]
 class Index extends Component
 {
-    use WithPagination;
+    use WithFileUploads, WithPagination;
 
     public string $titulo = '';
 
     public string $contenido = '';
+
+    public ?UploadedFile $imagen = null;
 
     public string $prioridad = 'informativo';
 
@@ -45,6 +50,7 @@ class Index extends Component
         $this->validate([
             'titulo' => ['required', 'string', 'max:255'],
             'contenido' => ['required', 'string', 'max:5000'],
+            'imagen' => SubidorArchivos::reglas(config('archivos.extensiones.imagenes'), requerido: false),
             'prioridad' => ['required', 'in:informativo,urgente'],
             'destinatario' => ['required', 'in:profesores,estudiantes,todos'],
             'publicarEn' => ['nullable', 'date', 'after:now'],
@@ -52,12 +58,18 @@ class Index extends Component
             'titulo.required' => 'Escribe el título del comunicado.',
             'contenido.required' => 'Escribe el contenido del comunicado.',
             'publicarEn.after' => 'La fecha de publicación programada debe ser futura.',
+            ...SubidorArchivos::mensajes('imagen'),
         ]);
+
+        $imagen = $this->imagen
+            ? app(SubidorArchivos::class)->subir($this->imagen, 'comunicados', 'imagen', config('archivos.extensiones.imagenes'))
+            : null;
 
         $comunicado = Comunicado::create([
             'user_id' => auth()->id(),
             'titulo' => $this->titulo,
             'contenido' => $this->contenido,
+            'imagen' => $imagen,
             'prioridad' => $this->prioridad,
             'destinatario' => $this->destinatario,
             'activo' => true,
@@ -76,7 +88,7 @@ class Index extends Component
                 .($comunicado->publicar_en ? ' (programado para '.$comunicado->publicar_en->formatoFechaHora().')' : '').'.',
         );
 
-        $this->reset(['titulo', 'contenido', 'prioridad', 'destinatario', 'publicarEn', 'mostrarFormulario']);
+        $this->reset(['titulo', 'contenido', 'imagen', 'prioridad', 'destinatario', 'publicarEn', 'mostrarFormulario']);
         session()->flash('estado', $comunicado->estaPublicado()
             ? 'Comunicado publicado y notificado a los destinatarios.'
             : 'Comunicado programado. Se publicará y notificará en la fecha indicada.');
@@ -101,6 +113,7 @@ class Index extends Component
         abort_unless(auth()->user()->hasRole('supervisor'), 403);
 
         $comunicado = Comunicado::whereNull('curso_id')->findOrFail($comunicadoId);
+        app(SubidorArchivos::class)->eliminar($comunicado->imagen);
         $comunicado->delete();
 
         BitacoraAuditoria::registrarAccionAdmin(

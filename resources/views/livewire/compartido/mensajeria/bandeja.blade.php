@@ -3,7 +3,11 @@
 
     <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-texto dark:text-slate-100 flex items-center gap-2">
+            <a href="{{ route('cursos.show', $curso) }}" wire:navigate
+                class="inline-flex items-center gap-1 text-sm font-medium text-azul-oscuro hover:underline dark:text-azul-fondo">
+                <x-icono nombre="flecha-izquierda" class="h-4 w-4" /> Volver al curso
+            </a>
+            <h1 class="text-2xl font-bold text-texto dark:text-slate-100 flex items-center gap-2 mt-1">
                 Mensajería de {{ $curso->nombre }}
                 @if($noLeidos > 0)
                 <span class="inline-flex items-center justify-center rounded-full bg-azul-oscuro text-white text-xs font-bold w-5 h-5">

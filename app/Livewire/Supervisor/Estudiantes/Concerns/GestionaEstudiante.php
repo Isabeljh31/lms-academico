@@ -7,8 +7,6 @@ use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
 use App\Models\Facultad;
 use App\Models\User;
-use App\Services\Asistencia\CalculadoraAsistencia;
-use App\Services\Evaluacion\CalculadoraNotas;
 use App\Services\Usuarios\GestorCuentas;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;

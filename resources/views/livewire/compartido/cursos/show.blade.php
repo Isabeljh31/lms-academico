@@ -302,6 +302,13 @@
                                     <x-gestion.campo etiqueta="Mensaje" nombre="nuevoAnuncioTexto" requerido>
                                         <x-gestion.control tipo="textarea" id="nuevoAnuncioTexto" wire:model="nuevoAnuncioTexto" />
                                     </x-gestion.campo>
+                                    <x-gestion.campo etiqueta="Imagen (opcional)" nombre="nuevoAnuncioImagen">
+                                        @if ($nuevoAnuncioImagen)
+                                            <img src="{{ $nuevoAnuncioImagen->temporaryUrl() }}" alt="" class="mb-2 h-20 rounded-lg object-cover">
+                                        @endif
+                                        <input wire:model="nuevoAnuncioImagen" id="nuevoAnuncioImagen" type="file" accept="image/png,image/jpeg,image/gif,image/webp"
+                                            class="block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-azul-oscuro file:px-2.5 file:py-1 file:text-xs file:font-semibold file:text-white dark:text-slate-300">
+                                    </x-gestion.campo>
                                     <div class="flex items-end gap-2">
                                         <x-gestion.campo etiqueta="Prioridad" nombre="nuevoAnuncioPrioridad" class="flex-1">
                                             <x-gestion.control tipo="select" id="nuevoAnuncioPrioridad" wire:model="nuevoAnuncioPrioridad">
@@ -332,7 +339,11 @@
                                                 @endif
                                             </div>
                                         </div>
-                                        <p class="mt-1 whitespace-pre-line text-xs text-stone-600 dark:text-stone-300">{{ $anuncio->contenido }}</p>
+                                        @if ($anuncio->imagenUrl())
+                                            <img src="{{ $anuncio->imagenUrl() }}" alt="" class="mt-2 h-20 rounded-lg object-cover">
+                                        @endif
+                                        <p class="mt-1 whitespace-pre-line text-xs text-stone-600 dark:text-stone-300">{{ \Illuminate\Support\Str::limit($anuncio->contenido, 200) }}</p>
+                                        <a href="{{ route('comunicados.show', $anuncio) }}" wire:navigate class="text-[11px] font-semibold text-azul-oscuro hover:underline dark:text-azul-fondo">Ver detalle completo</a>
                                         <span class="mt-2 block text-[11px] text-stone-400">{{ $anuncio->created_at->diffForHumans() }} - {{ $anuncio->autor?->name }}</span>
                                     </article>
                                 @empty
@@ -589,13 +600,17 @@
                 {{-- Anuncios del Curso --}}
                 <div x-show="pestaña === 'anuncios'" class="space-y-4">
                     @forelse ($this->anuncios as $anuncio)
-                        <div class="rounded-xl border border-celeste dark:border-azul-borde-oscuro bg-white dark:bg-azul-superficie-oscura p-5 shadow-sm" wire:key="anuncio-est-{{ $anuncio->id }}">
+                        @php $leido = $this->anunciosLeidos->contains($anuncio->id); @endphp
+                        <div class="rounded-xl border border-celeste dark:border-azul-borde-oscuro bg-white dark:bg-azul-superficie-oscura p-5 shadow-sm {{ $leido ? 'opacity-70' : '' }}" wire:key="anuncio-est-{{ $anuncio->id }}">
                             <div class="flex items-center justify-between gap-2 mb-2">
                                 <div class="flex items-center gap-2">
                                     <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-azul-oscuro/10 text-azul-oscuro dark:bg-azul-oscuro/30 dark:text-cielo">
                                         <x-icono nombre="megafono" class="h-4 w-4" />
                                     </span>
                                     <h3 class="font-bold text-texto dark:text-slate-100 text-base">{{ $anuncio->titulo }}</h3>
+                                    @unless ($leido)
+                                        <span class="h-1.5 w-1.5 rounded-full bg-azul-oscuro dark:bg-cielo shrink-0"></span>
+                                    @endunless
                                 </div>
                                 @if ($anuncio->prioridad === 'urgente')
                                     <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
@@ -616,9 +631,16 @@
                                 <span>•</span>
                                 <span>{{ $anuncio->created_at->diffForHumans() }} ({{ $anuncio->created_at->formatoFechaHora() }})</span>
                             </div>
+                            @if ($anuncio->imagenUrl())
+                                <img src="{{ $anuncio->imagenUrl() }}" alt="" class="w-full max-h-64 rounded-lg object-cover mb-3">
+                            @endif
                             <div class="text-sm text-slate-600 dark:text-slate-300 whitespace-pre-line leading-relaxed">
-                                {{ $anuncio->contenido }}
+                                {{ \Illuminate\Support\Str::limit($anuncio->contenido, 220) }}
                             </div>
+                            <a href="{{ route('comunicados.show', $anuncio) }}" wire:navigate
+                                class="mt-2 inline-block text-xs font-semibold text-azul-oscuro hover:underline dark:text-azul-fondo">
+                                Leer más
+                            </a>
                         </div>
                     @empty
                         <div class="rounded-xl border border-dashed border-celeste dark:border-azul-borde-oscuro p-8 text-center text-slate-500 dark:text-slate-400">

@@ -5,11 +5,11 @@ namespace App\Livewire\Supervisor\Estudiantes;
 use App\Enums\Rol;
 use App\Livewire\Concerns\FiltraPorUbicacion;
 use App\Livewire\Supervisor\Estudiantes\Concerns\GestionaEstudiante;
+use App\Models\Curso;
 use App\Models\Inscripcion;
 use App\Models\User;
 use App\Services\Asistencia\CalculadoraAsistencia;
 use App\Services\Evaluacion\CalculadoraNotas;
-use App\Services\Reportes\ProgresoAcademicoService;
 use App\Services\Usuarios\GestorCuentas;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -213,7 +213,7 @@ class Index extends Component
         return $precalculado;
     }
 
-    public function render(ProgresoAcademicoService $progreso, CalculadoraAsistencia $asistencia, CalculadoraNotas $notas)
+    public function render(CalculadoraAsistencia $asistencia, CalculadoraNotas $notas)
     {
         $busqueda = $this->normalizar(trim($this->busqueda));
 
@@ -263,11 +263,9 @@ class Index extends Component
 
         $porPagina = 8;
         $pagina = $this->getPage();
-        // Las tareas pendientes solo se muestran: se calculan en lote para la página visible, no para todo el directorio.
         $filasDePagina = $filas->forPage($pagina, $porPagina)->values();
-        $pendientes = $progreso->totalPendientesDe($filasDePagina->map(fn (array $fila) => $fila['usuario']->id));
         $paginacion = new LengthAwarePaginator(
-            $filasDePagina->map(fn (array $fila) => $fila + ['tareas_pendientes' => $pendientes[$fila['usuario']->id] ?? 0]),
+            $filasDePagina,
             $filas->count(),
             $porPagina,
             $pagina,

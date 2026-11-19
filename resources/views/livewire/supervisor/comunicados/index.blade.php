@@ -19,6 +19,13 @@
                     <x-gestion.campo etiqueta="Contenido" nombre="contenido" requerido>
                         <x-gestion.control tipo="textarea" id="contenido" rows="4" wire:model="contenido" />
                     </x-gestion.campo>
+                    <x-gestion.campo etiqueta="Imagen (opcional)" nombre="imagen" ayuda="PNG, JPG, GIF o WEBP de hasta 10 MB.">
+                        @if ($imagen)
+                            <img src="{{ $imagen->temporaryUrl() }}" alt="" class="mb-2 h-24 rounded-lg object-cover">
+                        @endif
+                        <input wire:model="imagen" id="imagen" type="file" accept="image/png,image/jpeg,image/gif,image/webp"
+                            class="block w-full text-sm text-stone-600 file:mr-4 file:rounded-lg file:border-0 file:bg-menta-oscuro file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-white dark:text-stone-300">
+                    </x-gestion.campo>
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                         <x-gestion.campo etiqueta="Destinatarios" nombre="destinatario" requerido>
                             <x-gestion.control tipo="select" id="destinatario" wire:model="destinatario">
@@ -70,7 +77,11 @@
                                     @endif
                                 </div>
                                 <h3 class="font-semibold text-stone-800 dark:text-stone-100">{{ $com->titulo }}</h3>
-                                <p class="whitespace-pre-line text-sm text-stone-600 dark:text-stone-300">{{ $com->contenido }}</p>
+                                @if ($com->imagenUrl())
+                                    <img src="{{ $com->imagenUrl() }}" alt="" class="h-20 rounded-lg object-cover">
+                                @endif
+                                <p class="whitespace-pre-line text-sm text-stone-600 dark:text-stone-300">{{ \Illuminate\Support\Str::limit($com->contenido, 200) }}</p>
+                                <a href="{{ route('comunicados.show', $com) }}" wire:navigate class="text-xs font-semibold text-menta-oscuro hover:underline dark:text-menta-base">Ver detalle completo</a>
                                 <p class="text-xs text-stone-500">{{ $com->autor?->name }} - {{ $com->created_at->formatoFechaHora() }}</p>
                             </div>
                             <div class="flex shrink-0 gap-1">

@@ -4,11 +4,13 @@ namespace App\Livewire\Supervisor\Estudiantes;
 
 use App\Enums\Rol;
 use App\Livewire\Supervisor\Estudiantes\Concerns\GestionaEstudiante;
+use App\Models\Curso;
 use App\Models\User;
 use App\Services\Asistencia\CalculadoraAsistencia;
 use App\Services\Evaluacion\CalculadoraNotas;
 use App\Services\Reportes\ProgresoAcademicoService;
 use App\Services\Usuarios\GestorCuentas;
+use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
 
@@ -53,21 +55,73 @@ class Show extends Component
         $inscripcionesActivas = $inscripciones->filter(fn ($i) => $i->curso && $i->estaActiva() && ! $i->curso->estaFinalizado());
         $inscripcionesHistorial = $inscripciones->filter(fn ($i) => $i->curso && ! ($i->estaActiva() && ! $i->curso->estaFinalizado()));
 
-        $cursosConMetricas = $inscripcionesActivas->map(function ($inscripcion) use ($progreso, $asistencia) {
+        // Un solo recorrido por curso: antes se volvían a consultar tareas/quizzes/
+        // asistencia/rendimiento por separado dentro de calcularRiesgo() y de
+        // resumenDashboardEstudiante() (que además volvía a traer los cursos desde
+        // cero), multiplicando las consultas por cada curso del estudiante.
+        $pendientes = collect();
+        $asistenciaPorCurso = [];
+        $rendimientoPorCurso = [];
+
+        $cursosConMetricas = $inscripcionesActivas->map(function ($inscripcion) use ($progreso, $asistencia, &$pendientes, &$asistenciaPorCurso, &$rendimientoPorCurso) {
+            /** @var Curso $curso */
             $curso = $inscripcion->curso;
-            $resumenRubros = $progreso->resumenRubros($this->estudiante, $curso);
+            $estudiante = $this->estudiante;
+            $resumenRubros = $progreso->resumenRubros($estudiante, $curso);
+            $asistenciaPct = $curso->usa_asistencia ? $asistencia->porcentajeDe($estudiante, $curso) : null;
+
+            $asistenciaPorCurso[$curso->id] = [$estudiante->id => $asistenciaPct];
+            $rendimientoPorCurso[$curso->id] = [$estudiante->id => $resumenRubros['rendimiento']];
+
+            $tareas = $curso->tareas()->visiblesParaEstudiante()
+                ->with(['entregas' => fn ($q) => $q->where('estudiante_id', $estudiante->id)])
+                ->get()
+                ->filter(fn ($tarea) => Gate::forUser($estudiante)->allows('ver', $tarea));
+
+            $quizzes = $curso->quizzes()->visiblesParaEstudiante()
+                ->with(['resultados' => fn ($q) => $q->where('estudiante_id', $estudiante->id)])
+                ->get();
+
+            foreach ($tareas as $tarea) {
+                if ($tarea->entregas->isEmpty()) {
+                    $pendientes->push([
+                        'tipo' => 'tarea',
+                        'titulo' => $tarea->titulo,
+                        'curso' => $curso,
+                        'fecha' => $tarea->fecha_entrega,
+                        'atrasado' => $tarea->estaVencida(),
+                        'url' => route('cursos.tareas.show', [$curso, $tarea]),
+                    ]);
+                }
+            }
+
+            foreach ($quizzes as $quiz) {
+                if ($quiz->resultados->isEmpty() && $quiz->estaAbierto()) {
+                    $pendientes->push([
+                        'tipo' => 'quiz',
+                        'titulo' => $quiz->tema,
+                        'curso' => $curso,
+                        'fecha' => $quiz->fecha_limite,
+                        'atrasado' => false,
+                        'url' => route('cursos.quizzes.show', [$curso, $quiz]),
+                    ]);
+                }
+            }
 
             return [
                 'curso' => $curso,
-                'progreso' => $progreso->avance($this->estudiante, $curso),
+                'progreso' => $progreso->avance($estudiante, $curso),
                 'nota_final' => $resumenRubros['nota_final'],
                 'condicion' => $resumenRubros['condicion'],
                 'tiene_esquema' => $resumenRubros['esquema'] !== null,
-                'asistencia' => $curso->usa_asistencia ? $asistencia->porcentajeDe($this->estudiante, $curso) : null,
+                'asistencia' => $asistenciaPct,
             ];
         })->values();
 
-        $riesgo = $this->calcularRiesgo($this->estudiante, $inscripcionesActivas->pluck('curso'), $asistencia, $notas);
+        $riesgo = $this->calcularRiesgo($this->estudiante, $inscripcionesActivas->pluck('curso'), $asistencia, $notas, [
+            'asistencia' => $asistenciaPorCurso,
+            'rendimiento' => $rendimientoPorCurso,
+        ]);
 
         $historial = $inscripcionesHistorial->map(fn ($inscripcion) => [
             'curso' => $inscripcion->curso,
@@ -76,15 +130,13 @@ class Show extends Component
             'dado_de_baja_por' => $inscripcion->dadoDeBajaPor,
         ])->sortByDesc(fn (array $h) => $h['fecha'])->values();
 
-        $dashboard = $progreso->resumenDashboardEstudiante($this->estudiante);
-
         return view('livewire.supervisor.estudiantes.show', [
             'cursosConMetricas' => $cursosConMetricas,
             'riesgoNivel' => $riesgo['nivel'],
             'riesgoMotivos' => $riesgo['motivos'],
             'historial' => $historial,
-            'proximasEntregas' => $dashboard['proximas_entregas'],
-            'totalPendientes' => $dashboard['total_pendientes'],
+            'proximasEntregas' => $pendientes->sortBy(fn ($p) => $p['fecha'] ?? now()->addYears(10))->take(5)->values(),
+            'totalPendientes' => $pendientes->count(),
             'usuarioEditar' => $this->estudiante,
         ])->title("{$this->estudiante->name} - LearnUp");
     }
