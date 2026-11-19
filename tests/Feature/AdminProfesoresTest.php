@@ -3,11 +3,11 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\Admin\Comunicados\Index as ComunicadosIndex;
-use App\Livewire\Admin\Profesores\ImportarCsv;
-use App\Livewire\Admin\Profesores\Index as ProfesoresIndex;
-use App\Livewire\Admin\Profesores\Show as ProfesoresShow;
-use App\Livewire\Cursos\Formulario as CursoFormulario;
+use App\Livewire\Supervisor\Comunicados\Index as ComunicadosIndex;
+use App\Livewire\Supervisor\Cursos\Formulario as CursoFormulario;
+use App\Livewire\Supervisor\Profesores\ImportarCsv;
+use App\Livewire\Supervisor\Profesores\Index as ProfesoresIndex;
+use App\Livewire\Supervisor\Profesores\Show as ProfesoresShow;
 use App\Mail\BienvenidaMail;
 use App\Models\Comunicado;
 use App\Models\Curso;
@@ -49,7 +49,7 @@ class AdminProfesoresTest extends TestCase
     public function test_administrador_puede_acceder_al_directorio_de_profesores(): void
     {
         $this->actingAs($this->admin)
-            ->get(route('admin.profesores.index'))
+            ->get(route('supervisor.profesores.index'))
             ->assertOk()
             ->assertSee('Profesores y carga académica')
             ->assertSee($this->profesor->name);
@@ -184,11 +184,11 @@ class AdminProfesoresTest extends TestCase
     public function test_profesor_y_estudiante_no_pueden_acceder_a_admin_profesores(): void
     {
         $this->actingAs($this->profesor)
-            ->get(route('admin.profesores.index'))
+            ->get(route('supervisor.profesores.index'))
             ->assertForbidden();
 
         $this->actingAs($this->estudiante)
-            ->get(route('admin.profesores.index'))
+            ->get(route('supervisor.profesores.index'))
             ->assertForbidden();
     }
 
@@ -419,7 +419,7 @@ class AdminProfesoresTest extends TestCase
         $archivado = Curso::factory()->create(['profesor_id' => $this->profesor->id, 'nombre' => 'Curso viejo', 'estado' => 'archivado']);
 
         $this->actingAs($this->admin)
-            ->get(route('admin.profesores.show', $this->profesor))
+            ->get(route('supervisor.profesores.show', $this->profesor))
             ->assertOk()
             ->assertSee('Curso vigente')
             ->assertSee('Curso viejo')
@@ -454,11 +454,11 @@ class AdminProfesoresTest extends TestCase
     public function test_profesor_y_estudiante_no_pueden_gestionar_comunicados(): void
     {
         $this->actingAs($this->profesor)
-            ->get(route('admin.comunicados.index'))
+            ->get(route('supervisor.comunicados.index'))
             ->assertForbidden();
 
         $this->actingAs($this->estudiante)
-            ->get(route('admin.comunicados.index'))
+            ->get(route('supervisor.comunicados.index'))
             ->assertForbidden();
     }
 
@@ -551,11 +551,11 @@ class AdminProfesoresTest extends TestCase
     public function test_profesor_y_estudiante_no_pueden_importar_profesores(): void
     {
         $this->actingAs($this->profesor)
-            ->get(route('admin.profesores.importar'))
+            ->get(route('supervisor.profesores.importar'))
             ->assertForbidden();
 
         $this->actingAs($this->estudiante)
-            ->get(route('admin.profesores.importar'))
+            ->get(route('supervisor.profesores.importar'))
             ->assertForbidden();
     }
 }

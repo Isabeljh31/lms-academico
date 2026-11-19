@@ -4,14 +4,14 @@ namespace Tests\Feature\Flujos;
 
 use App\Enums\Rol;
 use App\Livewire\Auth\CambiarPasswordPrimerLogin;
-use App\Livewire\Cursos\BoletaEstudiante;
-use App\Livewire\Cursos\EsquemaEvaluacion;
-use App\Livewire\Cursos\Formulario as CursoFormulario;
-use App\Livewire\Cursos\GestionMatricula;
-use App\Livewire\Cursos\LibroCalificaciones;
-use App\Livewire\Cursos\Show;
-use App\Livewire\PanelAdmin\Configuracion;
-use App\Livewire\Usuarios\Index as UsuariosIndex;
+use App\Livewire\Compartido\Cursos\GestionMatricula;
+use App\Livewire\Compartido\Cursos\LibroCalificaciones;
+use App\Livewire\Compartido\Cursos\Show;
+use App\Livewire\Estudiante\BoletaCurso;
+use App\Livewire\Supervisor\Configuracion;
+use App\Livewire\Supervisor\Cursos\EsquemaEvaluacion;
+use App\Livewire\Supervisor\Cursos\Formulario as CursoFormulario;
+use App\Livewire\Supervisor\Estudiantes\Index as UsuariosIndex;
 use App\Mail\BienvenidaMail;
 use App\Models\Curso;
 use App\Models\Entrega;
@@ -101,7 +101,7 @@ class FlujosPrincipalesTest extends TestCase
         $libro->call('abrirModalNota', $final->id, $escenario['estudiante']->id)->set('notaInput', '11')->call('guardarNotaRubro')->assertHasNoErrors();
 
         // 8 × 0,4 + 11 × 0,6 = 3,2 + 6,6 = 9,8 → bajo la mínima (10,5): en rojo.
-        Livewire::actingAs($escenario['estudiante'])->test(BoletaEstudiante::class, ['curso' => $escenario['curso']])
+        Livewire::actingAs($escenario['estudiante'])->test(BoletaCurso::class, ['curso' => $escenario['curso']])
             ->assertSee('9.8')
             ->assertSee('Desaprobado')
             ->assertSeeHtml('text-red-600');
@@ -166,7 +166,7 @@ class FlujosPrincipalesTest extends TestCase
             ->call('guardar')
             ->assertHasNoErrors();
 
-        Livewire::actingAs($escenario['estudiante'])->test(BoletaEstudiante::class, ['curso' => $escenario['curso']])
+        Livewire::actingAs($escenario['estudiante'])->test(BoletaCurso::class, ['curso' => $escenario['curso']])
             ->assertSee('Desaprobado');
         $this->assertDatabaseHas('bitacoras_auditoria', ['tipo_evento' => 'configuracion']);
     }

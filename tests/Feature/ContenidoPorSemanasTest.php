@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Cursos\Formulario;
-use App\Livewire\Cursos\Show;
+use App\Livewire\Compartido\Cursos\Show;
+use App\Livewire\Supervisor\Cursos\Formulario;
 use App\Models\Leccion;
 use App\Models\Modulo;
 use App\Models\Tarea;

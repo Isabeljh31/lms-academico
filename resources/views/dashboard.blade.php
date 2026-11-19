@@ -18,12 +18,15 @@
                         ->latest()
                         ->take(2)
                         ->get();
+                    $comunicadosLeidos = \App\Models\Comunicado::idsLeidosPor(auth()->user());
                 @endphp
 
                 @if ($comunicadosEstudiante->isNotEmpty())
                     <div class="space-y-3">
                         @foreach ($comunicadosEstudiante as $comunicado)
-                            <div class="rounded-xl border p-4 shadow-sm flex items-start gap-3.5 {{ $comunicado->prioridad === 'urgente' ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900 text-red-900 dark:text-red-200' : 'bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-900 text-sky-900 dark:text-sky-200' }}" wire:key="banner-com-est-{{ $comunicado->id }}">
+                            @php $leido = $comunicadosLeidos->contains($comunicado->id); @endphp
+                            <a href="{{ route('comunicados.show', $comunicado) }}" wire:navigate
+                                class="block rounded-xl border p-4 shadow-sm flex items-start gap-3.5 {{ $leido ? 'opacity-60' : '' }} {{ $comunicado->prioridad === 'urgente' ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900 text-red-900 dark:text-red-200' : 'bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-900 text-sky-900 dark:text-sky-200' }}" wire:key="banner-com-est-{{ $comunicado->id }}">
                                 <span class="shrink-0 mt-0.5"><x-icono :nombre="$comunicado->prioridad === 'urgente' ? 'alerta' : 'megafono'" class="h-5 w-5" /></span>
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center gap-2">
@@ -31,11 +34,15 @@
                                             Comunicado Oficial {{ $comunicado->prioridad === 'urgente' ? 'Urgente' : '' }}
                                         </span>
                                         <span class="text-xs opacity-75">{{ $comunicado->created_at->diffForHumans() }}</span>
+                                        @unless ($leido)
+                                            <span class="h-1.5 w-1.5 rounded-full bg-current shrink-0"></span>
+                                        @endunless
                                     </div>
                                     <h4 class="font-bold text-sm mt-1">{{ $comunicado->titulo }}</h4>
-                                    <p class="text-xs opacity-90 mt-0.5 whitespace-pre-line">{{ $comunicado->contenido }}</p>
+                                    <p class="text-xs opacity-90 mt-0.5 whitespace-pre-line">{{ \Illuminate\Support\Str::limit($comunicado->contenido, 140) }}</p>
+                                    <span class="text-xs font-semibold underline mt-1 inline-block">Leer más</span>
                                 </div>
-                            </div>
+                            </a>
                         @endforeach
                     </div>
                 @endif
@@ -46,7 +53,7 @@
     @else
         {{-- Profesor / Supervisor: ERS RF-88 y RF-90 --}}
         @if (auth()->user()->hasAnyRole(['profesor', 'supervisor']))
-            <livewire:reportes.panel-gestion />
+            <livewire:compartido.reportes.panel-gestion />
         @else
             <div class="py-8">
                 <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

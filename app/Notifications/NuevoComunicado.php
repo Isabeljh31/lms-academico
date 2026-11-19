@@ -34,9 +34,8 @@ class NuevoComunicado extends Notification
         return [
             'titulo' => "{$origen}: {$this->comunicado->titulo}",
             'mensaje' => Str::limit($this->comunicado->contenido, 140),
-            'url' => $this->comunicado->curso_id
-                ? route('cursos.show', $this->comunicado->curso_id)
-                : route('dashboard'),
+            'url' => route('comunicados.show', $this->comunicado),
+            'comunicado_id' => $this->comunicado->id,
         ];
     }
 }
