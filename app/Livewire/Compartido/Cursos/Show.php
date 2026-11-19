@@ -5,6 +5,7 @@ namespace App\Livewire\Compartido\Cursos;
 use App\Enums\Rol;
 use App\Livewire\Compartido\Cursos\Concerns\GestionaContenidoSemanal;
 use App\Models\BitacoraAuditoria;
+use App\Models\Comunicado;
 use App\Models\Curso;
 use App\Models\Grupo;
 use App\Models\Leccion;
@@ -80,6 +81,8 @@ class Show extends Component
 
     public string $nuevoAnuncioPrioridad = 'normal';
 
+    public ?UploadedFile $nuevoAnuncioImagen = null;
+
     // "Información del curso": carpetas administrativas del Supervisor
     public bool $mostrarModalCarpeta = false;
 
@@ -149,6 +152,11 @@ class Show extends Component
         return $this->curso->comunicados()->with('autor')->where('activo', true)->latest()->get();
     }
 
+    public function getAnunciosLeidosProperty(): Collection
+    {
+        return Comunicado::idsLeidosPor(auth()->user());
+    }
+
     public function getAnunciosDelCursoProperty(): Collection
     {
         return $this->anuncios;
@@ -166,15 +174,22 @@ class Show extends Component
             'nuevoAnuncioTitulo' => ['required', 'string', 'max:255'],
             'nuevoAnuncioTexto' => ['required', 'string', 'max:5000'],
             'nuevoAnuncioPrioridad' => ['required', 'in:informativo,normal,importante,urgente'],
+            'nuevoAnuncioImagen' => SubidorArchivos::reglas(config('archivos.extensiones.imagenes'), requerido: false),
         ], [
             'nuevoAnuncioTitulo.required' => 'Escribe un título para el anuncio.',
             'nuevoAnuncioTexto.required' => 'Escribe el mensaje del anuncio.',
+            ...SubidorArchivos::mensajes('nuevoAnuncioImagen'),
         ]);
+
+        $imagen = $this->nuevoAnuncioImagen
+            ? app(SubidorArchivos::class)->subir($this->nuevoAnuncioImagen, 'comunicados', 'nuevoAnuncioImagen', config('archivos.extensiones.imagenes'))
+            : null;
 
         $anuncio = $this->curso->comunicados()->create([
             'user_id' => auth()->id(),
             'titulo' => $this->nuevoAnuncioTitulo,
             'contenido' => $this->nuevoAnuncioTexto,
+            'imagen' => $imagen,
             'prioridad' => $this->nuevoAnuncioPrioridad,
             'destinatario' => 'estudiantes',
             'activo' => true,
@@ -183,7 +198,7 @@ class Show extends Component
 
         Notification::send($this->estudiantesActivos(), new NuevoComunicado($anuncio));
 
-        $this->reset(['nuevoAnuncioTitulo', 'nuevoAnuncioTexto', 'nuevoAnuncioPrioridad']);
+        $this->reset(['nuevoAnuncioTitulo', 'nuevoAnuncioTexto', 'nuevoAnuncioPrioridad', 'nuevoAnuncioImagen']);
         $this->curso->unsetRelation('comunicados');
         session()->flash('estado', 'Anuncio publicado y notificado a los estudiantes matriculados.');
     }
@@ -192,7 +207,9 @@ class Show extends Component
     {
         Gate::authorize('gestionar', $this->curso);
 
-        $this->curso->comunicados()->whereKey($anuncioId)->firstOrFail()->delete();
+        $anuncio = $this->curso->comunicados()->whereKey($anuncioId)->firstOrFail();
+        app(SubidorArchivos::class)->eliminar($anuncio->imagen);
+        $anuncio->delete();
         $this->curso->unsetRelation('comunicados');
         session()->flash('estado', 'Anuncio eliminado.');
     }

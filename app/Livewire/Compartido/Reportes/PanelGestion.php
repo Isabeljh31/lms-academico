@@ -112,6 +112,7 @@ class PanelGestion extends Component
         return view('livewire.compartido.reportes.panel-gestion', [
             'esSupervisor' => $esSupervisor,
             'comunicados' => $this->comunicados(),
+            'comunicadosLeidos' => Comunicado::idsLeidosPor(auth()->user()),
             'notaMinima' => $calculadora->notaMinima(),
             ...($esSupervisor ? $this->datosSupervisor($calculadora) : $this->datosProfesor($calculadora)),
         ]);

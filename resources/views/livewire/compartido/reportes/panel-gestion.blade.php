@@ -7,14 +7,17 @@
         </x-gestion.encabezado>
 
         @foreach ($comunicados as $comunicado)
-            <div class="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm {{ $comunicado->prioridad === 'urgente' ? 'border-red-300 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200' : ($esSupervisor ? 'border-arena-medio bg-white text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200' : 'border-celeste bg-white text-slate-700 dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura dark:text-slate-200') }}" wire:key="banner-com-{{ $comunicado->id }}">
+            @php $leido = $comunicadosLeidos->contains($comunicado->id); @endphp
+            <a href="{{ route('comunicados.show', $comunicado) }}" wire:navigate
+                class="flex items-start gap-3 rounded-xl border px-4 py-3 text-sm {{ $leido ? 'opacity-60' : '' }} {{ $comunicado->prioridad === 'urgente' ? 'border-red-300 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200' : ($esSupervisor ? 'border-arena-medio bg-white text-stone-700 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-200' : 'border-celeste bg-white text-slate-700 dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura dark:text-slate-200') }}" wire:key="banner-com-{{ $comunicado->id }}">
                 <x-icono :nombre="$comunicado->prioridad === 'urgente' ? 'alerta' : 'megafono'" class="h-5 w-5 shrink-0" />
                 <div class="min-w-0">
                     <p class="text-xs font-semibold uppercase tracking-wide opacity-80">Comunicado institucional{{ $comunicado->prioridad === 'urgente' ? ' urgente' : '' }} - {{ $comunicado->created_at->diffForHumans() }}</p>
                     <p class="font-semibold">{{ $comunicado->titulo }}</p>
-                    <p class="whitespace-pre-line text-xs opacity-90">{{ $comunicado->contenido }}</p>
+                    <p class="whitespace-pre-line text-xs opacity-90">{{ \Illuminate\Support\Str::limit($comunicado->contenido, 140) }}</p>
+                    <span class="text-xs font-semibold underline mt-1 inline-block">Leer más</span>
                 </div>
-            </div>
+            </a>
         @endforeach
 
         @if ($esSupervisor)

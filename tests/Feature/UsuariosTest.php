@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Notifications\MatriculadoEnCurso;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -567,6 +568,84 @@ class UsuariosTest extends TestCase
         $html = Livewire::actingAs($admin)->test(Index::class)->html();
 
         $this->assertStringContainsString('Riesgo alto', $html);
+    }
+
+    /**
+     * El directorio calculaba riesgo y progreso por estudiante y por curso por
+     * separado (N+1): con muchos estudiantes reales, esto llegaba a superar el
+     * límite de tiempo de PHP y la pantalla nunca cargaba. Ahora se calcula en
+     * lote por curso, así que más estudiantes matriculados en el mismo curso
+     * no deberían sumar más consultas.
+     */
+    public function test_el_listado_no_crece_en_consultas_por_cada_estudiante_matriculado(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $curso = Curso::factory()->create(['profesor_id' => $profesor->id, 'usa_asistencia' => true, 'estado' => 'publicado']);
+        SesionClase::create([
+            'curso_id' => $curso->id,
+            'titulo' => 'Clase 1',
+            'fecha' => now()->subDay(),
+            'duracion_minutos' => 60,
+            'numero_sesion' => 1,
+        ]);
+
+        $consultasCon = function (int $cantidad) use ($admin, $curso): int {
+            User::factory()->count($cantidad)->create()->each(function (User $estudiante) use ($curso) {
+                $estudiante->assignRole(Rol::Estudiante->value);
+                Inscripcion::factory()->create(['curso_id' => $curso->id, 'estudiante_id' => $estudiante->id]);
+            });
+
+            $medir = fn () => Livewire::actingAs($admin)->test(Index::class);
+            $medir();
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $medir();
+            $total = count(DB::getQueryLog());
+            DB::disableQueryLog();
+
+            return $total;
+        };
+
+        $this->assertSame($consultasCon(2), $consultasCon(10));
+    }
+
+    /**
+     * La ficha de un estudiante recalculaba asistencia y rendimiento dos veces
+     * por curso (una vez para mostrarlos, otra dentro de calcularRiesgo) y
+     * volvía a traer tareas/quizzes/cursos desde cero dentro de
+     * resumenDashboardEstudiante(). Con suficientes cursos reales esto superaba
+     * el límite de tiempo de PHP. Ahora cada curso agrega una cantidad acotada
+     * de consultas, no duplicada.
+     */
+    public function test_la_ficha_de_estudiante_no_duplica_consultas_por_cada_curso(): void
+    {
+        $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+
+        $consultasCon = function (int $cantidadCursos) use ($admin, $profesor, $estudiante): int {
+            Curso::factory()->count($cantidadCursos)->create(['profesor_id' => $profesor->id, 'usa_asistencia' => true, 'estado' => 'publicado'])
+                ->each(fn (Curso $curso) => Inscripcion::factory()->create(['curso_id' => $curso->id, 'estudiante_id' => $estudiante->id]));
+
+            $medir = fn () => $this->actingAs($admin)->get(route('supervisor.estudiantes.show', $estudiante));
+            $medir();
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            $medir();
+            $total = count(DB::getQueryLog());
+            DB::disableQueryLog();
+
+            return $total;
+        };
+
+        $conUno = $consultasCon(1);
+        $conCuatroMas = $consultasCon(4);
+
+        // Cada curso adicional agrega una cantidad acotada de consultas (no el
+        // doble, como antes de este arreglo): con 4 cursos más, no debería
+        // sumar más de 15 consultas por curso.
+        $this->assertLessThanOrEqual($conUno + 4 * 15, $conCuatroMas);
     }
 
     public function test_la_ficha_de_estudiante_distingue_curso_finalizado_de_dado_de_baja(): void

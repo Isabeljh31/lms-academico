@@ -4,11 +4,11 @@ namespace App\Livewire\Supervisor\Estudiantes;
 
 use App\Enums\Rol;
 use App\Livewire\Supervisor\Estudiantes\Concerns\GestionaEstudiante;
+use App\Models\Curso;
 use App\Models\Inscripcion;
 use App\Models\User;
 use App\Services\Asistencia\CalculadoraAsistencia;
 use App\Services\Evaluacion\CalculadoraNotas;
-use App\Services\Reportes\ProgresoAcademicoService;
 use App\Services\Usuarios\GestorCuentas;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Gate;
@@ -167,7 +167,7 @@ class Index extends Component
         session()->flash('correo_enviado', $resultado['correo_enviado']);
     }
 
-    public function render(ProgresoAcademicoService $progreso, CalculadoraAsistencia $asistencia, CalculadoraNotas $notas)
+    public function render(CalculadoraAsistencia $asistencia, CalculadoraNotas $notas)
     {
         $busqueda = $this->normalizar(trim($this->busqueda));
 
@@ -182,15 +182,46 @@ class Index extends Component
                 || $this->coincide($u->codigo, $busqueda)
             ));
 
-        $filas = $estudiantes->map(function (User $estudiante) use ($progreso, $asistencia, $notas) {
-            $cursosActivos = $estudiante->inscripciones->pluck('curso')->filter(fn ($c) => $c && ! $c->estaFinalizado());
-            $riesgo = $this->calcularRiesgo($estudiante, $cursosActivos, $asistencia, $notas);
+        // Cursos activos de cada estudiante y, para no consultar asistencia/notas
+        // una vez por estudiante, los estudiantes agrupados por curso.
+        $cursosActivosPorEstudiante = $estudiantes->mapWithKeys(
+            fn (User $estudiante) => [$estudiante->id => $estudiante->inscripciones->pluck('curso')->filter(fn ($c) => $c && ! $c->estaFinalizado())->values()]
+        );
+
+        $estudiantesPorCurso = collect();
+        $cursosPorId = collect();
+        foreach ($cursosActivosPorEstudiante as $estudianteId => $cursosActivos) {
+            foreach ($cursosActivos as $curso) {
+                /** @var Curso $curso */
+                $cursosPorId->put($curso->id, $curso);
+                $estudiantesPorCurso->put($curso->id, $estudiantesPorCurso->get($curso->id, collect())->push($estudianteId));
+            }
+        }
+
+        $asistenciaPorCurso = [];
+        $rendimientoPorCurso = [];
+        foreach ($cursosPorId as $cursoId => $curso) {
+            $idsDelCurso = $estudiantesPorCurso->get($cursoId)->unique()->values();
+
+            if ($curso->usa_asistencia) {
+                $asistenciaPorCurso[$cursoId] = $asistencia->porcentajesDelCurso($curso, $idsDelCurso);
+            }
+
+            $rendimientoPorCurso[$cursoId] = collect($notas->resumenDelCurso($curso, $idsDelCurso))
+                ->map(fn (array $resumen) => $resumen['rendimiento'])
+                ->all();
+        }
+
+        $notaMinima = $notas->notaMinima();
+
+        $filas = $estudiantes->map(function (User $estudiante) use ($cursosActivosPorEstudiante, $asistenciaPorCurso, $rendimientoPorCurso, $notaMinima) {
+            $cursosActivos = $cursosActivosPorEstudiante[$estudiante->id];
+            $riesgo = $this->calcularRiesgoDesdeLote($estudiante, $cursosActivos, $asistenciaPorCurso, $rendimientoPorCurso, $notaMinima);
 
             return [
                 'usuario' => $estudiante,
                 'cursos_count' => $cursosActivos->count(),
                 'riesgo_nivel' => $riesgo['nivel'],
-                'tareas_pendientes' => $progreso->resumenDashboardEstudiante($estudiante)['total_pendientes'],
             ];
         });
 

@@ -6,8 +6,6 @@ use App\Enums\Rol;
 use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
 use App\Models\User;
-use App\Services\Asistencia\CalculadoraAsistencia;
-use App\Services\Evaluacion\CalculadoraNotas;
 use App\Services\Usuarios\GestorCuentas;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
@@ -93,16 +91,16 @@ trait GestionaEstudiante
     }
 
     /**
-     * Mismo criterio que la pantalla "Riesgo de abandono" (Admin\Metricas\Index):
-     * un curso es crítico si la asistencia acumulada es menor a 50 % (en cursos
-     * que registran asistencia) o si la nota final ponderada está bajo la nota
-     * mínima aprobatoria. Nivel Alto: riesgo en más de un curso.
+     * Mismo criterio que calcularRiesgo(), pero a partir de asistencia y
+     * rendimiento ya calculados en lote por curso (ver Index::render()),
+     * para no volver a consultar por cada estudiante.
      *
+     * @param  array<int, array<int, float|null>>  $asistenciaPorCurso  curso_id => [estudiante_id => porcentaje]
+     * @param  array<int, array<int, float|null>>  $rendimientoPorCurso  curso_id => [estudiante_id => rendimiento]
      * @return array{nivel: ?string, motivos: list<string>}
      */
-    private function calcularRiesgo(User $estudiante, Collection $cursosActivos, CalculadoraAsistencia $asistencia, CalculadoraNotas $notas): array
+    private function calcularRiesgoDesdeLote(User $estudiante, Collection $cursosActivos, array $asistenciaPorCurso, array $rendimientoPorCurso, float $notaMinima): array
     {
-        $notaMinima = $notas->notaMinima();
         $motivos = [];
         $cursosCriticos = 0;
 
@@ -111,7 +109,7 @@ trait GestionaEstudiante
             $critico = false;
 
             if ($curso->usa_asistencia) {
-                $porcentaje = $asistencia->porcentajeDe($estudiante, $curso);
+                $porcentaje = $asistenciaPorCurso[$curso->id][$estudiante->id] ?? null;
 
                 if ($porcentaje !== null && $porcentaje < self::ASISTENCIA_MINIMA_RIESGO) {
                     $critico = true;
@@ -119,7 +117,7 @@ trait GestionaEstudiante
                 }
             }
 
-            $rendimiento = $notas->rendimientoDe($estudiante, $curso);
+            $rendimiento = $rendimientoPorCurso[$curso->id][$estudiante->id] ?? null;
 
             if ($rendimiento !== null && $rendimiento < $notaMinima) {
                 $critico = true;

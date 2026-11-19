@@ -10,6 +10,11 @@
 
 <div class="py-8 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto space-y-6">
 
+    <a href="{{ route('cursos.show', $curso) }}" wire:navigate
+        class="inline-flex items-center gap-1 text-sm font-medium text-azul-oscuro hover:underline dark:text-azul-fondo">
+        <x-icono nombre="flecha-izquierda" class="h-4 w-4" /> Volver al curso
+    </a>
+
     <div class="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 shadow-sm overflow-hidden">
         <div class="bg-imperial p-6 text-white">
             <div class="flex items-start justify-between">

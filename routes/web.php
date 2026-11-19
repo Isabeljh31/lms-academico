@@ -4,6 +4,7 @@ use App\Http\Controllers\LeccionesSemanaController;
 use App\Livewire\Actions\Logout;
 use App\Livewire\Auth\CambiarPasswordPrimerLogin;
 use App\Livewire\Compartido\Calendario\Index;
+use App\Livewire\Compartido\Comunicados\Show as ComunicadoShow;
 use App\Livewire\Compartido\Cursos\GestionMatricula;
 use App\Livewire\Compartido\Mensajeria\Selector as MensajeriaSelector;
 use App\Livewire\Compartido\Notificaciones\Index as NotificacionesIndex;
@@ -39,6 +40,11 @@ Route::get('/evento-calendario', Index::class)
 Route::get('/notificaciones', NotificacionesIndex::class)
     ->middleware(['auth', 'verified'])
     ->name('notificaciones.index');
+
+// Extensión fuera del ERS: detalle completo de un comunicado/anuncio (texto largo e imagen).
+Route::get('/comunicados/{comunicado}', ComunicadoShow::class)
+    ->middleware(['auth', 'verified'])
+    ->name('comunicados.show');
 
 // ERS RF-49: bandeja de entregas por calificar del profesor
 Route::get('/por-calificar', PorCalificarIndex::class)
