@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Livewire\Admin\SedesSalones\Index as SedesSalones;
 use App\Livewire\Admin\SolicitudesCambioClase\Index as Reprogramaciones;
-use App\Livewire\Docente\Asistencia\SolicitudCambio;
+use App\Livewire\Profesor\Asistencia\SolicitudCambio;
 use App\Models\Salon;
 use App\Models\SesionClase;
 use App\Models\SolicitudCambioClase;

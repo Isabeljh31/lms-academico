@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Docente\Cursos;
+namespace App\Livewire\Profesor\Cursos;
 
 use App\Models\Curso;
 use App\Services\Reportes\CursosProfesor;
@@ -44,7 +44,7 @@ class EncabezadoCurso extends Component
             $detalle = Curso::whereKey($this->curso->id)->withCount(['inscripcionesActivas', 'tareas', 'quizzes', 'grupos', 'debates'])->first();
             $todos = Curso::dictadosPor(auth()->user())->orderBy('nombre')->orderBy('id')->get(['id', 'nombre', 'codigo', 'estado']);
 
-            return view('livewire.docente.cursos.encabezado-curso', [
+            return view('livewire.profesor.cursos.encabezado-curso', [
                 'detalle' => $detalle,
                 'datos' => $servicio->identidad($detalle, $todos),
             ]);
@@ -59,7 +59,7 @@ class EncabezadoCurso extends Component
         // Todos los cursos del profesor, solo para el color y la sección (iguales a los de la pantalla Cursos).
         $todos = Curso::dictadosPor(auth()->user())->orderBy('nombre')->orderBy('id')->get(['id', 'nombre', 'codigo', 'estado']);
 
-        return view('livewire.docente.cursos.encabezado-curso', [
+        return view('livewire.profesor.cursos.encabezado-curso', [
             'detalle' => $cursos->first(),
             // El encabezado no muestra avisos: no hace falta cargar las actividades de cada evaluación (las muestra EvaluacionesCurso).
             'datos' => $servicio->resumen($cursos, $todos, conAvisos: false)[$this->curso->id],

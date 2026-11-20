@@ -5,7 +5,7 @@
     $seleccionada, $colorUrgencia, $puntoUrgencia, $plural y $enfoque.
 --}}
 @php
-    $Index = \App\Livewire\Docente\PorCalificar\Index::class;
+    $Index = \App\Livewire\Profesor\PorCalificar\Index::class;
     $activa = $seleccionada && $seleccionada['tarea']->id === $grupoTarea['tarea']->id;
     $primeraLista = $grupoTarea['primera'];
     $avance = $grupoTarea['avance'];

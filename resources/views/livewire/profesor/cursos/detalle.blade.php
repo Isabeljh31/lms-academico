@@ -23,7 +23,7 @@
 @endphp
 
 <div class="mx-auto flex w-full max-w-[1320px] flex-col gap-4">
-    <livewire:docente.cursos.encabezado-curso :curso="$curso" :key="'encabezado-curso-'.$curso->id" />
+    <livewire:profesor.cursos.encabezado-curso :curso="$curso" :key="'encabezado-curso-'.$curso->id" />
 
     <x-gestion.alertas />
 
@@ -38,10 +38,10 @@
         <div class="flex min-w-0 flex-col gap-4">
             {{-- Prácticas de campo: carpeta propia encima de las semanas. Solo aparece si el Supervisor las activó en el curso. --}}
             @if ($secciones['practicas'])
-                @include('livewire.docente.cursos._practicas')
+                @include('livewire.profesor.cursos._practicas')
             @endif
 
-            @include('livewire.docente.cursos._semanas')
+            @include('livewire.profesor.cursos._semanas')
         </div>
 
         <aside class="sticky top-4 flex min-w-0 flex-col gap-[18px]" aria-label="Próxima clase, evaluaciones, anuncios e información del curso">
@@ -68,10 +68,10 @@
 
             {{-- Enlace de clases remotas: solo si el curso es remoto o tiene clases remotas. --}}
             @if ($enlaceRemoto)
-                @include('livewire.docente.cursos._enlace-remoto')
+                @include('livewire.profesor.cursos._enlace-remoto')
             @endif
 
-            <livewire:docente.cursos.evaluaciones-curso :curso="$curso" :key="'evaluaciones-curso-'.$curso->id" />
+            <livewire:profesor.cursos.evaluaciones-curso :curso="$curso" :key="'evaluaciones-curso-'.$curso->id" />
 
             {{-- Anuncios del curso (RF-81): el formulario existente se despliega solo al pulsar "Nuevo anuncio". --}}
             <section aria-labelledby="titulo-anuncios" class="{{ $tarjeta }} px-[22px] py-5" x-data="{ nuevo: @js($erroresAnuncio) }">
@@ -255,7 +255,7 @@
     @endif
 
     @if ($mostrarFormularioLeccion && $seccionLeccion)
-        @include('livewire.docente.cursos._formulario-leccion')
+        @include('livewire.profesor.cursos._formulario-leccion')
     @endif
 
     @if ($mostrarConfirmacion)

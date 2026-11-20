@@ -112,5 +112,5 @@
         </table>
     </div>
 
-    @include('livewire.docente.asistencia._paginacion', ['pagina' => $estudiantes])
+    @include('livewire.profesor.asistencia._paginacion', ['pagina' => $estudiantes])
 @endif

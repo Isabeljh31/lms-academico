@@ -1,6 +1,6 @@
 @php
     // Por calificar del Profesor (maqueta "PorCalificar-final"), con la paleta .tema-profesor del layout.
-    $Index = \App\Livewire\Docente\PorCalificar\Index::class;
+    $Index = \App\Livewire\Profesor\PorCalificar\Index::class;
     $enfoque = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--p700)]';
     $plural = fn (int $n, string $uno, string $varios) => $n === 1 ? "1 {$uno}" : "{$n} {$varios}";
     $colorUrgencia = ['alta' => 'text-[var(--err700)]', 'media' => 'text-[var(--warn800)]', 'baja' => 'text-[var(--p700)]'];
@@ -172,7 +172,7 @@
                                             </div>
                                         </div>
                                         @foreach ($semanaLista['tareas'] as $grupoTarea)
-                                            @include('livewire.docente.por-calificar._tarea-lista', ['conCurso' => false])
+                                            @include('livewire.profesor.por-calificar._tarea-lista', ['conCurso' => false])
                                         @endforeach
                                     @endforeach
                                 </div>
@@ -180,7 +180,7 @@
                         @endforeach
                     @else
                         @foreach ($tareas as $grupoTarea)
-                            @include('livewire.docente.por-calificar._tarea-lista', ['conCurso' => true])
+                            @include('livewire.profesor.por-calificar._tarea-lista', ['conCurso' => true])
                         @endforeach
                     @endif
                 </div>
@@ -328,7 +328,7 @@
                             </thead>
                             <tbody>
                                 @foreach ($filasPagina as $fila)
-                                    @include('livewire.docente.por-calificar._fila')
+                                    @include('livewire.profesor.por-calificar._fila')
                                 @endforeach
                             </tbody>
                         </table>

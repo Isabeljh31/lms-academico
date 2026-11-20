@@ -36,7 +36,7 @@ class Index extends Component
 
         // Profesor: su pantalla Cursos rediseñada, con el layout de barra inferior (solo elige la vista).
         if (PanelProfesorLayout::aplicaA($usuario)) {
-            return view('livewire.docente.cursos.pagina')->layout('layouts.panel-profesor')->title('Cursos - LearnUp');
+            return view('livewire.profesor.cursos.pagina')->layout('layouts.panel-profesor')->title('Cursos - LearnUp');
         }
 
         $esEstudiante = $usuario->hasRole('estudiante');

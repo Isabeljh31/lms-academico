@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Cursos\Formulario as FormularioCurso;
+use App\Livewire\Supervisor\Cursos\Formulario as FormularioCurso;
 use App\Livewire\Cursos\Show;
 use App\Livewire\Tareas\Formulario as FormularioTarea;
 use App\Models\Curso;

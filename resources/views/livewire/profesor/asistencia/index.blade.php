@@ -18,7 +18,7 @@
 
 {{-- relative: ancestro posicionado para los textos sr-only (radios y buscadores), como en las demás pantallas del profesor. --}}
 <div class="relative mx-auto flex w-full max-w-[1320px] flex-col gap-4">
-    <livewire:docente.cursos.encabezado-curso :curso="$curso" :compacto="true" activa="asistencia" :key="'encabezado-asistencia-'.$curso->id" />
+    <livewire:profesor.cursos.encabezado-curso :curso="$curso" :compacto="true" activa="asistencia" :key="'encabezado-asistencia-'.$curso->id" />
 
     <x-gestion.alertas />
 
@@ -30,7 +30,7 @@
     @endif
 
     @if ($paseLista)
-        @include('livewire.docente.asistencia._pase-lista')
+        @include('livewire.profesor.asistencia._pase-lista')
     @else
         @php
             $totalSemanas = $curso->totalSemanas();
@@ -96,12 +96,12 @@
                 @endif
             </section>
         @else
-            <livewire:docente.asistencia.tablero :curso="$curso" :key="'tablero-asistencia-'.$curso->id" />
+            <livewire:profesor.asistencia.tablero :curso="$curso" :key="'tablero-asistencia-'.$curso->id" />
             {{-- Solicitud de cambio de clase (menú ⋮ de cada clase): modal propio, solo en la vista del Profesor. --}}
             @if ($this->editable)
-                <livewire:docente.asistencia.solicitud-cambio :curso="$curso" :key="'solicitud-cambio-'.$curso->id" />
+                <livewire:profesor.asistencia.solicitud-cambio :curso="$curso" :key="'solicitud-cambio-'.$curso->id" />
                 {{-- «Enlace de esta clase» (menú ⋮ de una clase remota): modal propio. --}}
-                <livewire:docente.asistencia.enlace-clase :curso="$curso" :key="'enlace-clase-'.$curso->id" />
+                <livewire:profesor.asistencia.enlace-clase :curso="$curso" :key="'enlace-clase-'.$curso->id" />
             @endif
         @endif
 

@@ -738,7 +738,7 @@ class Show extends Component
 
         $vistaProfesor = PanelProfesorLayout::aplicaA(auth()->user());
 
-        return view($vistaProfesor ? 'livewire.docente.cursos.detalle' : 'livewire.cursos.show', [
+        return view($vistaProfesor ? 'livewire.profesor.cursos.detalle' : 'livewire.cursos.show', [
             'modulos' => $modulos,
             'secciones' => $esEstudiante ? $this->seccionesDelEstudiante($modulos) : $this->seccionesDeGestion($modulos),
             'profesores' => $this->puedeAdministrar ? User::role('profesor')->where('activo', true)->orderBy('name')->get() : collect(),

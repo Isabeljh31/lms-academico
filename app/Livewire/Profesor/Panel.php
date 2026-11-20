@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Docente;
+namespace App\Livewire\Profesor;
 
 use App\Services\Calendario\ColoresCursos;
 use App\Services\Calendario\SeccionesProfesor;
@@ -82,7 +82,7 @@ class Panel extends Component
         $semanas = $panel->semanasConLecciones(collect($cursoIds));
         $promedios = $panel->promediosPorCurso($cursos);
 
-        return view('livewire.docente.panel', [
+        return view('livewire.profesor.panel', [
             'profesor' => $profesor,
             'cursos' => $cursos,
             'secciones' => $secciones,

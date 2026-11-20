@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Docente\Cursos\EncabezadoCurso;
-use App\Livewire\Docente\PorCalificar\Index as PorCalificar;
+use App\Livewire\Profesor\Cursos\EncabezadoCurso;
+use App\Livewire\Profesor\PorCalificar\Index as PorCalificar;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Models\Grupo;

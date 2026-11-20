@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Docente\Asistencia\SolicitudCambio;
+use App\Livewire\Profesor\Asistencia\SolicitudCambio;
 use App\Models\Curso;
 use App\Models\Salon;
 use App\Models\SesionClase;

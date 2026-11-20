@@ -2,7 +2,7 @@
      Supervisor siguen por la rama de siempre, sin cambios. --}}
 @if (auth()->user()->hasRole('profesor') && ! auth()->user()->hasAnyRole(['supervisor', 'estudiante']))
 <x-panel-profesor-layout>
-    <livewire:docente.panel />
+    <livewire:profesor.panel />
 </x-panel-profesor-layout>
 @else
 <x-app-layout>

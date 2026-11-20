@@ -4,7 +4,7 @@ namespace Tests\Feature;
 
 use App\Enums\ModoCalculo;
 use App\Livewire\Cursos\Actividades;
-use App\Livewire\Cursos\EsquemaEvaluacion as EsquemaEvaluacionComponente;
+use App\Livewire\Supervisor\Cursos\EsquemaEvaluacion as EsquemaEvaluacionComponente;
 use App\Livewire\Cursos\PracticasEvaluaciones;
 use App\Livewire\Tareas\Formulario as FormularioTarea;
 use App\Models\Curso;

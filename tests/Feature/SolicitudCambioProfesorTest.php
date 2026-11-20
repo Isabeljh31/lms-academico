@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Livewire\Asistencia\Index;
-use App\Livewire\Docente\Asistencia\SolicitudCambio;
-use App\Livewire\Docente\Asistencia\Tablero;
+use App\Livewire\Profesor\Asistencia\SolicitudCambio;
+use App\Livewire\Profesor\Asistencia\Tablero;
 use App\Models\Curso;
 use App\Models\SesionClase;
 use App\Models\SolicitudCambioClase;

@@ -121,7 +121,7 @@
 
                 @if ($pendientes['porCurso']->count() > 1)
                     <div class="px-5 pb-3">
-                        @if ($pendientes['porCurso']->count() <= \App\Livewire\Docente\Panel::MAX_CHIPS_CURSO)
+                        @if ($pendientes['porCurso']->count() <= \App\Livewire\Profesor\Panel::MAX_CHIPS_CURSO)
                             <div class="flex flex-wrap gap-2" role="group" aria-label="Filtrar por curso">
                                 <button type="button" wire:click="$set('cursoPendientes', 0)" aria-pressed="{{ $cursoPendientes === 0 ? 'true' : 'false' }}"
                                     class="{{ $chip }} {{ $cursoPendientes === 0 ? $chipActivo : $chipInactivo }}">Todos {{ $pendientes['total'] }}</button>
@@ -199,7 +199,7 @@
                         <span class="{{ $iconoSeccion }} bg-cielo-claro text-azul-fondo" aria-hidden="true"><x-icono nombre="calendario" class="h-[18px] w-[18px]" /></span>
                         Lo que se viene
                     </h2>
-                    <p class="mt-1 text-[13px] text-slate-500">Las {{ \App\Livewire\Docente\Panel::MAX_PROXIMAS }} fechas más cercanas. Filtra para ver el resto.</p>
+                    <p class="mt-1 text-[13px] text-slate-500">Las {{ \App\Livewire\Profesor\Panel::MAX_PROXIMAS }} fechas más cercanas. Filtra para ver el resto.</p>
                 </div>
 
                 @if ($proximas['conteos']['todo'] > 0 || $tipoProximo !== 'todo' || $cursoProximo)
@@ -211,7 +211,7 @@
                             @endforeach
                         </div>
                         @if ($proximas['cursosConFechas']->count() > 1)
-                            @if ($proximas['cursosConFechas']->count() <= \App\Livewire\Docente\Panel::MAX_CHIPS_CURSO)
+                            @if ($proximas['cursosConFechas']->count() <= \App\Livewire\Profesor\Panel::MAX_CHIPS_CURSO)
                                 <div class="flex flex-wrap gap-2" role="group" aria-label="Filtrar por curso">
                                     <button type="button" wire:click="$set('cursoProximo', 0)" aria-pressed="{{ $cursoProximo === 0 ? 'true' : 'false' }}"
                                         class="{{ $chip }} {{ $cursoProximo === 0 ? $chipActivo : $chipInactivo }}">Todos los cursos</button>

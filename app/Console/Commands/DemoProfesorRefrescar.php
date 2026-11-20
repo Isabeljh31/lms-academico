@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Livewire\Docente\PorCalificar\Index as PorCalificar;
+use App\Livewire\Profesor\PorCalificar\Index as PorCalificar;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Models\Tarea;

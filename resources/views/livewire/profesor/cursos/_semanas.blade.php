@@ -9,7 +9,7 @@
     Etiquetas solo si aplican: "Esta semana", "Programada · se publica …",
     "Sin contenido" (sin lecciones, tareas ni quizzes) y "Borrador".
 --}}
-@use('App\Livewire\Docente\PorCalificar\Index', 'PorCalificar')
+@use('App\Livewire\Profesor\PorCalificar\Index', 'PorCalificar')
 @use('App\Services\Reportes\DetalleCursoProfesor')
 @use('App\Services\Reportes\PanelProfesor')
 @php
@@ -161,14 +161,14 @@
                             class="absolute inset-0 cursor-pointer rounded-[12px] focus-visible:outline focus-visible:outline-[3px] focus-visible:-outline-offset-[3px] focus-visible:outline-[color:var(--p700)]"></button>
                         @if ($editable)
                             <div class="relative z-10 shrink-0">
-                                @include('livewire.docente.cursos._menu-semana', ['modulo' => $modulo, 'numero' => $numero, 'etiqueta' => $seccion['etiqueta']])
+                                @include('livewire.profesor.cursos._menu-semana', ['modulo' => $modulo, 'numero' => $numero, 'etiqueta' => $seccion['etiqueta']])
                             </div>
                         @endif
                     </div>
 
                     <div id="semana-{{ $numero }}-contenido" role="region" aria-labelledby="semana-{{ $numero }}-titulo"
                         x-show="abierta" @unless ($abiertaInicial) style="display: none" @endunless class="px-3.5 pb-3">
-                        @include('livewire.docente.cursos._semana-abierta')
+                        @include('livewire.profesor.cursos._semana-abierta')
                     </div>
                 </div>
                 <div class="mx-6 border-t border-[#F4F0E8]" x-show="! abierta" @if ($abiertaInicial) style="display: none" @endif aria-hidden="true"></div>

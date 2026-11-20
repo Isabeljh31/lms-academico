@@ -3,10 +3,10 @@
 namespace Tests\Feature;
 
 use App\Livewire\Cursos\Show;
-use App\Livewire\Docente\Cursos\EncabezadoCurso;
-use App\Livewire\Docente\Cursos\EvaluacionesCurso;
-use App\Livewire\Docente\Cursos\ListaCursos;
-use App\Livewire\Docente\PorCalificar\Index as PorCalificar;
+use App\Livewire\Profesor\Cursos\EncabezadoCurso;
+use App\Livewire\Profesor\Cursos\EvaluacionesCurso;
+use App\Livewire\Profesor\Cursos\ListaCursos;
+use App\Livewire\Profesor\PorCalificar\Index as PorCalificar;
 use App\Models\Comunicado;
 use App\Models\Curso;
 use App\Models\Entrega;
@@ -688,7 +688,7 @@ class CursosProfesorTest extends TestCase
         $curso = $escenario['curso'];
 
         Livewire::actingAs($escenario['profesor'])->test(Show::class, ['curso' => $curso])
-            ->assertViewIs('livewire.docente.cursos.detalle')
+            ->assertViewIs('livewire.profesor.cursos.detalle')
             // Las prácticas de campo las decide el Supervisor: el profesor ya no las agrega.
             ->assertDontSee('aria-label="Agregar prácticas de campo"', false)
             ->assertSee('Mensaje de inicio')

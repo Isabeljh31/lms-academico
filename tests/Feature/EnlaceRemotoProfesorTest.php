@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Livewire\Cursos\Show;
-use App\Livewire\Docente\Asistencia\EnlaceClase;
-use App\Livewire\Docente\Asistencia\Tablero;
+use App\Livewire\Profesor\Asistencia\EnlaceClase;
+use App\Livewire\Profesor\Asistencia\Tablero;
 use App\Models\Curso;
 use App\Models\SesionClase;
 use App\Notifications\EnlaceRemotoFaltante;

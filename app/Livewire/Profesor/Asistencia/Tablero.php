@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Docente\Asistencia;
+namespace App\Livewire\Profesor\Asistencia;
 
 use App\Models\Curso;
 use App\Services\Reportes\AsistenciaProfesor;
@@ -148,7 +148,7 @@ class Tablero extends Component
         if ($virtual) {
             $lecciones = $servicio->leccionesCompletadas($this->curso, $this->pestana === 'semana' ? $semana : null, $this->buscar);
 
-            return view('livewire.docente.asistencia.tablero', [
+            return view('livewire.profesor.asistencia.tablero', [
                 'virtual' => true,
                 'semanas' => $servicio->semanas($this->curso, collect(), $this->totalSemanas, now()),
                 'lecciones' => $lecciones,
@@ -157,7 +157,7 @@ class Tablero extends Component
 
         $resumen = $servicio->resumen($this->curso, now(), $this->totalSemanas);
 
-        return view('livewire.docente.asistencia.tablero', [
+        return view('livewire.profesor.asistencia.tablero', [
             'virtual' => false,
             'resumen' => $resumen,
             'semanas' => $resumen['semanas'],

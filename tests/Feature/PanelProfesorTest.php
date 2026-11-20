@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Docente\Panel;
+use App\Livewire\Profesor\Panel;
 use App\Livewire\Estudiante\PanelInicio;
 use App\Livewire\Reportes\PanelGestion;
 use App\Models\Comunicado;

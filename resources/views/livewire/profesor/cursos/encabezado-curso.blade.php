@@ -4,7 +4,7 @@
     /cursos), botón "Calificar", datos del curso, cuatro indicadores y las
     pestañas hacia las pantallas existentes del curso.
 --}}
-@use('App\Livewire\Docente\PorCalificar\Index', 'PorCalificar')
+@use('App\Livewire\Profesor\PorCalificar\Index', 'PorCalificar')
 @use('App\Services\Reportes\DetalleCursoProfesor')
 @use('App\Services\Reportes\PanelProfesor')
 @php
@@ -51,7 +51,7 @@
                     @endif
                 </div>
             </div>
-            @include('livewire.docente.cursos._pestanas-curso')
+            @include('livewire.profesor.cursos._pestanas-curso')
         </header>
 @else
 @php
@@ -205,7 +205,7 @@
             </div>
         </dl>
 
-        @include('livewire.docente.cursos._pestanas-curso')
+        @include('livewire.profesor.cursos._pestanas-curso')
     </header>
 @endif
 </div>

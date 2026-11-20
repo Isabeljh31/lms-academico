@@ -2,7 +2,7 @@
 
 namespace App\Services\Reportes;
 
-use App\Livewire\Docente\PorCalificar\Index as PorCalificar;
+use App\Livewire\Profesor\PorCalificar\Index as PorCalificar;
 use App\Models\Comunicado;
 use App\Models\Curso;
 use App\Models\SesionClase;

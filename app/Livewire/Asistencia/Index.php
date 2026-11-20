@@ -261,7 +261,7 @@ class Index extends Component
                 ? $this->curso->sesionesClase()->find($this->sesionActivaId)
                 : null;
 
-            return view('livewire.docente.asistencia.index', [
+            return view('livewire.profesor.asistencia.index', [
                 'sesionActiva' => $sesionActiva,
                 // Pase de lista: sesión, estudiantes activos y estados guardados en tres consultas.
                 'estudiantes' => $sesionActiva

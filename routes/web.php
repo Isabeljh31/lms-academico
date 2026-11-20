@@ -9,6 +9,7 @@ use App\Livewire\EventoCalendario\Index;
 use App\Livewire\Mensajeria\Selector as MensajeriaSelector;
 use App\Livewire\Profesor\PorCalificar\Index as PorCalificarIndex;
 use App\Livewire\Supervisor\Cursos\EsquemaEvaluacion;
+use App\Livewire\Supervisor\Estudiantes\ImportarCSV as EstudiantesImportarCsv;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -37,6 +38,17 @@ Route::get('/evento-calendario', Index::class)
 Route::get('/por-calificar', PorCalificarIndex::class)
     ->middleware(['auth', 'verified', 'role:profesor'])
     ->name('profesor.por-calificar');
+// Alias de la rama de José (varias de sus vistas y tests llaman a este nombre).
+// URL propia: dos rutas con la misma URL+método pero distinto nombre hacen que
+// Laravel descarte en silencio el nombre de la primera al resolver route().
+Route::get('/docente/por-calificar', PorCalificarIndex::class)
+    ->middleware(['auth', 'verified', 'role:profesor'])
+    ->name('docente.por-calificar');
+
+// Alias de la rama de José: su ruta de importación de estudiantes no vivía bajo /admin.
+Route::get('/usuarios/importar', EstudiantesImportarCsv::class)
+    ->middleware(['auth', 'verified', 'role:supervisor'])
+    ->name('usuarios.importar');
 
 require __DIR__.'/auth.php';
 require __DIR__.'/admin.php';

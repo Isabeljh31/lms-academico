@@ -5,7 +5,7 @@
     salón) o dictarla en remoto. Si cumple las reglas se aplica sola; si no,
     pasa a revisión del Supervisor. Sin videoconferencia.
 --}}
-@use('App\Livewire\Docente\Asistencia\SolicitudCambio')
+@use('App\Livewire\Profesor\Asistencia\SolicitudCambio')
 @use('App\Services\Asistencia\SolicitudesCambioClase')
 @use('App\Services\Reportes\AsistenciaProfesor')
 @use('App\Services\Reportes\DetalleCursoProfesor')

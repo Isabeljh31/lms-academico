@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Docente\Cursos;
+namespace App\Livewire\Profesor\Cursos;
 
 use App\Models\Curso;
 use App\Services\Evaluacion\AvanceEvaluaciones;
@@ -34,7 +34,7 @@ class EvaluacionesCurso extends Component
         // Misma fuente que Por calificar y el dock: pendientes por tarea (una vez por grupo) y la más antigua.
         $pendientes = $rubros->isEmpty() ? collect() : $panel->pendientesPorActividad(collect([$this->curso->id]))->keyBy('tarea_id');
 
-        return view('livewire.docente.cursos.evaluaciones-curso', [
+        return view('livewire.profesor.cursos.evaluaciones-curso', [
             'rubros' => $rubros,
             'avances' => $avance->deCurso($this->curso, $rubros),
             'pendientesPorTarea' => $pendientes->map(fn (array $fila) => $fila['pendientes']),

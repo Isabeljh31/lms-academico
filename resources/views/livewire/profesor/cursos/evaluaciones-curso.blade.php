@@ -4,7 +4,7 @@
     evaluación, sus actividades y lo que espera nota (urgencia de Por calificar).
     "Asignar" lleva a Actividades, donde el profesor ya asigna actividades.
 --}}
-@use('App\Livewire\Docente\PorCalificar\Index', 'PorCalificar')
+@use('App\Livewire\Profesor\PorCalificar\Index', 'PorCalificar')
 @use('App\Services\Reportes\DetalleCursoProfesor')
 @php
     $plural = fn (int $n, string $uno, string $varios) => $n === 1 ? "1 {$uno}" : "{$n} {$varios}";

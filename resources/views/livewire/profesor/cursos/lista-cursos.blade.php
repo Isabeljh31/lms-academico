@@ -1,6 +1,6 @@
 @php
     // Pantalla Cursos del Profesor (diseño "Tu mapa de trabajo", mock verde), con la paleta .tema-profesor del layout.
-    $ListaCursos = \App\Livewire\Docente\Cursos\ListaCursos::class;
+    $ListaCursos = \App\Livewire\Profesor\Cursos\ListaCursos::class;
     $enfoque = 'focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[color:var(--p700)]';
     $pastilla = 'inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-bold';
     $boton = "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[10px] px-4 text-sm font-semibold transition-colors motion-reduce:transition-none {$enfoque}";
@@ -36,7 +36,7 @@
 {{-- Contenedor propio de la pantalla: hasta 1480 px de contenido + 40 px por lado, centrado en la ventana
      (sale del límite de 1440 px del <main> del layout sin cambiarlo para las demás pantallas). --}}
 <div class="mx-[calc(50%-min(780px,50vw))] flex flex-col px-4 sm:px-6 lg:px-10">
-    @include('livewire.docente.cursos._hero')
+    @include('livewire.profesor.cursos._hero')
 
     {{-- Franja de cifras: banda blanca a todo el ancho de la ventana. --}}
     <section aria-label="Cifras de tus cursos" class="mx-[calc(50%-50vw)] mt-6 border-y-2 border-[#111111] bg-white">
@@ -109,7 +109,7 @@
                 <h2 id="titulo-lista-cursos" class="sr-only">Lista de cursos</h2>
 
                 @unless ($verArchivados)
-                    <div class="mt-5">@include('livewire.docente.cursos._radar')</div>
+                    <div class="mt-5">@include('livewire.profesor.cursos._radar')</div>
                 @endunless
 
                 <div class="mt-5 flex min-w-0 flex-col gap-4">
@@ -138,7 +138,7 @@
                                     $datos = $resumen[$curso->id];
                                     $estadoTexto = $estadosCurso[$curso->estado][0] ?? ucfirst($curso->estado);
                                 @endphp
-                                <li wire:key="curso-{{ $curso->id }}" class="flex">@include('livewire.docente.cursos._fila-curso')</li>
+                                <li wire:key="curso-{{ $curso->id }}" class="flex">@include('livewire.profesor.cursos._fila-curso')</li>
                             @endforeach
                         </ul>
 

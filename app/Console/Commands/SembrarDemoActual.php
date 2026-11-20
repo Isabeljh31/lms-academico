@@ -4,7 +4,7 @@ namespace App\Console\Commands;
 
 use App\Enums\ModoCalculo;
 use App\Enums\Rol;
-use App\Livewire\Docente\PorCalificar\Index as PorCalificar;
+use App\Livewire\Profesor\PorCalificar\Index as PorCalificar;
 use App\Models\BancoPregunta;
 use App\Models\Comunicado;
 use App\Models\Curso;

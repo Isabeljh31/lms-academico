@@ -41,7 +41,7 @@
     <small class="text-xs text-[#6B6559]">{{ $conContenido }} de 4 secciones con contenido</small>
 </div>
 
-@include('livewire.docente.cursos._secciones', ['modulo' => $modulo, 'semanaClave' => $numero])
+@include('livewire.profesor.cursos._secciones', ['modulo' => $modulo, 'semanaClave' => $numero])
 
 <div class="flex items-baseline gap-2.5 px-1 pb-1 pt-[18px]">
     <h4 class="{{ $subtitulo }}">Evaluaciones de la semana</h4>

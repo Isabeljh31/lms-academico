@@ -31,7 +31,7 @@
             <p><strong>Este curso no registra asistencia por clase.</strong> Como referencia, aquí ves las lecciones que completó cada estudiante (solo lectura): las marca el estudiante o se registran al abrir su recurso, según cómo configuraste cada lección.</p>
         </div>
     @else
-        @include('livewire.docente.asistencia._indicadores')
+        @include('livewire.profesor.asistencia._indicadores')
     @endif
 
     <section class="{{ $tarjeta }} overflow-hidden" aria-label="Asistencia por semana y por estudiante">
@@ -65,19 +65,19 @@
         <div id="panel-asistencia" role="tabpanel" aria-labelledby="pestana-{{ $pestana }}" wire:loading.class="opacity-60" wire:target="irASemana,semanaAnterior,semanaSiguiente,irAEstaSemana,verPestana,verNivel,buscar,gotoPage,nextPage,previousPage" class="transition-opacity motion-reduce:transition-none">
             @if ($pestana === 'semana')
                 @unless ($sinFechas)
-                    @include('livewire.docente.asistencia._selector-semana')
+                    @include('livewire.profesor.asistencia._selector-semana')
                 @endunless
 
                 @if ($virtual)
-                    @include('livewire.docente.asistencia._lecciones-completadas', ['porSemana' => true])
+                    @include('livewire.profesor.asistencia._lecciones-completadas', ['porSemana' => true])
                 @else
-                    @include('livewire.docente.asistencia._semana')
+                    @include('livewire.profesor.asistencia._semana')
                 @endif
             @else
                 @if ($virtual)
-                    @include('livewire.docente.asistencia._lecciones-completadas', ['porSemana' => false])
+                    @include('livewire.profesor.asistencia._lecciones-completadas', ['porSemana' => false])
                 @else
-                    @include('livewire.docente.asistencia._resumen-estudiantes')
+                    @include('livewire.profesor.asistencia._resumen-estudiantes')
                 @endif
             @endif
         </div>

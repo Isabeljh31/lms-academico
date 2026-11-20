@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Docente\Asistencia;
+namespace App\Livewire\Profesor\Asistencia;
 
 use App\Models\Curso;
 use App\Models\Salon;
@@ -267,7 +267,7 @@ class SolicitudCambio extends Component
             ? $this->disponibilidad($disponibilidad, $clase, $presencial)
             : ['horas' => [], 'salones' => collect(), 'domingo' => false];
 
-        return view('livewire.docente.asistencia.solicitud-cambio', [
+        return view('livewire.profesor.asistencia.solicitud-cambio', [
             'clase' => $clase,
             'solicitud' => $solicitud,
             'presencial' => $presencial,

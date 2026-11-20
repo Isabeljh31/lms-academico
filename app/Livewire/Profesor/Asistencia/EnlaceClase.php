@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Docente\Asistencia;
+namespace App\Livewire\Profesor\Asistencia;
 
 use App\Models\Curso;
 use App\Models\SesionClase;
@@ -87,7 +87,7 @@ class EnlaceClase extends Component
             ? $this->curso->sesionesClase()->with('curso')->find($this->sesionId)
             : null;
 
-        return view('livewire.docente.asistencia.enlace-clase', [
+        return view('livewire.profesor.asistencia.enlace-clase', [
             'clase' => $clase,
             'dominioPropio' => $enlaces->dominioDe($clase?->enlace_remoto),
             'dominioCurso' => $clase ? $enlaces->dominioDe($this->curso->enlace_remoto) : null,

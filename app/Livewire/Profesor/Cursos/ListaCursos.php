@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Docente\Cursos;
+namespace App\Livewire\Profesor\Cursos;
 
 use App\Models\Curso;
 use App\Models\SesionClase;
@@ -106,7 +106,7 @@ class ListaCursos extends Component
 
         $filtrados = $this->ordenar($porFiltro[$filtro], $resumen, $secciones->posiciones());
 
-        return view('livewire.docente.cursos.lista-cursos', [
+        return view('livewire.profesor.cursos.lista-cursos', [
             'total' => $activos->count(),
             'totalArchivados' => $cursos->count() - $activos->count(),
             'totalBorradores' => self::filtrar($cursos, 'borradores', $resumen)->count(),

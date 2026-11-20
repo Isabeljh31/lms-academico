@@ -2,7 +2,7 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Docente\Cursos\ListaCursos;
+use App\Livewire\Profesor\Cursos\ListaCursos;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Models\Inscripcion;
