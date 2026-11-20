@@ -53,7 +53,10 @@ class ReportesTest extends TestCase
         $curso = Curso::factory()->create();
         $modulo = Modulo::factory()->create(['curso_id' => $curso->id]);
         $tareas = Tarea::factory()->count(3)->create(['curso_id' => $curso->id, 'modulo_id' => $modulo->id]);
-        $estudiantes = User::factory()->count(3)->create()->each(fn (User $estudiante) => $estudiante->assignRole(Rol::Estudiante->value));
+        $estudiantes = User::factory()->count(3)->create()->each(function (User $estudiante) use ($curso) {
+            $estudiante->assignRole(Rol::Estudiante->value);
+            $curso->inscripciones()->create(['estudiante_id' => $estudiante->id, 'fecha_inscripcion' => now()]);
+        });
         // 2 entregas, 1 entrega y ninguna.
         Entrega::factory()->create(['tarea_id' => $tareas[0]->id, 'estudiante_id' => $estudiantes[0]->id]);
         Entrega::factory()->create(['tarea_id' => $tareas[1]->id, 'estudiante_id' => $estudiantes[0]->id]);

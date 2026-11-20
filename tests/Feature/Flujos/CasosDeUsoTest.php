@@ -478,7 +478,9 @@ class CasosDeUsoTest extends TestCase
         $ajeno = $this->usuarioConRol(Rol::Estudiante->value);
 
         $componente = Livewire::actingAs($escenario['profesor'])->test(GruposIndex::class, ['curso' => $escenario['curso']])
-            ->set('nuevoGrupoNombre', 'Equipo A')->call('crearGrupo');
+            ->set('nuevoGrupoNombre', 'Equipo A')
+            ->set('integrantesIniciales', [$escenario['estudiante']->id])
+            ->call('crearGrupo');
         $grupo = $escenario['curso']->grupos()->firstOrFail();
 
         $componente->call('empezarRenombrar', $grupo->id)->set('nombreRenombrar', 'Equipo Alfa')->call('renombrar');

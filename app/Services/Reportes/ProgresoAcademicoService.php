@@ -134,31 +134,55 @@ class ProgresoAcademicoService
     }
 
     /**
-     * avance() de varios estudiantes del mismo curso en seis consultas (mismo criterio).
+     * avance() de varios estudiantes del mismo curso (mismo criterio, incluida
+     * la visibilidad por grupo de las tareas grupales): una tarea grupal solo
+     * cuenta para el total y lo completado de los estudiantes de ese grupo.
      *
      * @param  Collection<int, int>  $estudianteIds
      * @return array<int, int> estudiante_id => avance (0–100)
      */
     public function avancesDelCurso(Curso $curso, Collection $estudianteIds): array
     {
-        $tareas = $curso->tareas()->visiblesParaEstudiante()->pluck('id');
-        $quizzes = $curso->quizzes()->visiblesParaEstudiante()->pluck('id');
-        $lecciones = $this->leccionesVisibles($curso);
-        $total = $tareas->count() + $quizzes->count() + $lecciones->count();
-
-        if ($total === 0 || $estudianteIds->isEmpty()) {
-            return $estudianteIds->mapWithKeys(fn (int $id) => [$id => 0])->all();
+        if ($estudianteIds->isEmpty()) {
+            return [];
         }
 
-        $entregas = Entrega::whereIn('tarea_id', $tareas)->whereIn('estudiante_id', $estudianteIds)
-            ->selectRaw('estudiante_id, count(*) as total')->groupBy('estudiante_id')->pluck('total', 'estudiante_id');
+        $tareasVisibles = $curso->tareas()->visiblesParaEstudiante()->get(['id', 'grupo_asignado_id']);
+        $tareasGenerales = $tareasVisibles->whereNull('grupo_asignado_id')->pluck('id');
+        $tareasPorGrupo = $tareasVisibles->whereNotNull('grupo_asignado_id')
+            ->groupBy('grupo_asignado_id')
+            ->map(fn ($tareas) => $tareas->pluck('id'));
+
+        $quizzes = $curso->quizzes()->visiblesParaEstudiante()->pluck('id');
+        $lecciones = $this->leccionesVisibles($curso);
+        $totalBase = $quizzes->count() + $lecciones->count();
+
+        // Grupo de cada estudiante en este curso (a lo más uno).
+        $grupoDeEstudiante = $curso->grupos()
+            ->with(['estudiantes' => fn ($q) => $q->whereIn('users.id', $estudianteIds)])
+            ->get()
+            ->flatMap(fn ($grupo) => $grupo->estudiantes->mapWithKeys(fn ($e) => [$e->id => $grupo->id]));
+
+        $entregas = Entrega::whereIn('tarea_id', $tareasVisibles->pluck('id'))->whereIn('estudiante_id', $estudianteIds)
+            ->get(['estudiante_id', 'tarea_id'])->groupBy('estudiante_id');
         $quizzesRendidos = ResultadoQuiz::whereIn('quiz_id', $quizzes)->whereIn('estudiante_id', $estudianteIds)
             ->selectRaw('estudiante_id, count(distinct quiz_id) as total')->groupBy('estudiante_id')->pluck('total', 'estudiante_id');
         $leccionesHechas = LeccionCompletada::whereIn('leccion_id', $lecciones)->whereIn('estudiante_id', $estudianteIds)
             ->selectRaw('estudiante_id, count(*) as total')->groupBy('estudiante_id')->pluck('total', 'estudiante_id');
 
-        return $estudianteIds->mapWithKeys(function (int $id) use ($entregas, $quizzesRendidos, $leccionesHechas, $total) {
-            $completos = (int) ($entregas[$id] ?? 0) + (int) ($quizzesRendidos[$id] ?? 0) + (int) ($leccionesHechas[$id] ?? 0);
+        return $estudianteIds->mapWithKeys(function (int $id) use (
+            $tareasGenerales, $tareasPorGrupo, $grupoDeEstudiante, $totalBase,
+            $entregas, $quizzesRendidos, $leccionesHechas
+        ) {
+            $tareasDelEstudiante = $tareasGenerales->merge($tareasPorGrupo[$grupoDeEstudiante[$id] ?? null] ?? collect());
+            $total = $tareasDelEstudiante->count() + $totalBase;
+
+            if ($total === 0) {
+                return [$id => 0];
+            }
+
+            $entregadas = ($entregas[$id] ?? collect())->pluck('tarea_id')->intersect($tareasDelEstudiante)->unique()->count();
+            $completos = $entregadas + (int) ($quizzesRendidos[$id] ?? 0) + (int) ($leccionesHechas[$id] ?? 0);
 
             return [$id => (int) round(min($completos, $total) / $total * 100)];
         })->all();
