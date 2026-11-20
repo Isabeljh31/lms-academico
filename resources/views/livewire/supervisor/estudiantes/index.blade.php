@@ -275,9 +275,18 @@
                 </p>
             </div>
 
+            @php
+                // Mismo criterio que validarFormularioNuevoUsuario(): si no, un wire:model.live
+                // ajeno (p. ej. la Sede) vuelve a pintar el botón con el "disabled" fijo del
+                // HTML y lo deja bloqueado aunque el formulario ya sea válido.
+                $nuevoUsuarioIncompleto = mb_strlen(trim($nuevoNombres)) < 2
+                    || mb_strlen(trim($nuevoApellidos)) < 2
+                    || strlen($nuevoDni) !== 8
+                    || ! filter_var(trim($nuevoEmail), FILTER_VALIDATE_EMAIL);
+            @endphp
             <x-slot name="pie">
                 <x-gestion.boton variante="secundario" wire:click="$set('mostrarModalCrear', false)">Cancelar</x-gestion.boton>
-                <x-gestion.boton id="nuevoUsuarioBtnCrear" wire:click="crearUsuario" wire:loading.attr="disabled" wire:target="crearUsuario" disabled>Crear estudiante</x-gestion.boton>
+                <x-gestion.boton id="nuevoUsuarioBtnCrear" wire:click="crearUsuario" wire:loading.attr="disabled" wire:target="crearUsuario" :disabled="$nuevoUsuarioIncompleto">Crear estudiante</x-gestion.boton>
             </x-slot>
         </x-gestion.modal>
     @endif
