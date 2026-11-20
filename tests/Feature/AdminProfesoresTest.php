@@ -12,6 +12,8 @@ use App\Mail\BienvenidaMail;
 use App\Models\Comunicado;
 use App\Models\Curso;
 use App\Models\Entrega;
+use App\Models\Facultad;
+use App\Models\Sede;
 use App\Models\Tarea;
 use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -557,5 +559,37 @@ class AdminProfesoresTest extends TestCase
         $this->actingAs($this->estudiante)
             ->get(route('admin.profesores.importar'))
             ->assertForbidden();
+    }
+
+    public function test_con_facultades_los_profesores_se_listan_por_sede_y_facultad_y_aparte_los_virtuales(): void
+    {
+        $sede = Sede::factory()->create();
+        [$ingenieria, $letras] = Facultad::factory()->count(2)->create(['sede_id' => $sede->id]);
+        $presencial = User::factory()->create(['name' => 'Docente Presencial'])->assignRole(Rol::Profesor->value);
+        $virtual = User::factory()->create(['name' => 'Docente Virtual'])->assignRole(Rol::Profesor->value);
+        Curso::factory()->create(['profesor_id' => $presencial->id, 'modalidad' => 'presencial', 'sede_id' => $sede->id, 'facultad_id' => $ingenieria->id]);
+        Curso::factory()->create(['profesor_id' => $virtual->id, 'modalidad' => 'remoto', 'facultad_id' => $letras->id]);
+
+        Livewire::actingAs($this->admin)->test(ProfesoresIndex::class)
+            // Primero se elige la sede y luego la facultad.
+            ->assertSee('Elige la sede y la facultad')
+            ->assertDontSee('Docente Presencial')
+            ->set('sedeUbicacion', (string) $sede->id)
+            ->assertDontSee('Docente Presencial')
+            ->set('facultadUbicacion', (string) $ingenieria->id)
+            ->assertSee('Docente Presencial')
+            ->assertDontSee('Docente Virtual')
+            ->set('facultadUbicacion', (string) $letras->id)
+            ->assertDontSee('Docente Presencial')
+            // Los de cursos virtuales y remotos, en su propio listado con filtro por facultad.
+            ->call('verVistaUbicacion', 'virtual')
+            ->assertSee('Docente Virtual')
+            ->assertDontSee('Docente Presencial')
+            ->set('facultadUbicacion', (string) $ingenieria->id)
+            ->assertDontSee('Docente Virtual')
+            // Quien aún no tiene cursos no se pierde.
+            ->call('verVistaUbicacion', 'sin_cursos')
+            ->assertSee('Profesor Test')
+            ->assertDontSee('Docente Presencial');
     }
 }

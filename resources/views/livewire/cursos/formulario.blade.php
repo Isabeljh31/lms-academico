@@ -190,6 +190,32 @@
                             </x-gestion.campo>
                         </div>
 
+                        {{-- Sede (solo presencial) y facultad (catálogo de «Sedes, salones y facultades»). En presencial, las aulas
+                             del horario son salones de la sede, que se usan al reprogramar clases. --}}
+                        @php $esperaSede = $modalidad === 'presencial' && $sede_id === ''; @endphp
+                        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                            @if ($modalidad === 'presencial')
+                                <x-gestion.campo etiqueta="Sede" nombre="sede_id" requerido
+                                    :ayuda="$opcionesSede === [] ? 'Aún no hay sedes: regístralas en «Sedes, salones y facultades».' : null">
+                                    <x-gestion.control tipo="select" id="sede_id" wire:model.live="sede_id">
+                                        <option value="">Elige la sede</option>
+                                        @foreach ($opcionesSede as $valor => $etiqueta)
+                                            <option value="{{ $valor }}">{{ $etiqueta }}</option>
+                                        @endforeach
+                                    </x-gestion.control>
+                                </x-gestion.campo>
+                            @endif
+                            <x-gestion.campo etiqueta="Facultad" nombre="facultad_id"
+                                :ayuda="$esperaSede ? 'Elige primero la sede.' : ($opcionesFacultad === [] ? 'Aún no hay facultades registradas para elegir.' : null)">
+                                <x-gestion.control tipo="select" id="facultad_id" wire:model="facultad_id" :disabled="$esperaSede">
+                                    <option value="">Elige la facultad</option>
+                                    @foreach ($opcionesFacultad as $valor => $etiqueta)
+                                        <option value="{{ $valor }}">{{ $etiqueta }}</option>
+                                    @endforeach
+                                </x-gestion.control>
+                            </x-gestion.campo>
+                        </div>
+
                         <label class="flex items-start gap-3 text-sm text-stone-700 dark:text-stone-300">
                             <input type="checkbox" wire:model.live="usa_asistencia" class="mt-0.5 rounded border-arena-medio text-menta-oscuro focus:ring-menta-base">
                             <span>
@@ -198,11 +224,31 @@
                             </span>
                         </label>
 
-                        @if ($modalidad !== 'virtual' && $usa_asistencia)
+                        {{-- Prácticas de campo: las decide el Supervisor (una por semana); el profesor solo prepara la entrega de cada una. --}}
+                        <div>
+                            <label class="flex items-start gap-3 text-sm text-stone-700 dark:text-stone-300">
+                                <input type="checkbox" wire:model.live="tiene_practicas_campo" class="mt-0.5 rounded border-arena-medio text-menta-oscuro focus:ring-menta-base">
+                                <span>
+                                    El curso tiene prácticas de campo
+                                    <span class="block text-xs text-stone-500">
+                                        Aparecen como una carpeta encima de las semanas, con una práctica por semana del curso{{ (int) $semanas_duracion > 0 ? ' ('.(int) $semanas_duracion.' en total)' : '' }}. El profesor prepara la entrega de cada una.
+                                    </span>
+                                </span>
+                            </label>
+                            <x-input-error :messages="$errors->get('tiene_practicas_campo')" class="mt-1 pl-7" />
+                        </div>
+
                             <div class="rounded-xl border border-arena-medio p-4 dark:border-stone-600">
                                 <p class="text-sm font-medium text-stone-700 dark:text-stone-300">Horario de clase</p>
                                 <p class="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
-                                    Agrega un bloque por cada día de clase: pueden tener horas{{ $modalidad === 'presencial' ? ' y aulas' : '' }} distintas (por ejemplo, lunes en un horario y viernes en otro). Al crear el curso se genera automáticamente una sesión de asistencia por cada clase, entre la fecha de inicio y la de fin.
+                                    Agrega un bloque por cada día de clase: pueden tener horas{{ $modalidad === 'presencial' ? ' y aulas' : '' }} distintas (por ejemplo, lunes en un horario y viernes en otro).
+                                    @if ($modalidad === 'virtual')
+                                        En un curso virtual el horario es informativo: no genera sesiones de asistencia.
+                                    @elseif ($usa_asistencia)
+                                        Al crear el curso se genera automáticamente una sesión de asistencia por cada clase, entre la fecha de inicio y la de fin.
+                                    @else
+                                        El curso no registra asistencia: el horario no genera sesiones.
+                                    @endif
                                 </p>
 
                                 <div class="mt-3 space-y-2">
@@ -230,9 +276,22 @@
                                                     </x-gestion.campo>
                                                 </div>
                                                 @if ($modalidad === 'presencial')
-                                                    <div class="w-32 grow">
+                                                    {{-- Aula = un salón activo de la sede del curso (se guarda su código). Sin sedes en el catálogo, texto libre. --}}
+                                                    <div class="w-48 grow">
                                                         <x-gestion.campo etiqueta="Aula" nombre="horarioBloques.{{ $i }}.aula">
-                                                            <x-gestion.control id="horarioAula{{ $i }}" wire:model="horarioBloques.{{ $i }}.aula" placeholder="Aula 204" maxlength="50" />
+                                                            @if ($opcionesSede === [])
+                                                                <x-gestion.control id="horarioAula{{ $i }}" wire:model="horarioBloques.{{ $i }}.aula" placeholder="Aula 204" maxlength="50" />
+                                                            @else
+                                                            <x-gestion.control tipo="select" id="horarioAula{{ $i }}" wire:model="horarioBloques.{{ $i }}.aula" :disabled="$sede_id === ''">
+                                                                <option value="">{{ $sede_id === '' ? 'Elige primero la sede' : 'Elige el salón' }}</option>
+                                                                @if (filled($bloque['aula'] ?? null) && ! array_key_exists($bloque['aula'], $opcionesSalon))
+                                                                    <option value="{{ $bloque['aula'] }}">{{ $bloque['aula'] }} (no es un salón de esta sede)</option>
+                                                                @endif
+                                                                @foreach ($opcionesSalon as $codigo => $etiqueta)
+                                                                    <option value="{{ $codigo }}">{{ $etiqueta }}</option>
+                                                                @endforeach
+                                                            </x-gestion.control>
+                                                            @endif
                                                         </x-gestion.campo>
                                                     </div>
                                                 @endif
@@ -266,7 +325,6 @@
                                     </x-gestion.boton>
                                 @endif
                             </div>
-                        @endif
                     </fieldset>
                 </div>
             </x-gestion.tarjeta>

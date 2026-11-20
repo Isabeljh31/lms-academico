@@ -9,6 +9,7 @@
 @endphp
 
 <div class="py-8 px-4 sm:px-6 lg:px-8 max-w-2xl mx-auto space-y-6">
+    <x-gestion.volver :href="route('cursos.show', $curso)" class="-mb-3" />
 
     <div class="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 shadow-sm overflow-hidden">
         <div class="bg-imperial p-6 text-white">

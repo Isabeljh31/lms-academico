@@ -1,11 +1,9 @@
 {{--
-    Menú "⋯" de una semana (o de las prácticas de campo) del Profesor: editar y
+    Menú "⋯" de una semana del Profesor: editar y
     vaciar. Vaciar pide confirmación con el modal de confirmación. Recibe
-    $modulo (null si la semana aún no tiene contenido), $numero (0 =
-    prácticas) y $etiqueta. Teclado: Enter/Espacio abre, flechas recorren, Esc cierra.
+    $modulo (null si la semana aún no tiene contenido), $numero y $etiqueta. Teclado: Enter/Espacio abre, flechas recorren, Esc cierra.
 --}}
 @php
-    $esPracticas = $numero === \App\Livewire\Cursos\Show::CLAVE_PRACTICAS;
     $claseItem = 'flex w-full items-center gap-2 px-3 py-2 text-left text-sm focus:outline-none';
 @endphp
 <div class="relative shrink-0" x-data="{ abierto: false }"
@@ -25,12 +23,12 @@
         <button type="button" role="menuitem" x-on:click="abierto = false"
             wire:click="{{ $modulo ? 'abrirEditarModulo('.$modulo->id.')' : 'prepararSeccion('.$numero.')' }}"
             class="{{ $claseItem }} text-slate-700 hover:bg-celeste focus:bg-celeste dark:text-slate-200 dark:hover:bg-azul-borde-oscuro dark:focus:bg-azul-borde-oscuro">
-            <x-icono nombre="lapiz" class="h-4 w-4" /> {{ $esPracticas ? 'Editar prácticas de campo' : 'Editar semana' }}
+            <x-icono nombre="lapiz" class="h-4 w-4" /> Editar semana
         </button>
         @if ($modulo)
             <button type="button" role="menuitem" x-on:click="abierto = false" wire:click="confirmarVaciarModulo({{ $modulo->id }})"
                 class="{{ $claseItem }} text-red-600 hover:bg-red-50 focus:bg-red-50 dark:text-red-400 dark:hover:bg-azul-borde-oscuro dark:focus:bg-azul-borde-oscuro">
-                <x-icono nombre="papelera" class="h-4 w-4" /> {{ $esPracticas ? 'Quitar prácticas de campo' : 'Vaciar semana' }}
+                <x-icono nombre="papelera" class="h-4 w-4" /> Vaciar semana
             </button>
         @endif
     </div>

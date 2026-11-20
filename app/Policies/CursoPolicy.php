@@ -92,4 +92,19 @@ class CursoPolicy
         return $this->supervisar($usuario, $curso)
             || ($usuario->hasRole('estudiante') && $usuario->estaMatriculadoEn($curso));
     }
+
+    /**
+     * Enlace de clases remotas: lo ven los docentes del curso, sus estudiantes
+     * con matrícula activa (curso publicado) y el Supervisor; igual que «ver».
+     */
+    public function verEnlaceRemoto(User $usuario, Curso $curso): bool
+    {
+        return $this->ver($usuario, $curso);
+    }
+
+    /** Solo el titular o un co-docente guarda o quita el enlace (el Supervisor no). */
+    public function editarEnlaceRemoto(User $usuario, Curso $curso): bool
+    {
+        return $this->gestionar($usuario, $curso);
+    }
 }

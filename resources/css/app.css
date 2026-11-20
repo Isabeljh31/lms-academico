@@ -3,6 +3,100 @@
 @tailwind utilities;
 
 /*
+ * Tokens de marca (tailwind.config.js los lee como rgb(var(--lu-*))).
+ * Por defecto, la paleta azul LearnUp de Estudiante y Supervisor.
+ */
+:root {
+    --lu-azul-fondo: 23 104 172;   /* #1768AC */
+    --lu-azul-oscuro: 37 65 178;   /* #2541B2 */
+    --lu-celeste: 235 240 251;     /* #EBF0FB */
+    --lu-imperial: 3 37 108;       /* #03256C */
+    --lu-cielo: 6 190 225;         /* #06BEE1 */
+    --lu-cielo-claro: 224 247 253; /* #E0F7FD */
+    --lu-fondo: 245 247 250;       /* #F5F7FA */
+    --lu-texto: 31 41 55;          /* #1F2937 */
+    --lu-menta-fondo: 236 248 248; /* #ECF8F8 */
+    --lu-menta-base: 127 179 174;  /* #7FB3AE */
+    --lu-menta-oscuro: 60 122 117; /* #3C7A75 */
+    --lu-arena-claro: 238 228 225; /* #EEE4E1 */
+    --lu-arena-medio: 231 216 201; /* #E7D8C9 */
+}
+
+/*
+ * Tema del Supervisor (layouts/app.blade.php): el mismo diseño editorial del
+ * Profesor sobre su paleta (menta = acento, arena = papel y bordes). Las
+ * vistas siguen usando sus clases de siempre; solo cambian los valores.
+ */
+.tema-supervisor {
+    --lu-menta-fondo: 241 235 223; /* #F1EBDF papel tostado */
+    --lu-menta-base: 47 90 68;     /* #2F5A44 verde de foco */
+    --lu-menta-oscuro: 29 28 25;   /* #1D1C19 tinta (botones, activo) */
+    --lu-arena-claro: 244 240 232; /* #F4F0E8 papel crema */
+    --lu-arena-medio: 232 226 213; /* #E8E2D5 borde */
+    --muted: #6B6559;
+}
+
+/*
+ * Tema del Profesor (layouts/panel-profesor): papel crema, tinta casi negra,
+ * títulos en serif y rótulos en monoespaciada. Redefine los tokens de marca y
+ * las variables propias de las pantallas del Profesor (--p900, --mint…), así
+ * todas sus pantallas toman el diseño sin cambiar su funcionamiento.
+ */
+.tema-profesor {
+    --lu-azul-fondo: 58 55 49;     /* #3A3731 tinta suave (hover) */
+    --lu-azul-oscuro: 29 28 25;    /* #1D1C19 tinta (botones, activo) */
+    --lu-celeste: 232 226 213;     /* #E8E2D5 borde/papel tostado */
+    --lu-imperial: 29 28 25;
+    --lu-cielo: 47 90 68;          /* #2F5A44 verde de foco */
+    --lu-cielo-claro: 241 235 223; /* #F1EBDF */
+    --lu-fondo: 244 240 232;       /* #F4F0E8 papel crema */
+    --lu-texto: 29 28 25;
+
+    --p900: #1D1C19;
+    --p800: #3A3731;
+    --p700: #2F5A44;
+    --lime: #F2DFC8;
+    --sec2: #E8E2D5;
+    --mint: #F4F0E8;
+    --ink: #1D1C19;
+    --claro: #D9D3C7;
+    --ok900: #2F5D37;
+    --ok100: #E3EEDC;
+    --warn800: #8A4A1A;
+    --warn200: #F2DDBF;
+    --warn100: #FAF1E4;
+    --err700: #A33A2A;
+    --err100: #F8E3DC;
+    --inf700: #23407A;
+    --inf100: #E1E8F5;
+    --muted: #6B6559;
+}
+
+/* Títulos en serif (Instrument Serif solo tiene peso normal: sin negrita falsa). */
+:is(.tema-profesor, .tema-supervisor) :is(h1, h2):not(.font-sans) {
+    font-family: 'Instrument Serif', ui-serif, Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.005em;
+}
+:is(.tema-profesor, .tema-supervisor) h1:not(.font-sans) {
+    line-height: 1.1;
+}
+
+/* Rótulo monoespaciado en mayúsculas (fechas, códigos, etiquetas). */
+.rotulo {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* Tarjeta de curso en tono pastel derivado de su color (--c): fondo claro y texto oscuro del mismo tono. */
+.tarjeta-curso {
+    background-color: color-mix(in srgb, var(--c) 13%, white);
+    color: color-mix(in srgb, var(--c) 80%, black);
+}
+
+/*
  * Flatpickr — tema con la paleta fría del rol Estudiante (ver
  * ARQUITECTURA.md § selector de fecha rediseñado). Flatpickr se carga bajo
  * demanda (window.cargarFlatpickr, resources/js/app.js) en el Calendario y en
@@ -187,7 +281,7 @@
  */
 .grupos-fantasma {
     opacity: 0.35;
-    outline: 2px dashed #2541B2;
+    outline: 2px dashed rgb(var(--lu-azul-oscuro));
     outline-offset: 2px;
 }
 .grupos-elegido {

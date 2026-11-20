@@ -20,6 +20,10 @@ class RubroEvaluacion extends Model
         'peso',
         'orden',
         'modo_calculo',
+        // Tramo de prácticas de campo (Práctica desde..hasta) y su % dentro de la evaluación.
+        'practica_desde',
+        'practica_hasta',
+        'peso_practicas',
     ];
 
     protected function casts(): array
@@ -29,6 +33,9 @@ class RubroEvaluacion extends Model
             'peso' => 'decimal:2',
             'semana' => 'integer',
             'orden' => 'integer',
+            'practica_desde' => 'integer',
+            'practica_hasta' => 'integer',
+            'peso_practicas' => 'decimal:2',
         ];
     }
 
@@ -65,6 +72,24 @@ class RubroEvaluacion extends Model
     // CÁLCULO DE LA NOTA
     // ==========================================
 
+    /** El profesor asignó a esta evaluación un tramo de prácticas de campo. */
+    public function tienePracticas(): bool
+    {
+        return $this->practica_desde !== null && $this->practica_hasta !== null;
+    }
+
+    /** Cuántas prácticas de campo abarca el tramo (0 si no tiene). */
+    public function cantidadPracticas(): int
+    {
+        return $this->tienePracticas() ? $this->practica_hasta - $this->practica_desde + 1 : 0;
+    }
+
+    /** % de la evaluación que queda para las demás actividades (100 menos el tramo de prácticas). */
+    public function pesoParaActividades(): float
+    {
+        return round(100 - (float) ($this->peso_practicas ?? 0), 2);
+    }
+
     /** La nota sale de las actividades vinculadas (promedio ponderado o examen). */
     public function esAutomatico(): bool
     {
@@ -86,7 +111,8 @@ class RubroEvaluacion extends Model
     /**
      * Estado de la configuración: «sin_configurar» (nunca se eligió modo),
      * «incompleta» (automática sin actividades o con pesos que no suman 100)
-     * o «lista».
+     * o «lista». El tramo de prácticas de campo cuenta con su % reservado,
+     * aunque esas prácticas todavía no se hayan creado.
      */
     public function estadoCalculo(): string
     {
@@ -98,8 +124,11 @@ class RubroEvaluacion extends Model
             return 'lista';
         }
 
-        $actividades = $this->actividadesVinculadas();
+        $demasActividades = $this->actividadesVinculadas()
+            ->reject(fn (array $vinculada) => $vinculada['tipo'] === 'tarea' && $this->tareas->find($vinculada['id'])?->practica !== null);
+        $pesoPracticas = $this->tienePracticas() ? (float) $this->peso_practicas : 0.0;
+        $total = $demasActividades->sum('peso') + $pesoPracticas;
 
-        return $actividades->isNotEmpty() && abs($actividades->sum('peso') - 100) < 0.01 ? 'lista' : 'incompleta';
+        return ($demasActividades->isNotEmpty() || $this->tienePracticas()) && abs($total - 100) < 0.01 ? 'lista' : 'incompleta';
     }
 }

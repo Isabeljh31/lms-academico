@@ -18,7 +18,8 @@
         <header class="flex flex-col gap-2 border-b {{ $borde }} px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
                 @if ($titulo)
-                    <h2 class="text-base font-semibold {{ $textoTitulo }}">{{ $titulo }}</h2>
+                    {{-- Profesor y Supervisor: título en serif (tema editorial), un poco más grande. --}}
+                    <h2 class="{{ $esAdmin || \App\View\Components\PanelProfesorLayout::aplicaA(auth()->user()) ?'text-[22px] leading-tight' : 'text-base' }} font-semibold {{ $textoTitulo }}">{{ $titulo }}</h2>
                 @endif
                 @if ($descripcion)
                     <p class="text-xs {{ $textoDesc }}">{{ $descripcion }}</p>

@@ -5,6 +5,9 @@ namespace App\Livewire\Cursos;
 use App\Enums\Rol;
 use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
+use App\Models\Facultad;
+use App\Models\Salon;
+use App\Models\Sede;
 use App\Models\User;
 use App\Rules\TieneRol;
 use App\Services\Multimedia\SubidorArchivos;
@@ -82,7 +85,16 @@ class Formulario extends Component
      */
     public array $horarioBloques = [];
 
+    /** Sede del curso (obligatoria si es presencial): de ella salen sus salones. */
+    public string $sede_id = '';
+
+    /** Facultad del curso, de la misma sede (opcional). */
+    public string $facultad_id = '';
+
     public bool $usa_asistencia = true;
+
+    /** El Supervisor decide si el curso tiene prácticas de campo: una por semana (Práctica 1..N, N = duración). */
+    public bool $tiene_practicas_campo = false;
 
     public function mount(?Curso $curso = null): void
     {
@@ -109,7 +121,10 @@ class Formulario extends Component
                 'hora_fin' => $bloque['hora_fin'] ?? '',
                 'aula' => $bloque['aula'] ?? '',
             ])->values()->all();
+            $this->sede_id = (string) ($curso->sede_id ?? '');
+            $this->facultad_id = (string) ($curso->facultad_id ?? '');
             $this->usa_asistencia = (bool) $curso->usa_asistencia;
+            $this->tiene_practicas_campo = $curso->tienePracticasCampo();
         } else {
             Gate::authorize('crear', Curso::class);
         }
@@ -191,6 +206,24 @@ class Formulario extends Component
         } catch (\Throwable) {
             // Fecha todavía incompleta mientras se escribe; la validación normal la atrapará al guardar.
         }
+    }
+
+    /** Otra modalidad: la sede solo aplica a presencial y cambian las facultades que se ofrecen. */
+    public function updatedModalidad(): void
+    {
+        if ($this->modalidad !== 'presencial') {
+            $this->sede_id = '';
+        }
+        $this->facultad_id = '';
+        $this->resetErrorBag(['sede_id', 'facultad_id']);
+    }
+
+    /** Otra sede: la facultad y las aulas elegidas eran de la anterior. */
+    public function updatedSedeId(): void
+    {
+        $this->facultad_id = '';
+        $this->horarioBloques = collect($this->horarioBloques)->map(fn (array $bloque) => array_merge($bloque, ['aula' => '']))->all();
+        $this->resetErrorBag(['sede_id', 'facultad_id']);
     }
 
     public function agregarBloqueHorario(): void
@@ -330,11 +363,17 @@ class Formulario extends Component
             'fecha_inicio' => ['nullable', 'date'],
             'fecha_fin' => ['nullable', 'date', 'after_or_equal:fecha_inicio'],
             // No puede quedar por debajo de la última semana que ya tiene contenido.
-            'semanas_duracion' => ['required', 'integer', 'min:'.max(1, (int) $this->curso?->modulos()->max('semana')), 'max:104'],
+            // No puede quedar por debajo de la última semana con contenido ni (con prácticas de campo, una por semana) de la última práctica con entrega.
+            'semanas_duracion' => ['required', 'integer', 'min:'.max(
+                1,
+                (int) $this->curso?->modulos()->max('semana'),
+                $this->tiene_practicas_campo ? (int) $this->curso?->ultimaPracticaConTarea() : 0,
+            ), 'max:104'],
             'cupo_maximo' => ['nullable', 'integer', 'min:'.max(1, (int) $this->curso?->inscripcionesActivas()->count()), 'max:500'],
             'modalidad' => ['required', Rule::in(Curso::MODALIDADES)],
+            // Con el catálogo de facultades en uso, todo curso registra su horario (en virtual, informativo).
             'horarioBloques' => [
-                'array', 'max:7',
+                Facultad::where('activa', true)->exists() ? 'required' : 'nullable', 'array', 'max:7',
                 function (string $atributo, array $valor, \Closure $fail): void {
                     $dias = collect($valor)->pluck('dia')->filter(fn ($dia) => $dia !== '')->map(fn ($dia) => (int) $dia);
 
@@ -346,8 +385,27 @@ class Formulario extends Component
             'horarioBloques.*.dia' => ['required', 'integer', 'between:1,7'],
             'horarioBloques.*.hora_inicio' => ['required', 'date_format:H:i'],
             'horarioBloques.*.hora_fin' => ['required', 'date_format:H:i', 'after:horarioBloques.*.hora_inicio'],
-            'horarioBloques.*.aula' => [$this->modalidad === 'presencial' ? 'required' : 'nullable', 'string', 'max:50'],
+            // Presencial con sedes registradas: sede obligatoria y cada aula es un salón activo de esa sede
+            // (de ahí sale el salón de cada clase). Sin sedes en el catálogo, el aula sigue siendo texto.
+            'sede_id' => [$this->modalidad === 'presencial' && Sede::where('activa', true)->exists() ? 'required' : 'nullable', Rule::exists('sedes', 'id')->where('activa', true)],
+            // Facultad: obligatoria si hay facultades registradas. Presencial: de su sede; virtual o remoto: de cualquier sede.
+            'facultad_id' => [
+                Facultad::where('activa', true)->exists() ? 'required' : 'nullable',
+                $this->modalidad === 'presencial'
+                    ? Rule::exists('facultades', 'id')->where('sede_id', (int) $this->sede_id)->where('activa', true)
+                    : Rule::exists('facultades', 'id')->where('activa', true),
+            ],
+            'horarioBloques.*.aula' => match (true) {
+                $this->modalidad !== 'presencial' => ['nullable', 'string', 'max:50'],
+                $this->sede_id !== '' => ['required', 'string', 'max:50', Rule::exists('salones', 'codigo')->where('sede_id', (int) $this->sede_id)->where('activo', true)],
+                default => ['required', 'string', 'max:50'],
+            },
             'usa_asistencia' => ['boolean'],
+            'tiene_practicas_campo' => ['boolean', function (string $atributo, mixed $valor, \Closure $fail): void {
+                if (! $valor && $this->curso?->ultimaPracticaConTarea()) {
+                    $fail('El profesor ya preparó entregas de prácticas de campo en este curso: no se pueden quitar.');
+                }
+            }],
         ], [
             'profesor_id.required' => 'Selecciona el profesor titular del curso.',
             'fecha_fin.after_or_equal' => 'La fecha de fin no puede ser anterior a la de inicio.',
@@ -355,13 +413,19 @@ class Formulario extends Component
             'codigo.regex' => 'El código solo puede tener letras (A-Z), números y guiones, sin espacios ni tildes. Ejemplo: MAT-201.',
             'codigo.max' => 'El código no puede tener más de 30 caracteres.',
             'semanas_duracion.required' => 'Indica cuántas semanas dura el curso.',
-            'semanas_duracion.min' => 'La semana :min ya tiene contenido: la duración no puede ser menor. Vacía o mueve esas semanas primero.',
+            'semanas_duracion.min' => 'La semana (o la práctica de campo) :min ya tiene contenido: la duración no puede ser menor. Vacía o mueve ese contenido primero.',
             'cupo_maximo.min' => 'Ya hay :min estudiantes matriculados: el cupo no puede ser menor a esa cantidad.',
             'horarioBloques.*.dia.required' => 'Elige el día de este bloque de horario.',
             'horarioBloques.*.hora_inicio.required' => 'Indica la hora de inicio de este bloque.',
             'horarioBloques.*.hora_fin.required' => 'Indica la hora de fin de este bloque.',
             'horarioBloques.*.hora_fin.after' => 'La hora de fin debe ser después de la hora de inicio.',
-            'horarioBloques.*.aula.required' => 'Indica el aula de este bloque (el curso es presencial).',
+            'horarioBloques.required' => 'Agrega al menos un día al horario del curso.',
+            'horarioBloques.*.aula.required' => 'Elige el aula de este bloque (el curso es presencial).',
+            'horarioBloques.*.aula.exists' => 'Elige un salón activo de la sede del curso.',
+            'sede_id.required' => 'Elige la sede del curso (es presencial).',
+            'sede_id.exists' => 'Elige una sede activa de la lista.',
+            'facultad_id.required' => 'Elige la facultad del curso.',
+            'facultad_id.exists' => $this->modalidad === 'presencial' ? 'Elige una facultad activa de la sede del curso.' : 'Elige una facultad activa de la lista.',
             ...SubidorArchivos::mensajes('portada'),
         ]);
 
@@ -406,7 +470,8 @@ class Formulario extends Component
             'semanas_duracion' => $this->semanas_duracion ?: null,
             'cupo_maximo' => $this->cupo_maximo ?: null,
             'modalidad' => $this->modalidad,
-            'horario_bloques' => in_array($this->modalidad, Curso::MODALIDADES_CON_HORARIO, true) && $this->horarioBloques !== []
+            // Todas las modalidades guardan su horario; en virtual es solo informativo (no genera sesiones).
+            'horario_bloques' => $this->horarioBloques !== []
                 ? collect($this->horarioBloques)->map(fn (array $bloque) => [
                     'dia' => (int) $bloque['dia'],
                     'hora_inicio' => $bloque['hora_inicio'],
@@ -414,7 +479,10 @@ class Formulario extends Component
                     'aula' => $this->modalidad === 'presencial' ? ($bloque['aula'] ?: null) : null,
                 ])->values()->all()
                 : null,
+            'sede_id' => $this->modalidad === 'presencial' && $this->sede_id !== '' ? (int) $this->sede_id : null,
+            'facultad_id' => $this->facultad_id !== '' ? (int) $this->facultad_id : null,
             'usa_asistencia' => $this->usa_asistencia,
+            'tiene_practicas_campo' => $this->tiene_practicas_campo,
         ];
 
         if ($editando) {
@@ -508,6 +576,17 @@ class Formulario extends Component
                 ? User::whereIn('id', $profesoresAdicionalesIds)->orderBy('name')->get()
                 : collect(),
             'nombresExistentes' => Curso::query()->when($this->curso, fn ($q) => $q->whereKeyNot($this->curso->id))->distinct()->orderBy('nombre')->pluck('nombre'),
+            'opcionesSede' => Sede::where('activa', true)->orderBy('nombre')->get(['id', 'nombre', 'codigo'])
+                ->mapWithKeys(fn (Sede $sede) => [(string) $sede->id => "{$sede->nombre} ({$sede->codigo})"])->all(),
+            // Presencial: facultades de su sede. Virtual o remoto (sin sede): todas, con su sede para distinguirlas.
+            'opcionesFacultad' => $this->modalidad === 'presencial'
+                ? ($this->sede_id === '' ? [] : Facultad::where('sede_id', (int) $this->sede_id)->where('activa', true)->orderBy('nombre')->get(['id', 'nombre'])
+                    ->mapWithKeys(fn (Facultad $facultad) => [(string) $facultad->id => $facultad->nombre])->all())
+                : Facultad::where('activa', true)->with('sede:id,nombre')->orderBy('nombre')->get(['id', 'nombre', 'sede_id'])
+                    ->mapWithKeys(fn (Facultad $facultad) => [(string) $facultad->id => "{$facultad->nombre} · {$facultad->sede->nombre}"])->all(),
+            // Salones activos de la sede elegida: el aula de cada bloque se elige de aquí (por código).
+            'opcionesSalon' => $this->sede_id === '' ? [] : Salon::activos()->where('sede_id', (int) $this->sede_id)->with('tipo:id,nombre')->orderBy('codigo')->get()
+                ->mapWithKeys(fn (Salon $salon) => [$salon->codigo => "{$salon->codigo} · {$salon->tipo->nombre} · {$salon->capacidad} plazas"])->all(),
             'estadosCurso' => [
                 'borrador' => 'Borrador (no visible para estudiantes)',
                 'publicado' => 'Publicado (visible para los estudiantes matriculados)',

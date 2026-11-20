@@ -2,11 +2,14 @@
 
 namespace App\Livewire\Cursos\Concerns;
 
+use App\Models\Curso;
 use App\Models\Leccion;
 use App\Models\Modulo;
 use App\Notifications\NuevoContenidoPublicado;
 use App\Services\Multimedia\SubidorArchivos;
+use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\Rule;
@@ -52,6 +55,18 @@ trait GestionaContenidoSemanal
         'ninguno' => 'Sin adjunto',
         'archivo' => 'Subir archivo',
         'enlace' => 'Pegar enlace',
+    ];
+
+    /**
+     * Visibilidad para el estudiante de un elemento (pantalla del Profesor):
+     * "No visible" guarda el estado borrador y "Visible" el estado publicado
+     * (ERS RF-37/RF-38). Único lugar de sus textos.
+     *
+     * @var array<string, array{etiqueta: string, corta: string, detalle: string}>
+     */
+    public const VISIBILIDAD_LECCION = [
+        'borrador' => ['etiqueta' => 'No visible para el estudiante', 'corta' => 'No visible', 'detalle' => 'Solo tú lo ves. Los estudiantes todavía no lo ven.'],
+        'publicado' => ['etiqueta' => 'Visible para el estudiante', 'corta' => 'Visible', 'detalle' => 'Los estudiantes lo ven en la semana.'],
     ];
 
     /** Clave de las prácticas de campo en $semanasAbiertas y en agregarLeccion(). */
@@ -156,7 +171,8 @@ trait GestionaContenidoSemanal
      */
     protected function inicializarSemanasAbiertas(Collection $modulos, ?int $semanaPedida): void
     {
-        $total = $this->curso->totalSemanas();
+        // Mismo cálculo que Curso::totalSemanas(), con los módulos ya cargados (todos los del curso) en lugar de otra consulta.
+        $total = max((int) ($this->curso->semanas_duracion ?: Curso::SEMANAS_PREDETERMINADAS), (int) $modulos->max('semana'));
 
         if ($semanaPedida !== null && $semanaPedida >= self::CLAVE_PRACTICAS && $semanaPedida <= $total) {
             $this->semanasAbiertas = [$semanaPedida];
@@ -411,6 +427,59 @@ trait GestionaContenidoSemanal
         session()->flash('estado', $mensaje);
     }
 
+    /**
+     * Opción de VISIBILIDAD_LECCION que corresponde a un elemento: una lección
+     * programada antigua cuenta como visible solo si su fecha ya pasó.
+     */
+    public static function visibilidadDe(Leccion $leccion): string
+    {
+        return $leccion->esVisibleParaEstudiante() ? 'publicado' : 'borrador';
+    }
+
+    /**
+     * Cambia la visibilidad de un elemento desde su fila: guarda borrador o
+     * publicado (y quita la fecha de una lección programada antigua).
+     */
+    public function cambiarVisibilidadLeccion(int $id, string $visibilidad): void
+    {
+        $this->autorizarContenido();
+        abort_unless(array_key_exists($visibilidad, self::VISIBILIDAD_LECCION), 422);
+
+        $leccion = $this->leccionDelCurso($id);
+        $estabaVisible = $leccion->esVisibleParaEstudiante();
+        $leccion->update(['estado' => $visibilidad, 'fecha_publicacion' => null]);
+        $mensaje = 'Visibilidad actualizada: '.mb_strtolower(self::VISIBILIDAD_LECCION[$visibilidad]['etiqueta']).'.';
+
+        // ERS RF-84: se avisa solo la primera vez que pasa a Visible (si ya hubo un aviso de esta lección, no se repite).
+        if (! $estabaVisible && $leccion->esVisibleParaEstudiante() && $leccion->modulo->esVisibleParaEstudiante() && ! $this->leccionYaNotificada($leccion)) {
+            $estudiantes = $this->curso->inscripcionesActivas()->with('estudiante')->get()->pluck('estudiante')->filter();
+            Notification::send($estudiantes, new NuevoContenidoPublicado($leccion));
+            $mensaje .= ' Se notificó a los estudiantes.';
+        }
+
+        $this->abrirSemana($leccion->modulo->semana ?? self::CLAVE_PRACTICAS);
+        $this->curso->unsetRelation('modulos');
+        session()->flash('estado', $mensaje);
+    }
+
+    /**
+     * ¿Ya existe un aviso NuevoContenidoPublicado de esta lección (para
+     * cualquier estudiante)? Una consulta: la columna data es texto JSON, así
+     * que se lee leccion_id con el operador de cada motor (PostgreSQL en
+     * producción, SQLite en las pruebas). Los avisos anteriores a leccion_id no cuentan.
+     */
+    protected function leccionYaNotificada(Leccion $leccion): bool
+    {
+        [$campo, $valor] = DB::getDriverName() === 'pgsql'
+            ? ["(data::jsonb ->> 'leccion_id')", (string) $leccion->id]
+            : ["json_extract(data, '$.leccion_id')", $leccion->id];
+
+        return DatabaseNotification::query()
+            ->where('type', NuevoContenidoPublicado::class)
+            ->whereRaw("{$campo} = ?", [$valor])
+            ->exists();
+    }
+
     /** Pide confirmación antes de eliminar un elemento. */
     public function confirmarEliminarLeccion(int $id): void
     {
@@ -426,11 +495,11 @@ trait GestionaContenidoSemanal
         );
     }
 
-    /** Pide confirmación antes de vaciar una semana o quitar las prácticas de campo, indicando qué se borra. */
+    /** Pide confirmación antes de vaciar una semana, indicando qué se borra. */
     public function confirmarVaciarModulo(int $moduloId): void
     {
         $this->autorizarContenido();
-        $modulo = $this->curso->modulos()->withCount(['lecciones', 'tareas', 'quizzes'])->findOrFail($moduloId);
+        $modulo = $this->curso->modulos()->where('tipo_seccion', Modulo::TIPO_SEMANA)->withCount(['lecciones', 'tareas', 'quizzes'])->findOrFail($moduloId);
 
         $contenido = collect([
             [$modulo->lecciones_count, 'elemento de contenido', 'elementos de contenido'],
@@ -441,10 +510,9 @@ trait GestionaContenidoSemanal
         $this->pedirConfirmacion(
             'vaciarModulo',
             $modulo->id,
-            $modulo->esPracticas() ? 'Quitar prácticas de campo' : "Vaciar {$modulo->etiqueta()}",
-            ($modulo->esPracticas() ? 'Se quitarán las prácticas de campo' : "Se vaciará {$modulo->etiqueta()}")
-                .": se eliminan {$contenido}. Si hay entregas o resultados de estudiantes, no se eliminará. Esta acción no se puede deshacer.",
-            $modulo->esPracticas() ? 'Quitar' : 'Vaciar',
+            "Vaciar {$modulo->etiqueta()}",
+            "Se vaciará {$modulo->etiqueta()}: se eliminan {$contenido}. Si hay entregas o resultados de estudiantes, no se eliminará. Esta acción no se puede deshacer.",
+            'Vaciar',
         );
     }
 
@@ -503,6 +571,40 @@ trait GestionaContenidoSemanal
         foreach (array_values($ordenadas) as $indice => $elemento) {
             if ($elemento->orden !== $indice + 1) {
                 $elemento->update(['orden' => $indice + 1]);
+            }
+        }
+
+        $this->curso->unsetRelation('modulos');
+    }
+
+    /**
+     * Fija el orden de los elementos de UNA sección de una semana (arrastrar y
+     * soltar). Recibe los ids de esa sección en el nuevo orden: deben ser
+     * exactamente sus elementos, así no se mueve nada a otra sección ni a otra
+     * semana. Las demás secciones conservan su lugar y solo cambia la columna
+     * orden (sin tocar fechas, estados ni updated_at).
+     *
+     * @param  array<int, int|string>  $ids
+     */
+    public function ordenarSeccion(array $ids): void
+    {
+        $this->autorizarContenido();
+        $ids = collect($ids)->map(fn ($id) => (int) $id)->values();
+        abort_if($ids->isEmpty() || $ids->duplicates()->isNotEmpty(), 422);
+
+        $primera = $this->leccionDelCurso($ids->first());
+        $seccion = $primera->seccion();
+        $lecciones = $primera->modulo->lecciones()->get()->values();
+        $deLaSeccion = $lecciones->filter(fn (Leccion $l) => $l->seccion() === $seccion)->keyBy('id');
+
+        abort_unless($deLaSeccion->keys()->sort()->values()->all() === $ids->sort()->values()->all(), 422);
+
+        $nuevoOrden = $ids->map(fn (int $id) => $deLaSeccion[$id]);
+        $ordenadas = $lecciones->map(fn (Leccion $l) => $l->seccion() === $seccion ? $nuevoOrden->shift() : $l);
+
+        foreach ($ordenadas->values() as $indice => $elemento) {
+            if ($elemento->orden !== $indice + 1) {
+                Leccion::whereKey($elemento->id)->toBase()->update(['orden' => $indice + 1]);
             }
         }
 
@@ -655,14 +757,12 @@ trait GestionaContenidoSemanal
         $this->semanasAbiertas = collect($this->semanasAbiertas)->map(fn ($s) => (int) $s)->push($semana)->unique()->values()->all();
     }
 
-    protected function validarSemana(int $semana): void
+    /**
+     * Solo las semanas 1..N reciben contenido aquí. Las prácticas de campo no
+     * tienen secciones fijas: cada práctica es una tarea (Tareasormulario ?practica=n).
+     */
+    protected function validarsemana(int $semana): void
     {
-        if ($semana === self::CLAVE_PRACTICAS) {
-            abort_unless($this->curso->modulos()->where('tipo_seccion', Modulo::TIPO_PRACTICAS)->exists(), 404);
-
-            return;
-        }
-
         abort_if($semana < 1 || $semana > $this->curso->totalSemanas(), 404);
     }
 
@@ -677,9 +777,7 @@ trait GestionaContenidoSemanal
     {
         $this->validarSemana($semana);
 
-        return $semana === self::CLAVE_PRACTICAS
-            ? $this->curso->modulos()->where('tipo_seccion', Modulo::TIPO_PRACTICAS)->firstOrFail()
-            : $this->curso->modulos()->firstOrCreate(['semana' => $semana], ['titulo' => 'Semana '.$semana, 'orden' => $semana, 'materiales' => []]);
+        return $this->curso->modulos()->firstOrCreate(['semana' => $semana], ['titulo' => 'Semana '.$semana, 'orden' => $semana, 'materiales' => []]);
     }
 
     protected function mensajeDeInicio(?Modulo $modulo): ?Leccion

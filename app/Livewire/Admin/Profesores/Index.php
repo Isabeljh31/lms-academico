@@ -4,6 +4,7 @@ namespace App\Livewire\Admin\Profesores;
 
 use App\Enums\Rol;
 use App\Livewire\Admin\Profesores\Concerns\GestionaProfesor;
+use App\Livewire\Concerns\FiltraPorUbicacion;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Models\User;
@@ -23,7 +24,7 @@ use Livewire\WithPagination;
 #[Layout('layouts.app')]
 class Index extends Component
 {
-    use GestionaProfesor, WithFileUploads, WithPagination;
+    use FiltraPorUbicacion, GestionaProfesor, WithFileUploads, WithPagination;
 
     public string $busqueda = '';
 
@@ -188,9 +189,19 @@ class Index extends Component
     {
         $busqueda = $this->normalizar(trim($this->busqueda));
 
-        $profesores = User::role(Rol::Profesor->value)
+        // Sede → facultad (presenciales), virtuales y remotos, o sin cursos: solo los cursos de ese listado cuentan.
+        $cursosDelListado = $this->cursosDeUbicacion();
+        $soloDelListado = fn ($consulta) => $cursosDelListado ? $consulta->whereIn('cursos.id', $cursosDelListado) : $consulta;
+
+        $profesores = $this->faltaUbicacion() ? collect() : User::role(Rol::Profesor->value)
             ->when($this->filtroEstado !== '', fn ($q) => $q->where('activo', $this->filtroEstado === 'activo'))
-            ->with(['cursosComoProfesor.tareas.entregas', 'cursosComoProfesor.inscripcionesActivas'])
+            ->when($cursosDelListado, fn ($q) => $q->whereHas('cursosComoProfesor', $soloDelListado))
+            ->when($this->soloSinCursos(), fn ($q) => $q->whereDoesntHave('cursosComoProfesor'))
+            ->with([
+                'cursosComoProfesor' => $soloDelListado,
+                'cursosComoProfesor.tareas.entregas',
+                'cursosComoProfesor.inscripcionesActivas',
+            ])
             ->get()
             ->when($busqueda !== '', fn ($coll) => $coll->filter(fn (User $prof) => $this->coincide($prof->name, $busqueda)
                 || $this->coincide($prof->email, $busqueda)
@@ -260,6 +271,9 @@ class Index extends Component
             'profesorSeleccionado' => $this->profesorSeleccionadoId ? User::find($this->profesorSeleccionadoId) : null,
             'cursoSeleccionado' => $this->cursoAAsignarId ? Curso::find($this->cursoAAsignarId) : null,
             'profesoresDisponibles' => User::role(Rol::Profesor->value)->where('activo', true)->orderBy('name')->get(),
+            'opcionesUbicacion' => $this->opcionesUbicacion(),
+            'faltaUbicacion' => $this->faltaUbicacion(),
+            'ubicacionActiva' => $this->ubicacionActiva(),
         ])->title('Profesores - LearnUp');
     }
 }

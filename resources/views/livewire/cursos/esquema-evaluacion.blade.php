@@ -1,7 +1,7 @@
 <div class="py-8">
     <div class="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado titulo="Esquema de evaluación" icono="grafico" :descripcion="$curso->nombre">
+        <x-gestion.encabezado :volver="route('cursos.show', $curso)" titulo="Esquema de evaluación" icono="grafico" :descripcion="$curso->nombre">
             <x-gestion.boton variante="secundario" icono="lista" :href="route('cursos.libro-calificaciones', $curso)">Libro de calificaciones</x-gestion.boton>
         </x-gestion.encabezado>
 
@@ -74,6 +74,17 @@
                 @error('rubros')
                     <p class="flex items-center gap-1 border-t border-arena-medio px-4 py-3 text-sm font-medium text-red-600 dark:border-stone-700"><x-icono nombre="alerta" class="h-4 w-4" /> {{ $message }}</p>
                 @enderror
+                @if ($curso->tienePracticasCampo())
+                    {{-- Prácticas de campo: el Supervisor fija el total; el profesor lo reparte entre una o varias evaluaciones. --}}
+                    <div class="border-t border-arena-medio px-4 py-4 dark:border-stone-700">
+                        <div class="max-w-md">
+                            <x-gestion.campo etiqueta="Peso de las prácticas de campo (%)" nombre="pesoPracticas" requerido
+                                ayuda="Porcentaje dentro de las evaluaciones que valen en total las {{ $curso->totalPracticasCampo() }} prácticas de campo. El profesor decide si lo pone en una sola evaluación o lo reparte entre varias (por ejemplo, 30 % = 10 % en cada una de tres evaluaciones).">
+                                <x-gestion.control id="pesoPracticas" type="number" min="0.01" max="100" step="0.01" wire:model="pesoPracticas" placeholder="30" :disabled="! $this->editable" />
+                            </x-gestion.campo>
+                        </div>
+                    </div>
+                @endif
                 @if ($this->editable)
                     <div class="flex flex-col gap-2 border-t border-arena-medio px-4 py-3 sm:flex-row sm:justify-between dark:border-stone-700">
                         <x-gestion.boton variante="secundario" icono="mas" wire:click="agregarRubro">Agregar rubro</x-gestion.boton>

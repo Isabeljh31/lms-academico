@@ -3,6 +3,7 @@
 namespace App\Livewire\Usuarios;
 
 use App\Enums\Rol;
+use App\Livewire\Concerns\FiltraPorUbicacion;
 use App\Livewire\Usuarios\Concerns\GestionaEstudiante;
 use App\Models\Inscripcion;
 use App\Models\User;
@@ -11,6 +12,7 @@ use App\Services\Evaluacion\CalculadoraNotas;
 use App\Services\Reportes\ProgresoAcademicoService;
 use App\Services\Usuarios\GestorCuentas;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Attributes\Layout;
 use Livewire\Component;
@@ -25,7 +27,7 @@ use Livewire\WithPagination;
 #[Layout('layouts.app')]
 class Index extends Component
 {
-    use GestionaEstudiante, WithPagination;
+    use FiltraPorUbicacion, GestionaEstudiante, WithPagination;
 
     /**
      * Nombres de los campos tal como los ve el usuario en los mensajes de error.
@@ -73,6 +75,11 @@ class Index extends Component
 
     public string $nuevoApoderadoCelular = '';
 
+    /** Sede y facultad propias del estudiante nuevo. */
+    public string $nuevoSedeId = '';
+
+    public string $nuevoFacultadId = '';
+
     public function mount(): void
     {
         Gate::authorize('verListado', User::class);
@@ -103,9 +110,15 @@ class Index extends Component
         $this->reset([
             'nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail',
             'nuevoAnioNacimiento', 'nuevoCorreoPersonal', 'nuevoCelular',
-            'nuevoApoderadoNombre', 'nuevoApoderadoCelular',
+            'nuevoApoderadoNombre', 'nuevoApoderadoCelular', 'nuevoSedeId', 'nuevoFacultadId',
         ]);
         $this->mostrarModalCrear = true;
+    }
+
+    /** Otra sede: la facultad elegida era de la anterior. */
+    public function updatedNuevoSedeId(): void
+    {
+        $this->nuevoFacultadId = '';
     }
 
     public function crearUsuario(GestorCuentas $gestor): void
@@ -127,9 +140,11 @@ class Index extends Component
                 'nuevoCelular' => ['nullable', 'regex:/^9\d{8}$/'],
                 'nuevoApoderadoNombre' => ['nullable', 'string', 'max:120'],
                 'nuevoApoderadoCelular' => ['nullable', 'regex:/^9\d{8}$/'],
+                ...$this->reglasUbicacionEstudiante('nuevoSedeId', 'nuevoFacultadId'),
             ],
             [
                 ...GestorCuentas::mensajesIdentidad('nuevoDni', 'nuevoEmail'),
+                ...$this->mensajesUbicacionEstudiante('nuevoSedeId', 'nuevoFacultadId'),
                 'nuevoAnioNacimiento.max' => 'Revisa el año de nacimiento.',
                 'nuevoCelular.regex' => 'El celular debe tener 9 dígitos y empezar en 9.',
                 'nuevoApoderadoCelular.regex' => 'El celular del apoderado debe tener 9 dígitos y empezar en 9.',
@@ -153,13 +168,15 @@ class Index extends Component
             'celular' => $this->nuevoCelular ?: null,
             'apoderado_nombre' => $this->nuevoApoderadoNombre ?: null,
             'apoderado_celular' => $this->nuevoApoderadoCelular ?: null,
+            'sede_id' => $this->nuevoSedeId !== '' ? (int) $this->nuevoSedeId : null,
+            'facultad_id' => $this->nuevoFacultadId !== '' ? (int) $this->nuevoFacultadId : null,
         ]);
 
         $this->mostrarModalCrear = false;
         $this->reset([
             'nuevoNombres', 'nuevoApellidos', 'nuevoDni', 'nuevoEmail',
             'nuevoAnioNacimiento', 'nuevoCorreoPersonal', 'nuevoCelular',
-            'nuevoApoderadoNombre', 'nuevoApoderadoCelular',
+            'nuevoApoderadoNombre', 'nuevoApoderadoCelular', 'nuevoSedeId', 'nuevoFacultadId',
         ]);
 
         session()->flash('password_temporal', $resultado['password_temporal']);
@@ -167,13 +184,52 @@ class Index extends Component
         session()->flash('correo_enviado', $resultado['correo_enviado']);
     }
 
+    /**
+     * Asistencia y rendimiento de todos los estudiantes del directorio, en lote
+     * por curso (unas pocas consultas por curso en vez de varias por estudiante y curso).
+     *
+     * @param  Collection<int, User>  $estudiantes  con inscripciones activas y su curso
+     * @return array{asistencia: array<int, array<int, float|null>>, rendimiento: array<int, array<int, float|null>>}
+     */
+    protected function riesgoPorCurso(Collection $estudiantes, CalculadoraAsistencia $asistencia, CalculadoraNotas $notas): array
+    {
+        $precalculado = ['asistencia' => [], 'rendimiento' => []];
+        $cursos = $estudiantes->flatMap(fn (User $estudiante) => $estudiante->inscripciones->pluck('curso'))
+            ->filter(fn ($curso) => $curso && ! $curso->estaFinalizado())
+            ->unique('id');
+
+        foreach ($cursos as $curso) {
+            $ids = $estudiantes->filter(fn (User $estudiante) => $estudiante->inscripciones->contains('curso_id', $curso->id))
+                ->pluck('id')->values();
+
+            $precalculado['rendimiento'][$curso->id] = collect($notas->resumenDelCurso($curso, $ids))
+                ->map(fn (array $resumen) => $resumen['rendimiento'])->all();
+
+            if ($curso->usa_asistencia) {
+                $precalculado['asistencia'][$curso->id] = $asistencia->porcentajesDelCurso($curso, $ids);
+            }
+        }
+
+        return $precalculado;
+    }
+
     public function render(ProgresoAcademicoService $progreso, CalculadoraAsistencia $asistencia, CalculadoraNotas $notas)
     {
         $busqueda = $this->normalizar(trim($this->busqueda));
 
-        $estudiantes = User::role(Rol::Estudiante->value)
+        // Sede → facultad (presenciales), virtuales y remotos, o sin matrícula (FiltraPorUbicacion).
+        $cursosDelListado = $this->cursosDeUbicacion();
+        $matriculaActiva = fn ($q) => $q->where('estado', 'activo')->where('activo_local', true);
+
+        $estudiantes = $this->faltaUbicacion() ? collect() : User::role(Rol::Estudiante->value)
             ->when($this->filtroEstado === 'activo', fn ($q) => $q->where('activo', true))
             ->when($this->filtroEstado === 'inactivo', fn ($q) => $q->where('activo', false))
+            // Aparece por sus cursos de ese listado y, en presenciales, también por su sede y facultad propias.
+            ->when($cursosDelListado, fn ($q) => $q->where(fn ($q) => $q
+                ->whereHas('inscripciones', fn ($i) => $matriculaActiva($i)->whereIn('curso_id', $cursosDelListado))
+                ->when($this->vistaUbicacion === 'presencial', fn ($q) => $q->orWhere(fn ($propia) => $propia
+                    ->where('sede_id', (int) $this->sedeUbicacion)->where('facultad_id', (int) $this->facultadUbicacion)))))
+            ->when($this->soloSinCursos(), fn ($q) => $q->whereDoesntHave('inscripciones', $matriculaActiva))
             ->with(['inscripciones' => fn ($q) => $q->where('estado', 'activo')->where('activo_local', true)->with('curso')])
             ->get()
             ->when($busqueda !== '', fn ($coll) => $coll->filter(fn (User $u) => $this->coincide($u->name, $busqueda)
@@ -182,15 +238,16 @@ class Index extends Component
                 || $this->coincide($u->codigo, $busqueda)
             ));
 
-        $filas = $estudiantes->map(function (User $estudiante) use ($progreso, $asistencia, $notas) {
+        $precalculado = $this->riesgoPorCurso($estudiantes, $asistencia, $notas);
+
+        $filas = $estudiantes->map(function (User $estudiante) use ($asistencia, $notas, $precalculado) {
             $cursosActivos = $estudiante->inscripciones->pluck('curso')->filter(fn ($c) => $c && ! $c->estaFinalizado());
-            $riesgo = $this->calcularRiesgo($estudiante, $cursosActivos, $asistencia, $notas);
+            $riesgo = $this->calcularRiesgo($estudiante, $cursosActivos, $asistencia, $notas, $precalculado);
 
             return [
                 'usuario' => $estudiante,
                 'cursos_count' => $cursosActivos->count(),
                 'riesgo_nivel' => $riesgo['nivel'],
-                'tareas_pendientes' => $progreso->resumenDashboardEstudiante($estudiante)['total_pendientes'],
             ];
         });
 
@@ -206,8 +263,11 @@ class Index extends Component
 
         $porPagina = 8;
         $pagina = $this->getPage();
+        // Las tareas pendientes solo se muestran: se calculan en lote para la página visible, no para todo el directorio.
+        $filasDePagina = $filas->forPage($pagina, $porPagina)->values();
+        $pendientes = $progreso->totalPendientesDe($filasDePagina->map(fn (array $fila) => $fila['usuario']->id));
         $paginacion = new LengthAwarePaginator(
-            $filas->forPage($pagina, $porPagina)->values(),
+            $filasDePagina->map(fn (array $fila) => $fila + ['tareas_pendientes' => $pendientes[$fila['usuario']->id] ?? 0]),
             $filas->count(),
             $porPagina,
             $pagina,
@@ -228,6 +288,9 @@ class Index extends Component
             'totalPrimerIngreso' => User::role(Rol::Estudiante->value)->where('primer_login', true)->count(),
             'usuarioEditar' => $this->usuarioEditarId ? User::find($this->usuarioEditarId) : null,
             'rolesCreables' => collect(Rol::cases())->filter(fn (Rol $rol) => in_array($rol->value, GestorCuentas::ROLES_CREABLES, true)),
+            'opcionesUbicacion' => $this->opcionesUbicacion(),
+            'faltaUbicacion' => $this->faltaUbicacion(),
+            'ubicacionActiva' => $this->ubicacionActiva(),
         ])->title('Estudiantes - LearnUp');
     }
 }

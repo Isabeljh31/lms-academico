@@ -1,3 +1,10 @@
+{{-- Panel del Profesor: layout propio con barra inferior (PanelProfesorLayout). Estudiante y
+     Supervisor siguen por la rama de siempre, sin cambios. --}}
+@if (auth()->user()->hasRole('profesor') && ! auth()->user()->hasAnyRole(['supervisor', 'estudiante']))
+<x-panel-profesor-layout>
+    <livewire:docente.panel />
+</x-panel-profesor-layout>
+@else
 <x-app-layout>
     {{-- El estudiante muestra su propio <h1> "Panel" dentro del contenido
          (igual que Cursos, Tareas, etc.), así que la barra superior va
@@ -57,3 +64,4 @@
         @endif
     @endif
 </x-app-layout>
+@endif

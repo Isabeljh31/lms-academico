@@ -7,6 +7,7 @@ use App\Models\Curso;
 use App\Models\Quiz;
 use App\Services\Evaluacion\EstadisticaFallosBanco;
 use App\Services\Evaluacion\ImportadorBancoPreguntas;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -510,13 +511,14 @@ class BancoPreguntas extends Component
      * Cantidad de quizzes del curso que tienen una copia de cada enunciado
      * (una sola consulta para toda la página).
      *
+     * @param  Collection<int, Quiz>|null  $quizzes  quizzes del curso ya cargados (id y preguntas)
      * @return array<string, int> enunciado normalizado => quizzes
      */
-    protected function usosEnQuizzes(): array
+    protected function usosEnQuizzes(?Collection $quizzes = null): array
     {
         $usos = [];
 
-        foreach ($this->curso->quizzes()->get(['id', 'preguntas']) as $quiz) {
+        foreach ($quizzes ?? $this->curso->quizzes()->get(['id', 'preguntas']) as $quiz) {
             $enunciados = collect($quiz->preguntas ?? [])
                 ->map(fn ($p) => BancoPregunta::claveEnunciado((string) ($p['enunciado'] ?? '')))
                 ->unique();
@@ -535,28 +537,38 @@ class BancoPreguntas extends Component
         $preguntas = $this->consultaListado()->paginate(self::POR_PAGINA);
         $idsPagina = $preguntas->pluck('id')->all();
 
-        $usos = $this->usosEnQuizzes();
+        // Una sola lectura de los quizzes para "Usada en N quizzes" y para el % de fallos.
+        $quizzes = $this->curso->quizzes()->get(['id', 'preguntas']);
+        $usos = $this->usosEnQuizzes($quizzes);
         $usosDe = fn (?string $enunciado) => $usos[BancoPregunta::claveEnunciado((string) $enunciado)] ?? 0;
         $conteo = $this->curso->bancoPreguntasCurso()->selectRaw('unidad, count(*) as total')->groupBy('unidad')->pluck('total', 'unidad');
+        $hayFiltros = $this->filtroTema || $this->filtroTipo || $this->busqueda;
+        // Temas del listado y del modal salen de la misma consulta (pares unidad–tema ya ordenados por tema).
+        $temasPorUnidad = $this->curso->bancoPreguntasCurso()->select(['unidad', 'tema'])->distinct()->orderBy('tema')->get();
+        $visibles = $this->unidadesVisibles();
 
         return view('livewire.quizzes.banco-preguntas', [
             'preguntas' => $preguntas,
             // Marcada solo si están seleccionadas todas las preguntas que se ven en esta página.
             'paginaSeleccionada' => $idsPagina !== [] && array_diff($idsPagina, array_map('intval', $this->seleccionadas)) === [],
             'totalBanco' => $conteo->sum(),
-            'totalVisible' => $this->consultaVisible()->count(),
+            // Sin filtros, el total del paginador ya es el de las preguntas visibles.
+            'totalVisible' => $hayFiltros ? $this->consultaVisible()->count() : $preguntas->total(),
             // Opciones del selector "Unidad actual": [unidad => "T1 (12)"], en el orden del curso.
             'opcionesUnidad' => collect($validas)->mapWithKeys(fn ($u) => [$u => $u.' ('.($conteo[$u] ?? 0).')'])->all(),
             'archivadas' => BancoPregunta::unidadesArchivadas($this->curso, $this->unidadActual),
             'unidadesValidas' => $validas,
             'sinUnidad' => $conteo->reject(fn ($total, $unidad) => in_array($unidad, $validas, true))->sum(),
-            'temas' => $this->consultaVisible()->distinct()->orderBy('tema')->pluck('tema'),
-            'temasModal' => $this->curso->bancoPreguntasCurso()
-                ->when($this->unidad !== '', fn ($q) => $q->where('unidad', $this->unidad))
-                ->distinct()->orderBy('tema')->pluck('tema'),
+            // Mismo criterio que consultaVisible(): unidades visibles, sin unidad o con una unidad no válida.
+            'temas' => $temasPorUnidad
+                ->filter(fn ($fila) => $fila->unidad === null || in_array($fila->unidad, $visibles, true) || ! in_array($fila->unidad, $validas, true))
+                ->pluck('tema')->uniqueStrict()->values(),
+            'temasModal' => $temasPorUnidad
+                ->when($this->unidad !== '', fn ($filas) => $filas->where('unidad', $this->unidad))
+                ->pluck('tema')->uniqueStrict()->values(),
             'tipos' => Quiz::TIPOS_PREGUNTA,
             'usosDe' => $usosDe,
-            'fallos' => app(EstadisticaFallosBanco::class)->paraCurso($this->curso),
+            'fallos' => app(EstadisticaFallosBanco::class)->paraCurso($this->curso, $quizzes),
             'usosEditada' => $this->preguntaId ? $usosDe($this->curso->bancoPreguntasCurso()->whereKey($this->preguntaId)->value('pregunta')) : 0,
             'maxFilas' => ImportadorBancoPreguntas::MAX_FILAS,
         ])->title("Banco de preguntas — {$this->curso->nombre}");

@@ -14,9 +14,13 @@
         str_starts_with($estado, 'Programado') => 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
         default => 'bg-celeste text-slate-700 dark:bg-azul-borde-oscuro dark:text-slate-200',
     };
+    // Asistente «¿Qué quieres crear?»: el tipo abre el formulario existente mostrando solo lo necesario (?tipo=).
+    $neutra = 'bg-celeste text-slate-700 dark:bg-azul-borde-oscuro dark:text-slate-200';
     $opcionesCrear = [
-        ['etiqueta' => 'Tarea', 'icono' => 'tarea', 'descripcion' => 'Entrega de archivo, texto o enlace con fecha límite y nota.', 'url' => route('cursos.tareas.crear', [$curso, 'desde' => 'actividades']), 'caja' => $estiloTipo['tarea']['caja']],
-        ['etiqueta' => 'Quiz', 'icono' => 'quiz', 'descripcion' => 'Preguntas que se califican solas al terminar, con tiempo e intentos.', 'url' => route('cursos.quizzes.crear', [$curso, 'desde' => 'actividades']), 'caja' => $estiloTipo['quiz']['caja']],
+        ['etiqueta' => 'Práctica calificada', 'icono' => 'tarea', 'descripcion' => 'Los alumnos suben archivos, solos o en grupo. Cuenta para una evaluación.', 'url' => route('cursos.tareas.crear', [$curso, 'desde' => 'actividades', 'tipo' => 'practica']), 'caja' => $estiloTipo['tarea']['caja']],
+        ['etiqueta' => 'Examen o quiz calificado', 'icono' => 'quiz', 'descripcion' => 'Preguntas que se califican solas (o una entrega). Cuenta para una evaluación.', 'url' => route('cursos.quizzes.crear', [$curso, 'desde' => 'actividades', 'tipo' => 'examen']), 'caja' => $estiloTipo['quiz']['caja']],
+        ['etiqueta' => 'Quiz de práctica', 'icono' => 'bombilla', 'descripcion' => 'Para repasar. No cuenta para la nota.', 'url' => route('cursos.quizzes.crear', [$curso, 'desde' => 'actividades', 'tipo' => 'practica']), 'caja' => $neutra],
+        ['etiqueta' => 'Entrega sin nota', 'icono' => 'documento', 'descripcion' => 'Solo para que suban material (ppt, informes). No lleva nota.', 'url' => route('cursos.tareas.crear', [$curso, 'desde' => 'actividades', 'tipo' => 'entrega']), 'caja' => $neutra],
     ];
     // Un color por evaluación (en el orden del esquema), igual en la barra, la tarjeta y las insignias de la lista.
     $paletaEvaluaciones = [
@@ -26,11 +30,17 @@
         ['barra' => 'bg-imperial text-white', 'tenue' => 'bg-imperial/20 text-imperial dark:text-slate-200', 'borde' => 'border-t-imperial', 'peso' => 'text-imperial dark:text-slate-200', 'relleno' => 'bg-imperial dark:bg-slate-300', 'insignia' => 'border-imperial/30 bg-imperial/10 text-imperial dark:text-slate-200'],
     ];
     $colorDeEvaluacion = fn (int $rubroId) => $paletaEvaluaciones[max(0, $rubros->search(fn ($rubro) => $rubro->id === $rubroId)) % count($paletaEvaluaciones)];
-    $estadoCalculo = [
-        'lista' => ['etiqueta' => 'Lista', 'clase' => 'bg-exito-base/15 text-exito-oscuro dark:text-green-300'],
-        'incompleta' => ['etiqueta' => 'Incompleta', 'clase' => 'bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300'],
-        'sin_configurar' => ['etiqueta' => 'Sin configurar', 'clase' => 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300'],
+    // Estado de cada evaluación (App\Services\Evaluacion\AvanceEvaluaciones).
+    $estadoEvaluacion = [
+        'lista' => 'bg-exito-base/15 text-exito-oscuro dark:text-green-300',
+        'en_proceso' => 'bg-cielo-claro text-imperial ring-1 ring-inset ring-azul-fondo/40 dark:bg-azul-borde-oscuro dark:text-cielo',
+        'falta_definir' => 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
     ];
+    $etiquetaEvaluacion = fn (array $avance) => match ($avance['estado']) {
+        'lista' => 'Lista',
+        'en_proceso' => $avance['total'] > 0 && $avance['faltan'] > 0 ? "En proceso (faltan {$avance['faltan']} de {$avance['total']})" : 'En proceso',
+        default => 'Falta definir',
+    };
     $formatoPeso = fn (float $valor) => rtrim(rtrim(number_format($valor, 2, ',', ''), '0'), ',');
 @endphp
 {{-- relative: contiene los textos sr-only (position: absolute) para que no estiren la página fuera de la columna con scroll. --}}
@@ -43,37 +53,60 @@
         <x-gestion.encabezado titulo="Actividades" icono="tarea"
             descripcion="Tareas y quizzes del curso en un solo lugar, y el banco de preguntas para armar tus quizzes.">
             @if ($editable)
-                {{-- Menú propio (no <select>): Enter/Espacio/flecha abajo abre, flechas recorren, Inicio/Fin, Esc cierra. --}}
-                <div class="relative" x-data="{ abierto: false }"
-                    x-on:keydown.escape.stop="if (abierto) { abierto = false; $refs.boton.focus() }"
-                    x-on:click.outside="abierto = false">
-                    <x-gestion.boton icono="mas" x-ref="boton" aria-haspopup="menu" aria-expanded="false" x-bind:aria-expanded="abierto.toString()"
-                        aria-controls="menu-crear-actividad"
-                        x-on:click="abierto = ! abierto; if (abierto) $nextTick(() => $focus.within($refs.menu).first())"
-                        x-on:keydown.arrow-down.prevent="abierto = true; $nextTick(() => $focus.within($refs.menu).first())">
+                {{-- Asistente sin ida al servidor (Alpine): Esc o clic fuera cierra y el foco vuelve al botón; flechas recorren las tarjetas. --}}
+                <div x-data="{ abierto: false, cerrar() { this.abierto = false; this.$nextTick(() => this.$refs.boton.focus()) } }"
+                    x-on:keydown.escape.window="if (abierto) cerrar()">
+                    <x-gestion.boton icono="mas" x-ref="boton" aria-haspopup="dialog" aria-controls="asistente-crear" aria-expanded="false" x-bind:aria-expanded="abierto.toString()"
+                        x-on:click="abierto = true; $nextTick(() => $focus.within($refs.tarjetas).first())">
                         Crear actividad
-                        <x-icono nombre="flecha-abajo" stroke-width="2" class="h-4 w-4 transition-transform motion-reduce:transition-none" x-bind:class="{ 'rotate-180': abierto }" />
                     </x-gestion.boton>
-                    <div id="menu-crear-actividad" x-ref="menu" x-show="abierto" style="display: none" role="menu" aria-label="Crear actividad"
-                        x-transition:enter="transition ease-out duration-100 motion-reduce:transition-none" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0"
-                        x-on:keydown.arrow-down.prevent="$focus.within($refs.menu).wrap().next()"
-                        x-on:keydown.arrow-up.prevent="$focus.within($refs.menu).wrap().previous()"
-                        x-on:keydown.home.prevent="$focus.within($refs.menu).first()"
-                        x-on:keydown.end.prevent="$focus.within($refs.menu).last()"
-                        x-on:keydown.tab="abierto = false"
-                        class="absolute right-0 z-30 mt-2 w-[min(20rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-celeste bg-white p-1.5 shadow-lg dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura">
-                        @foreach ($opcionesCrear as $opcion)
-                            <a href="{{ $opcion['url'] }}" wire:navigate role="menuitem"
-                                class="flex items-start gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-celeste focus:bg-celeste focus:outline-none dark:hover:bg-azul-borde-oscuro dark:focus:bg-azul-borde-oscuro">
-                                <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl {{ $opcion['caja'] }}">
-                                    <x-icono :nombre="$opcion['icono']" stroke-width="2" class="h-5 w-5" />
-                                </span>
-                                <span class="min-w-0">
-                                    <span class="block text-sm font-semibold text-texto dark:text-slate-100">{{ $opcion['etiqueta'] }}</span>
-                                    <span class="block text-xs text-slate-600 dark:text-slate-300">{{ $opcion['descripcion'] }}</span>
-                                </span>
-                            </a>
-                        @endforeach
+                    <div x-show="abierto" style="display: none" x-on:click.self="cerrar()"
+                        x-transition.opacity.duration.150ms
+                        class="fixed inset-0 z-50 flex items-end justify-center bg-stone-900/50 p-0 sm:items-center sm:p-4">
+                        <div id="asistente-crear" role="dialog" aria-modal="true" aria-labelledby="titulo-asistente-crear" x-trap.noscroll="abierto"
+                            class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white shadow-2xl dark:bg-azul-superficie-oscura sm:rounded-2xl">
+                            <div class="flex items-start justify-between gap-4 border-b border-celeste px-5 py-4 dark:border-azul-borde-oscuro">
+                                <div class="flex min-w-0 items-start gap-3">
+                                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-celeste text-azul-oscuro dark:bg-azul-borde-oscuro dark:text-azul-fondo">
+                                        <x-icono nombre="mas" class="h-5 w-5" />
+                                    </span>
+                                    <div class="min-w-0">
+                                        <h2 id="titulo-asistente-crear" class="text-lg font-bold text-texto dark:text-slate-100">¿Qué quieres crear?</h2>
+                                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Elige el tipo: el formulario mostrará solo lo necesario.</p>
+                                    </div>
+                                </div>
+                                <button type="button" x-on:click="cerrar()" aria-label="Cerrar"
+                                    class="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-celeste hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro dark:hover:bg-azul-borde-oscuro">
+                                    <x-icono nombre="cerrar" class="h-5 w-5" />
+                                </button>
+                            </div>
+                            <ul x-ref="tarjetas" class="grid grid-cols-1 gap-3 px-5 py-4 sm:grid-cols-2"
+                                x-on:keydown.arrow-down.prevent="$focus.within($refs.tarjetas).wrap().next()"
+                                x-on:keydown.arrow-right.prevent="$focus.within($refs.tarjetas).wrap().next()"
+                                x-on:keydown.arrow-up.prevent="$focus.within($refs.tarjetas).wrap().previous()"
+                                x-on:keydown.arrow-left.prevent="$focus.within($refs.tarjetas).wrap().previous()">
+                                @foreach ($opcionesCrear as $opcion)
+                                    <li>
+                                        <a href="{{ $opcion['url'] }}" wire:navigate
+                                            class="flex h-full items-start gap-3 rounded-xl border border-celeste bg-white p-4 shadow-sm transition-colors hover:border-azul-oscuro hover:bg-fondo focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro motion-reduce:transition-none dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura dark:hover:border-azul-fondo dark:hover:bg-azul-pagina-oscura">
+                                            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl {{ $opcion['caja'] }}">
+                                                <x-icono :nombre="$opcion['icono']" stroke-width="2" class="h-6 w-6" />
+                                            </span>
+                                            <span class="min-w-0">
+                                                <span class="block font-semibold text-texto dark:text-slate-100">{{ $opcion['etiqueta'] }}</span>
+                                                <span class="mt-0.5 block text-sm text-slate-600 dark:text-slate-300">{{ $opcion['descripcion'] }}</span>
+                                            </span>
+                                        </a>
+                                    </li>
+                                @endforeach
+                            </ul>
+                            <p class="border-t border-celeste px-5 py-3 text-xs text-slate-500 dark:border-azul-borde-oscuro dark:text-slate-400">
+                                ¿Prefieres el formulario completo?
+                                <a href="{{ route('cursos.tareas.crear', [$curso, 'desde' => 'actividades']) }}" wire:navigate class="font-semibold text-azul-oscuro hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro dark:text-azul-fondo">Tarea</a>
+                                ·
+                                <a href="{{ route('cursos.quizzes.crear', [$curso, 'desde' => 'actividades']) }}" wire:navigate class="font-semibold text-azul-oscuro hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro dark:text-azul-fondo">Quiz</a>
+                            </p>
+                        </div>
                     </div>
                 </div>
             @endif
@@ -82,13 +115,13 @@
         <x-gestion.alertas />
 
         @if ($rubros->isNotEmpty())
-            @php $listas = $rubros->filter(fn ($rubro) => $rubro->estadoCalculo() === 'lista')->count(); @endphp
+            @php $listas = collect($avances)->where('estado', 'lista')->count(); @endphp
             <section aria-labelledby="titulo-nota-final" class="space-y-4">
                 <x-gestion.tarjeta>
                     <div class="flex flex-wrap items-baseline justify-between gap-2">
                         <h2 id="titulo-nota-final" class="flex items-center gap-1.5 text-base font-semibold text-texto dark:text-slate-100">
                             Nota final del curso
-                            <x-gestion.ayuda texto="El supervisor define las evaluaciones y sus pesos. Tú decides cómo se calcula cada una." />
+                            <x-gestion.ayuda texto="El Supervisor fijó las evaluaciones y sus pesos. Tú decides qué actividades cuentan y cuánto pesa cada una dentro de la evaluación. Tus alumnos solo ven su nota." />
                         </h2>
                         <p class="text-sm text-slate-500 dark:text-slate-400">{{ $listas }} de {{ $rubros->count() }} {{ $rubros->count() === 1 ? 'evaluación lista' : 'evaluaciones listas' }} · Sobre 20</p>
                     </div>
@@ -96,7 +129,7 @@
                         @foreach ($rubros as $rubro)
                             @php $color = $colorDeEvaluacion($rubro->id); @endphp
                             <div wire:key="barra-{{ $rubro->id }}" style="flex: {{ (float) $rubro->peso }} 1 0%"
-                                class="flex min-w-0 items-center px-3 text-xs font-bold {{ $rubro->estadoCalculo() === 'sin_configurar' ? $color['tenue'] : $color['barra'] }}">
+                                class="flex min-w-0 items-center px-3 text-xs font-bold {{ $avances[$rubro->id]['estado'] === 'falta_definir' ? $color['tenue'] : $color['barra'] }}">
                                 <span class="truncate">{{ $rubro->nombre }} · {{ (float) $rubro->peso }} %</span>
                             </div>
                         @endforeach
@@ -107,13 +140,19 @@
                     @foreach ($rubros as $rubro)
                         @php
                             $color = $colorDeEvaluacion($rubro->id);
-                            $estado = $rubro->estadoCalculo();
-                            $vinculadas = $rubro->actividadesVinculadas();
+                            $avance = $avances[$rubro->id];
+                            $faltaDefinir = $avance['estado'] === 'falta_definir';
+                            // Las prácticas de campo se muestran agrupadas en una línea (su tramo), no una por una.
+                            $idsPracticas = $rubro->tareas->whereNotNull('practica')->modelKeys();
+                            $vinculadas = $rubro->actividadesVinculadas()->reject(fn (array $vinculada) => $vinculada['tipo'] === 'tarea' && in_array($vinculada['id'], $idsPracticas, true))->values();
                             $siguiente = match (true) {
-                                $estado === 'sin_configurar' => 'Elige cómo se calcula esta evaluación.',
-                                $estado === 'incompleta' => 'Ajusta los pesos para que sumen 100 %.',
-                                ! $rubro->esAutomatico() => 'Registra las notas en el libro de calificaciones.',
-                                default => 'Las notas se calculan solas al calificar las actividades.',
+                                $faltaDefinir && $vinculadas->isNotEmpty() => 'Ajusta los pesos de sus actividades para que sumen 100 %.',
+                                $faltaDefinir => 'Asigna una práctica o un examen para que esta evaluación tenga nota. Sin eso, no aparecerá en la nota final.',
+                                $avance['estado'] === 'lista' => 'Todos los alumnos tienen nota.',
+                                $avance['practicas'] > 0 => "Prepara ".($avance['practicas'] === 1 ? 'la práctica de campo que falta' : "las {$avance['practicas']} prácticas de campo que faltan").' del tramo: hasta entonces esta evaluación no tiene nota.',
+                                $avance['total'] === 0 => 'Cuando haya alumnos matriculados podrás registrar sus notas.',
+                                $rubro->esAutomatico() => "Faltan {$avance['faltan']} ".($avance['faltan'] === 1 ? 'nota' : 'notas').'. Califica las entregas pendientes; quien no entregue una tarea vencida queda con 0 en su parte.',
+                                default => "Faltan {$avance['faltan']} ".($avance['faltan'] === 1 ? 'nota' : 'notas').'. Regístralas en el libro de calificaciones.',
                             };
                         @endphp
                         <li wire:key="evaluacion-{{ $rubro->id }}"
@@ -122,7 +161,7 @@
                                 <div class="min-w-0 space-y-1.5">
                                     <h3 class="font-semibold text-texto dark:text-slate-100">{{ $rubro->nombre }}</h3>
                                     <div class="flex flex-wrap items-center gap-1.5 text-xs">
-                                        <span class="rounded-full px-2 py-0.5 font-semibold {{ $estadoCalculo[$estado]['clase'] }}">{{ $estadoCalculo[$estado]['etiqueta'] }}</span>
+                                        <span class="rounded-full px-2 py-0.5 font-semibold {{ $estadoEvaluacion[$avance['estado']] }}">{{ $etiquetaEvaluacion($avance) }}</span>
                                         @if ($rubro->modo_calculo)
                                             <span class="rounded-full bg-celeste px-2 py-0.5 font-semibold text-slate-700 dark:bg-azul-borde-oscuro dark:text-slate-200">{{ $rubro->modo_calculo->etiqueta() }}</span>
                                         @endif
@@ -135,27 +174,32 @@
                                 </p>
                             </div>
 
+                            @if ($rubro->tienePracticas())
+                                <div class="space-y-1">
+                                    <div class="flex items-center gap-2 text-sm">
+                                        <span class="shrink-0 rounded-md bg-exito-base/15 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-exito-oscuro">Campo</span>
+                                        <span class="min-w-0 flex-1 truncate text-texto dark:text-slate-100">Prácticas de campo {{ $rubro->practica_desde }}{{ $rubro->practica_hasta !== $rubro->practica_desde ? '–'.$rubro->practica_hasta : '' }}</span>
+                                        <span class="shrink-0 font-semibold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso((float) $rubro->peso_practicas) }} %</span>
+                                    </div>
+                                    <p class="text-xs text-slate-500 dark:text-slate-400">
+                                        Cada práctica vale {{ $formatoPeso((float) $rubro->peso_practicas / $rubro->cantidadPracticas()) }} % · {{ count($idsPracticas) }} de {{ $rubro->cantidadPracticas() }} con entrega preparada
+                                    </p>
+                                </div>
+                            @endif
+
                             @if ($vinculadas->isNotEmpty())
                                 <ul class="space-y-2.5" aria-label="Actividades de {{ $rubro->nombre }}">
                                     @foreach ($vinculadas as $vinculada)
-                                        <li wire:key="vinculada-{{ $rubro->id }}-{{ $vinculada['tipo'] }}-{{ $vinculada['id'] }}" class="space-y-1">
-                                            <div class="flex items-center gap-2 text-sm">
-                                                <span class="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide {{ $estiloTipo[$vinculada['tipo']]['insignia'] }}">{{ $estiloTipo[$vinculada['tipo']]['etiqueta'] }}</span>
-                                                <span class="min-w-0 flex-1 truncate text-texto dark:text-slate-100">{{ $vinculada['titulo'] }}</span>
-                                                <span class="shrink-0 font-semibold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso($vinculada['peso']) }} %</span>
-                                            </div>
-                                            <div class="flex items-center gap-2">
-                                                <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-celeste dark:bg-azul-borde-oscuro" aria-hidden="true">
-                                                    <span class="block h-full rounded-full {{ $color['relleno'] }}" style="width: {{ min(100, $vinculada['peso']) }}%"></span>
-                                                </span>
-                                                <span class="shrink-0 text-xs tabular-nums text-slate-500 dark:text-slate-400">{{ $formatoPeso($vinculada['peso'] * (float) $rubro->peso / 100) }} % de la final</span>
-                                            </div>
+                                        <li wire:key="vinculada-{{ $rubro->id }}-{{ $vinculada['tipo'] }}-{{ $vinculada['id'] }}" class="flex items-center gap-2 text-sm">
+                                            <span class="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide {{ $estiloTipo[$vinculada['tipo']]['insignia'] }}">{{ $estiloTipo[$vinculada['tipo']]['etiqueta'] }}</span>
+                                            <span class="min-w-0 flex-1 truncate text-texto dark:text-slate-100">{{ $vinculada['titulo'] }}</span>
+                                            <span class="shrink-0 font-semibold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso($vinculada['peso']) }} %</span>
                                         </li>
                                     @endforeach
                                 </ul>
-                            @else
+                            @elseif (! $rubro->tienePracticas())
                                 <p class="rounded-lg border border-dashed border-celeste px-3 py-2.5 text-sm text-slate-600 dark:border-azul-borde-oscuro dark:text-slate-300">
-                                    {{ $estado === 'sin_configurar' ? 'Todavía no elegiste cómo se calcula.' : ($rubro->esAutomatico() ? 'Ninguna actividad vinculada.' : 'La escribes en el libro de calificaciones.') }}
+                                    {{ $faltaDefinir ? 'Aún no hay actividades que cuenten para esta evaluación.' : 'Su nota la escribes tú en el libro de calificaciones.' }}
                                 </p>
                             @endif
 
@@ -166,9 +210,10 @@
 
                             <div class="mt-auto flex flex-wrap gap-2">
                                 @if ($editable)
-                                    <x-gestion.boton :variante="$estado === 'sin_configurar' ? 'primario' : 'secundario'" tamano="sm" :icono="$estado === 'sin_configurar' ? 'engranaje' : 'lapiz'"
-                                        wire:click="configurarCalculo({{ $rubro->id }})" aria-label="{{ $estado === 'sin_configurar' ? 'Configurar' : 'Editar cálculo de' }} {{ $rubro->nombre }}">
-                                        {{ $estado === 'sin_configurar' ? 'Configurar' : 'Editar cálculo' }}
+                                    <x-gestion.boton :variante="$faltaDefinir ? 'primario' : 'secundario'" tamano="sm" :icono="$faltaDefinir ? 'mas' : 'lapiz'"
+                                        wire:click="configurarCalculo({{ $rubro->id }})" wire:loading.attr="disabled" wire:target="configurarCalculo({{ $rubro->id }})"
+                                        aria-label="{{ $faltaDefinir ? 'Asignar actividades a' : 'Cambiar reparto de' }} {{ $rubro->nombre }}">
+                                        {{ $faltaDefinir ? 'Asignar actividades' : 'Cambiar reparto' }}
                                     </x-gestion.boton>
                                 @endif
                                 <x-gestion.boton variante="fantasma" tamano="sm" icono="lista" :href="route('cursos.libro-calificaciones', $curso)">
@@ -178,10 +223,14 @@
                         </li>
                     @endforeach
                 </ul>
+
+                @if ($curso->tienePracticasCampo())
+                    <livewire:cursos.practicas-evaluaciones :curso="$curso" :editable="$editable" :key="'practicas-evaluaciones-'.$curso->id" />
+                @endif
             </section>
         @else
             <x-gestion.tarjeta titulo="Nota final del curso">
-                <p class="text-sm text-slate-600 dark:text-slate-300">El supervisor todavía no definió las evaluaciones. Cuando sus pesos sumen 100 % podrás elegir cómo se calcula cada una.</p>
+                <p class="text-sm text-slate-600 dark:text-slate-300">El Supervisor todavía no definió las evaluaciones del curso. Cuando lo haga, aquí podrás asignar las actividades que cuentan para cada una.</p>
             </x-gestion.tarjeta>
         @endif
 
@@ -292,8 +341,9 @@
                                         @elseif ($editable && $rubros->isNotEmpty())
                                             <div class="relative" x-data="{ abierto: false }" x-on:click.outside="abierto = false" x-on:keydown.escape.stop="abierto = false">
                                                 <button type="button" x-on:click="abierto = ! abierto" aria-haspopup="menu" x-bind:aria-expanded="abierto.toString()" aria-expanded="false"
+                                                    aria-label="{{ $fila['titulo'] }} no cuenta para la nota. Asignarla a una evaluación"
                                                     class="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-dashed border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:border-azul-oscuro hover:text-azul-oscuro focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro dark:border-slate-600 dark:text-slate-300">
-                                                    Sin evaluación · Asignar <x-icono nombre="flecha-abajo" class="h-3.5 w-3.5" />
+                                                    No cuenta para la nota · Asignar <x-icono nombre="flecha-abajo" class="h-3.5 w-3.5" />
                                                 </button>
                                                 <div x-show="abierto" style="display: none" role="menu" aria-label="Asignar {{ $fila['titulo'] }} a una evaluación"
                                                     class="absolute right-0 z-30 mt-1 w-56 rounded-xl border border-celeste bg-white p-1.5 shadow-lg dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura">
@@ -308,9 +358,9 @@
                                                     @endforeach
                                                 </div>
                                             </div>
-                                            <x-gestion.ayuda texto="No cuenta para la nota final." />
+                                            <x-gestion.ayuda texto="Pulsa «Asignar» y elige la evaluación a la que aporta para que su nota cuente." />
                                         @else
-                                            <span class="whitespace-nowrap rounded-lg border border-dashed border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-500 dark:border-slate-600 dark:text-slate-400">Sin evaluación</span>
+                                            <span class="whitespace-nowrap rounded-lg border border-dashed border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-500 dark:border-slate-600 dark:text-slate-400">No cuenta para la nota</span>
                                         @endif
                                     </div>
                                     @if ($editable)
@@ -359,6 +409,9 @@
             $disponibles = $tareasDisponibles->map(fn ($tarea) => ['tipo' => 'tarea', 'modelo' => $tarea, 'titulo' => $tarea->titulo])
                 ->concat($quizzesDisponibles->map(fn ($quiz) => ['tipo' => 'quiz', 'modelo' => $quiz, 'titulo' => $quiz->tema]));
             $enOtraEvaluacion = fn ($modelo) => $modelo->rubrosEvaluacion->first(fn ($rubro) => $rubro->id !== $rubroCalculoId);
+            // Parte de la evaluación reservada a prácticas de campo (se reparte en su propio panel).
+            $conPracticas = (bool) $rubroConfigurado?->tienePracticas();
+            $pesoPracticas = $conPracticas ? (float) $rubroConfigurado->peso_practicas : 0.0;
             $puedeGuardar = match ($modoCalculo) {
                 'promedio' => $totalCalculo['estado'] === 'ok',
                 'examen' => $examenCalculo !== null,
@@ -380,15 +433,22 @@
                     </legend>
                     <div class="grid gap-2.5 sm:grid-cols-3">
                         @foreach (\App\Enums\ModoCalculo::cases() as $modo)
-                            <label wire:key="modo-{{ $modo->value }}" @class(['relative flex cursor-pointer flex-col gap-0.5 rounded-xl border p-3 transition-colors motion-reduce:transition-none focus-within:ring-2 focus-within:ring-azul-oscuro',
+                            @php $bloqueado = $conPracticas && $modo !== \App\Enums\ModoCalculo::Promedio; @endphp
+                            <label wire:key="modo-{{ $modo->value }}" @class(['relative flex flex-col gap-0.5 rounded-xl border p-3 transition-colors motion-reduce:transition-none focus-within:ring-2 focus-within:ring-azul-oscuro',
+                                'cursor-pointer' => ! $bloqueado,
+                                'cursor-not-allowed opacity-50' => $bloqueado,
                                 'border-azul-oscuro bg-azul-oscuro/5 ring-1 ring-azul-oscuro dark:border-azul-fondo dark:bg-azul-fondo/10 dark:ring-azul-fondo' => $modoCalculo === $modo->value,
-                                'border-celeste hover:border-azul-oscuro/50 dark:border-azul-borde-oscuro' => $modoCalculo !== $modo->value])>
-                                <input type="radio" class="sr-only" wire:model.live="modoCalculo" value="{{ $modo->value }}">
+                                'border-celeste hover:border-azul-oscuro/50 dark:border-azul-borde-oscuro' => $modoCalculo !== $modo->value && ! $bloqueado,
+                                'border-celeste dark:border-azul-borde-oscuro' => $bloqueado])>
+                                <input type="radio" class="sr-only" wire:model.live="modoCalculo" value="{{ $modo->value }}" @disabled($bloqueado)>
                                 <span class="text-sm font-semibold text-texto dark:text-slate-100">{{ $modo->etiqueta() }}</span>
                                 <span class="text-xs leading-snug text-slate-500 dark:text-slate-400">{{ $modo->descripcion() }}</span>
                             </label>
                         @endforeach
                     </div>
+                    @if ($conPracticas)
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Incluye prácticas de campo, así que solo se calcula como promedio.</p>
+                    @endif
                     @error('modoCalculo') <p role="alert" class="text-sm text-red-600">{{ $message }}</p> @enderror
                 </fieldset>
 
@@ -408,6 +468,19 @@
                             <p class="rounded-lg border border-dashed border-celeste px-3 py-2.5 text-sm text-slate-600 dark:border-azul-borde-oscuro dark:text-slate-300">Todavía no hay tareas ni quizzes en el curso. Créalos con «Crear actividad».</p>
                         @else
                             <ul class="max-h-72 divide-y divide-celeste overflow-y-auto rounded-xl border border-celeste dark:divide-azul-borde-oscuro dark:border-azul-borde-oscuro">
+                                @if ($conPracticas)
+                                    <li wire:key="calculo-practicas" class="flex items-center gap-3 bg-fondo px-3 py-2.5 dark:bg-azul-pagina-oscura">
+                                        <x-icono nombre="info" class="h-4 w-4 shrink-0 text-slate-400" />
+                                        <div class="min-w-0 flex-1">
+                                            <span class="flex items-center gap-1.5 text-sm font-medium text-texto dark:text-slate-100">
+                                                <span class="shrink-0 rounded-md bg-exito-base/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-exito-oscuro">Campo</span>
+                                                <span class="truncate">Prácticas de campo {{ $rubroConfigurado->practica_desde }}{{ $rubroConfigurado->practica_hasta !== $rubroConfigurado->practica_desde ? '–'.$rubroConfigurado->practica_hasta : '' }}</span>
+                                            </span>
+                                            <span class="block text-xs text-slate-500 dark:text-slate-400">Reservado en el panel de prácticas. Las demás actividades reparten el resto.</span>
+                                        </div>
+                                        <span class="shrink-0 text-sm font-semibold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso($pesoPracticas) }} %</span>
+                                    </li>
+                                @endif
                                 @foreach ($disponibles as $disponible)
                                     @php
                                         $clave = $disponible['tipo'].'-'.$disponible['modelo']->id;
@@ -448,11 +521,15 @@
                         @php $estilo = $estiloTotal[$totalCalculo['estado']]; @endphp
                         <div class="space-y-2 rounded-xl bg-fondo p-3 dark:bg-azul-pagina-oscura">
                             <div class="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-600 dark:text-slate-300">
-                                <span>Total <span class="text-base font-bold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso($totalCalculo['total']) }} %</span> de 100 %</span>
+                                @if ($conPracticas)
+                                    <span>Actividades <span class="text-base font-bold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso($totalCalculo['total']) }} %</span> + prácticas {{ $formatoPeso($pesoPracticas) }} % = <span class="font-semibold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso($totalCalculo['total'] + $pesoPracticas) }} %</span> de 100 %</span>
+                                @else
+                                    <span>Total <span class="text-base font-bold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso($totalCalculo['total']) }} %</span> de 100 %</span>
+                                @endif
                                 <x-gestion.boton variante="fantasma" tamano="sm" wire:click="repartirPesos" :disabled="$pesosCalculo === []">Repartir en partes iguales</x-gestion.boton>
                             </div>
                             <div class="h-2 overflow-hidden rounded-full bg-celeste dark:bg-azul-borde-oscuro" aria-hidden="true">
-                                <div class="h-full rounded-full transition-[width] motion-reduce:transition-none {{ $estilo['barra'] }}" style="width: {{ min(100, $totalCalculo['total']) }}%"></div>
+                                <div class="h-full rounded-full transition-[width] motion-reduce:transition-none {{ $estilo['barra'] }}" style="width: {{ min(100, $totalCalculo['total'] + $pesoPracticas) }}%"></div>
                             </div>
                             <p role="status" class="flex items-center gap-1.5 text-sm font-medium {{ $estilo['texto'] }}">
                                 <x-icono :nombre="$estilo['icono']" class="h-4 w-4 shrink-0" /> {{ $totalCalculo['mensaje'] }}

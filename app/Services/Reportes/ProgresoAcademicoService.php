@@ -3,10 +3,13 @@
 namespace App\Services\Reportes;
 
 use App\Models\Curso;
+use App\Models\Entrega;
 use App\Models\Leccion;
 use App\Models\LeccionCompletada;
 use App\Models\Modulo;
+use App\Models\Quiz;
 use App\Models\ResultadoQuiz;
+use App\Models\Tarea;
 use App\Models\User;
 use App\Services\Evaluacion\CalculadoraNotas;
 use App\Services\Evaluacion\NotasDeEvaluacion;
@@ -105,6 +108,37 @@ class ProgresoAcademicoService
     }
 
     /**
+     * avance() de varios estudiantes del mismo curso en seis consultas (mismo criterio).
+     *
+     * @param  Collection<int, int>  $estudianteIds
+     * @return array<int, int> estudiante_id => avance (0–100)
+     */
+    public function avancesDelCurso(Curso $curso, Collection $estudianteIds): array
+    {
+        $tareas = $curso->tareas()->visiblesParaEstudiante()->pluck('id');
+        $quizzes = $curso->quizzes()->visiblesParaEstudiante()->pluck('id');
+        $lecciones = $this->leccionesVisibles($curso);
+        $total = $tareas->count() + $quizzes->count() + $lecciones->count();
+
+        if ($total === 0 || $estudianteIds->isEmpty()) {
+            return $estudianteIds->mapWithKeys(fn (int $id) => [$id => 0])->all();
+        }
+
+        $entregas = Entrega::whereIn('tarea_id', $tareas)->whereIn('estudiante_id', $estudianteIds)
+            ->selectRaw('estudiante_id, count(*) as total')->groupBy('estudiante_id')->pluck('total', 'estudiante_id');
+        $quizzesRendidos = ResultadoQuiz::whereIn('quiz_id', $quizzes)->whereIn('estudiante_id', $estudianteIds)
+            ->selectRaw('estudiante_id, count(distinct quiz_id) as total')->groupBy('estudiante_id')->pluck('total', 'estudiante_id');
+        $leccionesHechas = LeccionCompletada::whereIn('leccion_id', $lecciones)->whereIn('estudiante_id', $estudianteIds)
+            ->selectRaw('estudiante_id, count(*) as total')->groupBy('estudiante_id')->pluck('total', 'estudiante_id');
+
+        return $estudianteIds->mapWithKeys(function (int $id) use ($entregas, $quizzesRendidos, $leccionesHechas, $total) {
+            $completos = (int) ($entregas[$id] ?? 0) + (int) ($quizzesRendidos[$id] ?? 0) + (int) ($leccionesHechas[$id] ?? 0);
+
+            return [$id => (int) round(min($completos, $total) / $total * 100)];
+        })->all();
+    }
+
+    /**
      * ERS RF-67: estado de cada módulo visible según la condición que definió
      * el Profesor (Modulo::CONDICIONES):
      * - lecciones: todas sus lecciones completadas.
@@ -177,7 +211,8 @@ class ProgresoAcademicoService
     public function resumenCurso(Curso $curso): array
     {
         $estudiantes = $curso->inscripcionesActivas()->with('estudiante')->get()->pluck('estudiante')->filter();
-        $tareas = $curso->tareas()->with('entregas')->get();
+        // modulo: lo usa esVisibleParaEstudiante() más abajo (sin cargarlo, una consulta por tarea).
+        $tareas = $curso->tareas()->with(['entregas', 'modulo'])->get();
         $entregas = $tareas->flatMap->entregas->whereIn('estudiante_id', $estudiantes->pluck('id'));
         $calificadas = $entregas->where('estado', 'calificado');
         $totalEsperado = $tareas->count() * max($estudiantes->count(), 1);
@@ -185,7 +220,7 @@ class ProgresoAcademicoService
         // Durante el periodo se evalúa el rendimiento a la fecha (rubros ya calificados).
         $notas = collect($this->calculadora->resumenDelCurso($curso, $estudiantes->pluck('id')));
         $rendimientos = $notas->pluck('rendimiento')->filter(fn ($nota) => $nota !== null);
-        $avances = $estudiantes->mapWithKeys(fn (User $e) => [$e->id => $this->avance($e, $curso)]);
+        $avances = collect($this->avancesDelCurso($curso, $estudiantes->pluck('id')->values()));
 
         // Bajo rendimiento (RF-89): rendimiento a la fecha bajo la nota mínima, o tareas vencidas
         // sin entregar. El avance total solo cuenta al cerrar el curso: a mitad del periodo
@@ -300,6 +335,50 @@ class ProgresoAcademicoService
                 ->sortBy('fecha')
                 ->first()['fecha'] ?? null,
         ];
+    }
+
+    /**
+     * "total_pendientes" de resumenDashboardEstudiante() para varios estudiantes
+     * en cinco consultas: tareas visibles sin entrega y quizzes abiertos sin
+     * intento, en sus cursos activos y visibles (no archivados).
+     *
+     * @param  Collection<int, int>  $estudianteIds
+     * @return array<int, int> estudiante_id => pendientes
+     */
+    public function totalPendientesDe(Collection $estudianteIds): array
+    {
+        $totales = $estudianteIds->mapWithKeys(fn (int $id) => [$id => 0])->all();
+        if ($estudianteIds->isEmpty()) {
+            return $totales;
+        }
+
+        $cursos = Curso::whereHas('inscripcionesActivas', fn ($q) => $q->whereIn('estudiante_id', $estudianteIds))
+            ->visiblesParaEstudiantes()
+            ->where('estado', '!=', 'archivado')
+            ->with(['inscripcionesActivas' => fn ($q) => $q->whereIn('estudiante_id', $estudianteIds)->select('id', 'curso_id', 'estudiante_id')])
+            ->get(['id']);
+        if ($cursos->isEmpty()) {
+            return $totales;
+        }
+
+        $tareas = Tarea::whereIn('curso_id', $cursos->modelKeys())->visiblesParaEstudiante()->get(['id', 'curso_id']);
+        $quizzes = Quiz::whereIn('curso_id', $cursos->modelKeys())->visiblesParaEstudiante()->get(['id', 'curso_id', 'fecha_inicio', 'fecha_limite'])
+            ->filter(fn (Quiz $quiz) => $quiz->estaAbierto());
+        $conEntrega = $tareas->isEmpty() ? collect() : Entrega::whereIn('tarea_id', $tareas->modelKeys())->whereIn('estudiante_id', $estudianteIds)
+            ->distinct()->get(['tarea_id', 'estudiante_id'])->map(fn ($fila) => $fila->estudiante_id.'_'.$fila->tarea_id)->flip();
+        $conIntento = $quizzes->isEmpty() ? collect() : ResultadoQuiz::whereIn('quiz_id', $quizzes->modelKeys())->whereIn('estudiante_id', $estudianteIds)
+            ->distinct()->get(['quiz_id', 'estudiante_id'])->map(fn ($fila) => $fila->estudiante_id.'_'.$fila->quiz_id)->flip();
+
+        $tareasPorCurso = $tareas->groupBy('curso_id');
+        $quizzesPorCurso = $quizzes->groupBy('curso_id');
+        foreach ($cursos as $curso) {
+            foreach ($curso->inscripcionesActivas->pluck('estudiante_id')->unique() as $estudianteId) {
+                $totales[$estudianteId] += $tareasPorCurso->get($curso->id, collect())->reject(fn (Tarea $tarea) => $conEntrega->has($estudianteId.'_'.$tarea->id))->count()
+                    + $quizzesPorCurso->get($curso->id, collect())->reject(fn (Quiz $quiz) => $conIntento->has($estudianteId.'_'.$quiz->id))->count();
+            }
+        }
+
+        return $totales;
     }
 
     /**

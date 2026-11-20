@@ -2,9 +2,12 @@
 
 namespace App\Livewire\Quizzes;
 
+use App\Livewire\Cursos\Concerns\EligeTipoYEvaluacion;
+use App\Livewire\Cursos\Concerns\FechasDeActividad;
 use App\Models\BancoPregunta;
 use App\Models\BitacoraAuditoria;
 use App\Models\Curso;
+use App\Models\Modulo;
 use App\Models\Quiz;
 use App\Notifications\CambioFechaQuiz;
 use App\Notifications\NotaQuizModificada;
@@ -31,6 +34,9 @@ use Livewire\Component;
 #[Layout('layouts.app')]
 class Formulario extends Component
 {
+    use EligeTipoYEvaluacion;
+    use FechasDeActividad;
+
     public Curso $curso;
 
     /** Se abrió desde la pantalla Actividades (?desde=actividades): al guardar o cancelar vuelve allí. */
@@ -145,6 +151,8 @@ class Formulario extends Component
         } else {
             // Un quiz nuevo empieza sin preguntas: el formulario ofrece el banco o escribir una nueva.
             Gate::authorize('crear', [Quiz::class, $curso]);
+            $this->iniciarTipoDeActividad();
+            [$this->fecha_inicio, $this->fecha_limite] = $this->fechasPorDefecto();
         }
 
         abort_if($curso->estaFinalizado(), 403, 'El curso está archivado y no admite cambios.');
@@ -472,6 +480,7 @@ class Formulario extends Component
         $eraVisible = $this->quiz?->esVisibleParaEstudiante() ?? false;
         $fechaLimiteAnterior = $this->quiz?->fecha_limite?->copy();
         $cambios = collect();
+        $esNuevo = $this->quiz === null;
 
         DB::transaction(function () use ($datos, $recalcular, &$cambios) {
             if ($this->quiz) {
@@ -498,6 +507,8 @@ class Formulario extends Component
             }
         });
 
+        $avisoEvaluacion = $esNuevo ? $this->asignarEvaluacionElegida($this->quiz) : '';
+
         // RF-53: aviso a cada estudiante cuya nota cambió (una vez por estudiante, con su mejor intento).
         $cambios->groupBy(fn ($c) => $c['resultado']->estudiante_id)->each(function ($cambiosDelEstudiante) {
             $estudiante = $cambiosDelEstudiante->first()['resultado']->estudiante;
@@ -519,9 +530,20 @@ class Formulario extends Component
 
         session()->flash('estado', $recalcular
             ? "Quiz guardado. Se recalcularon {$cambios->count()} intento(s) y se notificó a los estudiantes afectados."
-            : 'Quiz guardado.');
+            : 'Quiz guardado.'.$avisoEvaluacion);
 
         $this->redirect($this->rutaVolver(), navigate: true);
+    }
+
+    /**
+     * @return array<string, array{titulo: string, calificada: bool, examen: bool}>
+     */
+    protected function tiposDeActividad(): array
+    {
+        return [
+            'examen' => ['titulo' => 'examen o quiz calificado', 'calificada' => true, 'examen' => true],
+            'practica' => ['titulo' => 'quiz de práctica', 'calificada' => false, 'examen' => false],
+        ];
     }
 
     public function rutaVolver(): string
@@ -549,7 +571,7 @@ class Formulario extends Component
 
         $reglas = [
             'tema' => ['required', 'string', 'max:255'],
-            'modulo_id' => ['required', Rule::exists('modulos', 'id')->where('curso_id', $this->curso->id)],
+            'modulo_id' => ['required', Rule::exists('modulos', 'id')->where('curso_id', $this->curso->id)->where('tipo_seccion', Modulo::TIPO_SEMANA)],
             'preguntas' => ['required', 'array', 'min:1', 'max:100'],
             'preguntas.*.enunciado' => ['required', 'string', 'max:1000'],
             'preguntas.*.tipo' => ['required', Rule::in(array_keys(Quiz::TIPOS_PREGUNTA))],
@@ -563,9 +585,11 @@ class Formulario extends Component
             'aleatorizar' => ['boolean'],
             'mostrar_retroalimentacion' => ['boolean'],
             'fecha_inicio' => ['nullable', 'date'],
-            'fecha_limite' => array_filter(['nullable', 'date', $this->fecha_inicio !== '' ? 'after:fecha_inicio' : null]),
+            'fecha_limite' => array_values(array_filter(['nullable', 'date', $this->fecha_inicio !== '' ? 'after:fecha_inicio' : null,
+                $this->reglaLimiteNoPasado($this->quiz?->fecha_limite?->format('Y-m-d\TH:i'))])),
             'estado_contenido' => ['required', Rule::in(['borrador', 'publicado', 'programado'])],
             'publicar_en' => ['nullable', 'required_if:estado_contenido,programado', 'date'],
+            ...$this->reglasEvaluacion(),
         ];
 
         foreach ($this->preguntas as $i => $pregunta) {
@@ -581,6 +605,7 @@ class Formulario extends Component
 
         $this->validate($reglas, [
             ...self::MENSAJES_PUNTAJE_TOTAL,
+            ...$this->mensajesEvaluacion(),
             'preguntas.required' => 'Agrega al menos una pregunta al quiz: desde el banco de preguntas o escribiendo una nueva.',
             'preguntas.min' => 'Agrega al menos una pregunta al quiz: desde el banco de preguntas o escribiendo una nueva.',
             'preguntas.*.enunciado.required' => 'Escribe el enunciado de la pregunta.',
@@ -776,7 +801,7 @@ class Formulario extends Component
     public function render()
     {
         return view('livewire.quizzes.formulario', [
-            'modulos' => $this->curso->modulos()->orderBy('orden')->get(),
+            'modulos' => $this->curso->modulos()->where('tipo_seccion', Modulo::TIPO_SEMANA)->orderBy('orden')->get(),
             'tipos' => Quiz::TIPOS_PREGUNTA,
             'estaEditada' => fn (array $pregunta) => $this->estaEditada($pregunta),
             'hayBanco' => $this->curso->bancoPreguntasCurso()->exists(),
@@ -793,6 +818,8 @@ class Formulario extends Component
                 : collect(),
             'archivadasBanco' => $this->mostrarBanco ? BancoPregunta::unidadesArchivadas($this->curso, $this->unidadActualBanco) : [],
             'preguntasArchivadas' => $this->mostrarBanco ? $this->preguntasArchivadas() : collect(),
-        ])->title(($this->quiz ? 'Editar quiz' : 'Nuevo quiz').' — LearnUp');
+            'tipo' => $this->tipoElegido(),
+            'evaluacion' => $this->datosDeEvaluacion(),
+        ])->title(($this->quiz ? 'Editar quiz' : 'Nuevo '.($this->tipoElegido()['titulo'] ?? 'quiz')).' — LearnUp');
     }
 }

@@ -19,7 +19,7 @@
 <div @class(['py-8', 'relative' => auth()->user()->hasRole('profesor')])>
     <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado titulo="Grupos" icono="usuarios" :descripcion="$curso->nombre.', organiza a los estudiantes matriculados para los trabajos grupales.'" />
+        <x-gestion.encabezado :volver="route('cursos.show', $curso)" titulo="Grupos" icono="usuarios" :descripcion="$curso->nombre.', organiza a los estudiantes matriculados para los trabajos grupales.'" />
 
         <x-gestion.alertas />
 

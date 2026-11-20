@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Livewire\Quizzes\Formulario as FormularioQuiz;
 use App\Livewire\Tareas\Formulario as FormularioTarea;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Livewire\Livewire;
 use Tests\Concerns\PreparaEscenarioAcademico;
 use Tests\TestCase;
@@ -37,6 +38,8 @@ class SelectorFechaHoraProfesorTest extends TestCase
 
     public function test_la_fecha_se_guarda_en_el_mismo_formato_y_se_puede_dejar_vacia(): void
     {
+        // Reloj fijo: la fecha límite de la prueba debe quedar en el futuro (no se admiten límites pasados).
+        $this->travelTo(Carbon::parse('2026-11-01 08:00'));
         $escenario = $this->escenario();
         $quiz = $escenario['quiz'];
 

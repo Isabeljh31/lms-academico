@@ -1,3 +1,7 @@
+{{-- Profesor "puro": todas sus pantallas usan su propio layout (diseño editorial, ver PanelProfesorLayout::aplicaA). --}}
+@if (\App\View\Components\PanelProfesorLayout::aplicaA(auth()->user()))
+@include('layouts.panel-profesor')
+@else
 @php
     $rol = auth()->user()->getRoleNames()->first();
     $esEstudiante = $rol === 'estudiante';
@@ -18,7 +22,8 @@
             'activo' => 'border-azul-oscuro bg-celeste/40 text-azul-oscuro dark:border-cielo dark:bg-azul-oscuro/40 dark:text-cielo',
         ],
         'supervisor' => [
-            'activo' => 'border-terracota-oscuro bg-arena-claro text-terracota-oscuro dark:border-terracota-base dark:bg-stone-800 dark:text-terracota-claro',
+            // Tema editorial (.tema-supervisor): la opción activa es una píldora blanca sobre el papel crema.
+            'activo' => 'border-transparent bg-white text-stone-900 shadow-[0_1px_2px_rgba(29,28,25,0.12)] ring-1 ring-arena-medio dark:bg-stone-800 dark:text-stone-100',
         ],
     ];
     $acento = $acentos[$rol] ?? $acentos['estudiante'];
@@ -43,6 +48,8 @@
         ['ruta' => 'admin.usuarios.index', 'etiqueta' => 'Estudiantes', 'icono' => 'usuarios', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'admin.profesores.index', 'etiqueta' => 'Profesores', 'icono' => 'birrete', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'admin.comunicados.index', 'etiqueta' => 'Comunicados', 'icono' => 'megafono', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'admin.solicitudes-cambio-clase.index', 'etiqueta' => 'Reprogramaciones', 'icono' => 'calendario', 'visible' => $rol === 'supervisor'],
+        ['ruta' => 'admin.sedes-salones.index', 'etiqueta' => 'Sedes, salones y facultades', 'icono' => 'base-datos', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'admin.metricas', 'etiqueta' => 'Dashboard institucional', 'icono' => 'grafico', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'admin.analitica-riesgo', 'etiqueta' => 'Riesgo de abandono', 'icono' => 'alerta', 'visible' => $rol === 'supervisor'],
         ['ruta' => 'admin.integraciones', 'etiqueta' => 'Integración API', 'icono' => 'enlace', 'visible' => $rol === 'supervisor'],
@@ -65,23 +72,28 @@
         <title>{{ config('app.name', 'LearnUp') }}</title>
 
         <link rel="preconnect" href="https://fonts.bunny.net">
-        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600{{ $esAdmin ? '|instrument-serif:400,400i|jetbrains-mono:400,500' : '' }}&display=swap" rel="stylesheet" />
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans antialiased {{ $cromaBody }}">
+    <body class="{{ $esAdmin ? 'tema-supervisor ' : '' }}font-sans antialiased {{ $cromaBody }}">
         <div x-data="{ sidebarAbierto: false }" class="lg:flex lg:h-screen lg:overflow-hidden">
             <div x-show="sidebarAbierto" x-cloak @click="sidebarAbierto = false"
                 class="fixed inset-0 z-30 bg-stone-900/50 lg:hidden"></div>
 
             <aside
                 :class="sidebarAbierto ? 'translate-x-0' : '-translate-x-full'"
-                class="fixed inset-y-0 left-0 z-40 w-64 transform {{ $cromaSuperficie }} border-r {{ $cromaBorde }} transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 lg:flex lg:flex-col lg:shrink-0"
+                class="fixed inset-y-0 left-0 z-40 w-64 transform {{ $esAdmin ? 'bg-arena-claro dark:bg-stone-800' : $cromaSuperficie }} border-r {{ $cromaBorde }} transition-transform duration-200 ease-in-out lg:static lg:translate-x-0 lg:flex lg:flex-col lg:shrink-0"
             >
                 <div class="flex items-center gap-2 px-6 h-16 border-b {{ $cromaBorde }}">
                     <a href="{{ route('dashboard') }}" wire:navigate class="flex items-center gap-2">
-                        <x-application-logo class="h-8 w-auto fill-current {{ $cromaLogo }}" />
-                        <span class="font-semibold {{ $cromaTitulo }}">{{ config('app.name') }}</span>
+                        @if ($esAdmin)
+                            {{-- Tema editorial: el nombre en serif hace de logo. --}}
+                            <span class="font-serif text-[28px] leading-none tracking-[-0.01em] text-stone-900">{{ config('app.name') }}</span>
+                        @else
+                            <x-application-logo class="h-8 w-auto fill-current {{ $cromaLogo }}" />
+                            <span class="font-semibold {{ $cromaTitulo }}">{{ config('app.name') }}</span>
+                        @endif
                     </a>
                 </div>
 
@@ -99,7 +111,7 @@
                 </nav>
 
                 <div class="px-3 py-4 border-t {{ $cromaBorde }}">
-                    <span class="inline-flex items-center rounded-full px-2.5 py-1 text-xs {{ ! $esAdmin ? 'font-bold bg-celeste text-azul-oscuro dark:bg-azul-oscuro dark:text-white' : 'font-semibold '.$acento['activo'] }}">
+                    <span class="inline-flex items-center rounded-full px-2.5 py-1 {{ ! $esAdmin ? 'text-xs font-bold bg-celeste text-azul-oscuro dark:bg-azul-oscuro dark:text-white' : 'rotulo bg-white text-menta-base ring-1 ring-arena-medio' }}">
                         {{ ucfirst($rol) }}
                     </span>
                 </div>
@@ -118,7 +130,7 @@
 
                     <div class="flex-1">
                         @isset($header)
-                            <div class="font-semibold {{ $cromaTitulo }}">{{ $header }}</div>
+                            <div class="{{ $esAdmin ? 'font-serif text-[26px] leading-none' : 'font-semibold' }} {{ $cromaTitulo }}">{{ $header }}</div>
                         @endisset
                     </div>
 
@@ -163,3 +175,4 @@
         <livewire:bot-sugerencias.widget />
     </body>
 </html>
+@endif

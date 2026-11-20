@@ -14,7 +14,7 @@
 <div @class(['py-8', 'relative' => auth()->user()->hasRole('profesor')])>
     <div class="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado titulo="Asistencia" icono="calendario" :descripcion="$curso->nombre.' - '.$totalSesiones.' sesiones registradas'">
+        <x-gestion.encabezado :volver="route('cursos.show', $curso)" titulo="Asistencia" icono="calendario" :descripcion="$curso->nombre.' - '.$totalSesiones.' sesiones registradas'">
             @if ($this->puedeConfigurar && $curso->usa_asistencia)
                 <x-gestion.boton variante="secundario" icono="ojo-tachado" wire:click="alternarUsoAsistencia"
                     wire:confirm="¿Omitir el control de asistencia en este curso? Los registros ya guardados se conservan y puedes volver a activarlo.">Omitir asistencia</x-gestion.boton>

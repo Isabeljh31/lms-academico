@@ -64,12 +64,21 @@ class Curso extends Model
         'usa_asistencia',
         // ERS RF-74: integrantes por grupo (null = sin límite)
         'tamano_maximo_grupo',
+        // El Supervisor decide si el curso tiene prácticas de campo (una por semana).
+        'tiene_practicas_campo',
+        // Sede del curso (reprogramación con salones reales; null = sin definir).
+        'sede_id',
+        // Facultad del curso (de la misma sede; null = sin definir).
+        'facultad_id',
+        // Enlace fijo de reunión de las clases remotas (lo valida EnlacesClaseRemota).
+        'enlace_remoto',
     ];
 
     protected $attributes = [
         'estado' => 'borrador',
         'usa_asistencia' => true,
         'modalidad' => 'presencial',
+        'tiene_practicas_campo' => false,
     ];
 
     protected function casts(): array
@@ -79,6 +88,7 @@ class Curso extends Model
             'fecha_fin' => 'date',
             'usa_asistencia' => 'boolean',
             'tamano_maximo_grupo' => 'integer',
+            'tiene_practicas_campo' => 'boolean',
             'horario_bloques' => 'array',
         ];
     }
@@ -265,6 +275,18 @@ class Curso extends Model
     // RELACIONES
     // ==========================================
 
+    /** Sede donde se dicta el curso (null mientras no se defina). */
+    public function sede(): BelongsTo
+    {
+        return $this->belongsTo(Sede::class);
+    }
+
+    /** Facultad del curso, dentro de su sede (null mientras no se defina). */
+    public function facultad(): BelongsTo
+    {
+        return $this->belongsTo(Facultad::class);
+    }
+
     public function profesor(): BelongsTo
     {
         return $this->belongsTo(User::class, 'profesor_id');
@@ -322,6 +344,36 @@ class Curso extends Model
             (int) ($this->semanas_duracion ?: self::SEMANAS_PREDETERMINADAS),
             (int) $this->modulos()->max('semana'),
         );
+    }
+
+    /** El Supervisor activó prácticas de campo para este curso. */
+    public function tienePracticasCampo(): bool
+    {
+        return (bool) $this->tiene_practicas_campo;
+    }
+
+    /** Una práctica de campo por semana del curso (Práctica 1..N); 0 si no tiene. */
+    public function totalPracticasCampo(): int
+    {
+        return $this->tienePracticasCampo() ? $this->totalSemanas() : 0;
+    }
+
+    /**
+     * Contenedor de las prácticas de campo (sección fuera de la numeración
+     * semanal). Se crea al preparar la primera práctica.
+     */
+    public function moduloPracticas(): Modulo
+    {
+        return $this->modulos()->firstOrCreate(
+            ['tipo_seccion' => Modulo::TIPO_PRACTICAS],
+            ['titulo' => 'Prácticas de campo', 'materiales' => []],
+        );
+    }
+
+    /** Número más alto de práctica que ya tiene su tarea (0 si ninguna). */
+    public function ultimaPracticaConTarea(): int
+    {
+        return (int) $this->tareas()->max('practica');
     }
 
     /**
@@ -413,11 +465,12 @@ class Curso extends Model
     /**
      * Resumen legible del horario semanal para pantallas de solo lectura
      * (ej. "Lun 08:00-10:00 (Aula 204), Vie 14:00-16:00"), o null si el
-     * curso es virtual o aún no tiene bloques de horario.
+     * curso aún no tiene bloques de horario. En un curso virtual el horario
+     * es solo informativo (no genera sesiones).
      */
     public function horarioResumen(): ?string
     {
-        if (! in_array($this->modalidad, self::MODALIDADES_CON_HORARIO, true) || blank($this->horario_bloques)) {
+        if (blank($this->horario_bloques)) {
             return null;
         }
 
@@ -454,6 +507,10 @@ class Curso extends Model
 
         $numero = 0;
         $filas = [];
+        // Presencial con sede: el aula del bloque es el código de un salón de esa sede y la clase nace con su salón.
+        $salonesPorCodigo = $this->modalidad === 'presencial' && $this->sede_id
+            ? Salon::where('sede_id', $this->sede_id)->pluck('id', 'codigo')
+            : collect();
 
         foreach (CarbonPeriod::create($this->fecha_inicio, $this->fecha_fin) as $fecha) {
             $bloque = $bloquesPorDia->get($fecha->isoWeekday());
@@ -474,6 +531,7 @@ class Curso extends Model
                 'curso_id' => $this->id,
                 'titulo' => "Sesión {$numero}",
                 'descripcion' => filled($bloque['aula'] ?? null) ? "Aula: {$bloque['aula']}" : null,
+                'salon_id' => $salonesPorCodigo->get($bloque['aula'] ?? ''),
                 'fecha' => $fecha->copy()->setTimeFromTimeString($horaInicio->format('H:i:s')),
                 'duracion_minutos' => $duracionMinutos,
                 'numero_sesion' => $numero,
@@ -512,7 +570,7 @@ class Curso extends Model
     public function clonar(string $nuevoNombre, ?int $profesorId = null): self
     {
         return DB::transaction(function () use ($nuevoNombre, $profesorId) {
-            $nuevo = $this->replicate(['codigo', 'created_at', 'updated_at']);
+            $nuevo = $this->replicate(['codigo', 'enlace_remoto', 'created_at', 'updated_at']);
             $nuevo->nombre = $nuevoNombre;
             $nuevo->estado = 'borrador';
             $nuevo->profesor_id = $profesorId ?? $this->profesor_id;

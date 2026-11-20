@@ -2,7 +2,7 @@
     @php $esAdminVista = auth()->user()->hasRole('supervisor'); @endphp
     <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado titulo="Libro de calificaciones" icono="lista" :descripcion="$curso->nombre.', nota final ponderada por rubros (escala 0 a 20)'">
+        <x-gestion.encabezado :volver="route('cursos.show', $curso)" titulo="Libro de calificaciones" icono="lista" :descripcion="$curso->nombre.', nota final ponderada por rubros (escala 0 a 20)'">
             <x-gestion.boton variante="secundario" icono="descargar" wire:click="exportarExcel">Exportar a Excel</x-gestion.boton>
         </x-gestion.encabezado>
 

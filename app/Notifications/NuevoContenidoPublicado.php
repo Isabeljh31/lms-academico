@@ -36,6 +36,8 @@ class NuevoContenidoPublicado extends Notification
                 ? "Se publicó el módulo \"{$this->contenido->titulo}\" en {$curso->nombre}."
                 : "Se publicó la lección \"{$this->contenido->titulo}\" en {$curso->nombre}.",
             'url' => route('cursos.show', $curso),
+            // Identifica la lección avisada (GestionaContenidoSemanal::leccionYaNotificada); va al final del JSON.
+            ...($esModulo ? [] : ['leccion_id' => $this->contenido->id]),
         ];
     }
 }

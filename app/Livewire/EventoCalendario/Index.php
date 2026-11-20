@@ -11,6 +11,7 @@ use App\Models\SesionClase;
 use App\Models\Tarea;
 use App\Models\User;
 use App\Services\Calendario\ColoresCursos;
+use App\Services\Calendario\SeccionesProfesor;
 use App\Services\Evaluacion\NotasDeEvaluacion;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -148,7 +149,10 @@ class Index extends Component
     public function cursos(): Collection
     {
         return app(ColoresCursos::class)->consultaCursosDe(auth()->user())
-            ->with('esquemaEvaluacion.rubros')->orderBy('nombre')->orderBy('id')->get()->values();
+            ->with('esquemaEvaluacion.rubros')
+            // Profesor: la última semana con contenido, para el número de semana del bloque semanal (sin otra consulta).
+            ->when($this->rol() === 'profesor', fn ($q) => $q->withMax('modulos', 'semana'))
+            ->orderBy('nombre')->orderBy('id')->get()->values();
     }
 
     /**
@@ -161,6 +165,16 @@ class Index extends Component
     public function coloresCursos(): array
     {
         return app(ColoresCursos::class)->asignar($this->cursos);
+    }
+
+    /**
+     * Profesor: nombre visible, sección, agrupación y orden de sus cursos
+     * (único criterio para tarjetas, filtros, cuadrícula y bloque semanal).
+     */
+    #[Computed]
+    public function secciones(): ?SeccionesProfesor
+    {
+        return $this->rol() === 'profesor' ? new SeccionesProfesor($this->cursos) : null;
     }
 
     /**
@@ -197,8 +211,13 @@ class Index extends Component
         $usuario = auth()->user();
         $rol = $this->rol();
         $esEstudiante = $rol === 'estudiante';
+        $esProfesor = $rol === 'profesor';
         $cursos = $this->cursos;
         $cursoIds = $cursos->pluck('id');
+        // Profesor: el curso en texto en los títulos de la cuadrícula (con 3 o más cursos, o si hay varias secciones con el mismo nombre).
+        $secciones = $esProfesor ? $this->secciones : null;
+        $referencia = fn (Curso $c) => $secciones ? $secciones->referenciaCorta($c->id) : ($c->codigo ?? $c->nombre);
+        $sufijoSeccion = fn (int $cursoId) => ($seccion = $secciones?->referenciaEnActividad($cursoId)) ? ' · '.$seccion : '';
 
         $propios = $usuario->eventosCalendario()->get()->map(fn (EventoCalendario $e) => $this->payloadEvento($e));
 
@@ -209,7 +228,7 @@ class Index extends Component
                 ->filter(fn ($rubro) => $rubro->semana)
                 ->map(fn ($rubro) => $this->evento(
                     'rubro-'.$rubro->id,
-                    'Evaluación: '.$rubro->nombre.' · '.($c->codigo ?? $c->nombre).' ('.(float) $rubro->peso.' %)',
+                    'Evaluación: '.$rubro->nombre.' · '.$referencia($c).' ('.(float) $rubro->peso.' %)',
                     $this->semanaDelCurso($c, $rubro->semana),
                     $c->id,
                     'evaluacion',
@@ -217,6 +236,7 @@ class Index extends Component
                         'estudiante' => route('cursos.boleta', $c),
                         default => route('cursos.libro-calificaciones', $c),
                     },
+                    $esProfesor ? ['titulo' => $rubro->nombre, 'fechaCorta' => 'Toda la semana', 'detalle' => (float) $rubro->peso.' % de la nota'] : [],
                     todoElDia: true,
                 )));
 
@@ -236,12 +256,12 @@ class Index extends Component
             ->when($esEstudiante, fn ($c) => $c->filter(fn (Tarea $t) => Gate::allows('ver', $t)))
             ->map(fn (Tarea $t) => $this->evento(
                 'tarea-'.$t->id,
-                'Tarea: '.$t->titulo.(($pendientesPorTarea[$t->id] ?? 0) > 0 ? ' · '.$pendientesPorTarea[$t->id].' por calificar' : ''),
+                'Tarea: '.$t->titulo.$sufijoSeccion($t->curso_id).(($pendientesPorTarea[$t->id] ?? 0) > 0 ? ' · '.$pendientesPorTarea[$t->id].' por calificar' : ''),
                 $t->fecha_entrega,
                 $t->curso_id,
                 'tarea',
                 route('cursos.tareas.show', [$t->curso_id, $t->id]),
-                ['porCalificar' => $pendientesPorTarea[$t->id] ?? 0],
+                ['porCalificar' => $pendientesPorTarea[$t->id] ?? 0, ...($esProfesor ? $this->detalleSemanal($t->titulo, $t->fecha_entrega, $t->etiquetaEstadoPublicacion()) : [])],
             ));
 
         $quizzes = Quiz::whereIn('curso_id', $cursoIds)
@@ -249,16 +269,18 @@ class Index extends Component
             ->when($esEstudiante, fn ($q) => $q->visiblesParaEstudiante())
             ->get()
             ->map(fn (Quiz $q) => $this->evento(
-                'quiz-'.$q->id, 'Quiz: '.$q->tema, $q->fecha_limite, $q->curso_id, 'quiz',
-                route('cursos.quizzes.show', [$q->curso_id, $q->id])
+                'quiz-'.$q->id, 'Quiz: '.$q->tema.$sufijoSeccion($q->curso_id), $q->fecha_limite, $q->curso_id, 'quiz',
+                route('cursos.quizzes.show', [$q->curso_id, $q->id]),
+                $esProfesor ? $this->detalleSemanal($q->tema, $q->fecha_limite, $q->etiquetaEstadoPublicacion()) : [],
             ));
 
-        $codigos = $cursos->mapWithKeys(fn (Curso $c) => [$c->id => $c->codigo ?? $c->nombre]);
+        $codigos = $cursos->mapWithKeys(fn (Curso $c) => [$c->id => $referencia($c)]);
         $sesiones = SesionClase::whereIn('curso_id', $cursos->where('usa_asistencia', true)->pluck('id'))
             ->get()
             ->map(fn (SesionClase $s) => $this->evento(
                 'sesion-'.$s->id, 'Clase '.$codigos[$s->curso_id].' · '.$s->titulo, $s->fecha, $s->curso_id, 'sesion',
-                $esEstudiante ? route('cursos.mi-asistencia', $s->curso_id) : route('asistencia.index', $s->curso_id)
+                $esEstudiante ? route('cursos.mi-asistencia', $s->curso_id) : route('asistencia.index', $s->curso_id),
+                $esProfesor ? $this->detalleSemanal($s->titulo ?: 'Clase', $s->fecha) : [],
             ));
 
         return $propios->concat($tareas)->concat($quizzes)->concat($sesiones)->concat($evaluaciones)->values()->all();
@@ -318,6 +340,89 @@ class Index extends Component
         $semana = (int) floor($curso->fecha_inicio->copy()->startOfWeek()->diffInDays(now()) / 7) + 1;
 
         return $curso->semanas_duracion && $semana > $curso->semanas_duracion ? null : $semana;
+    }
+
+    /**
+     * Profesor: datos de la fila de una actividad en el bloque "Actividades de
+     * la semana por curso" (título sin prefijo, fecha corta y estado).
+     *
+     * @return array{titulo: string, fechaCorta: string, estado?: string}
+     */
+    protected function detalleSemanal(string $titulo, Carbon $fecha, ?string $estado = null): array
+    {
+        return array_filter([
+            'titulo' => $titulo,
+            'fechaCorta' => $fecha->translatedFormat('D d').' · '.$fecha->format('H:i'),
+            'estado' => $estado,
+        ], fn ($valor) => $valor !== null);
+    }
+
+    /**
+     * Profesor: bloque "Actividades de la semana por curso". Las actividades
+     * con fecha salen de los eventos del calendario (ya cargados); aquí solo se
+     * agregan los datos de cada curso para calcular su "Semana N" y los quizzes
+     * sin fecha límite, ubicados por la semana de su módulo (una consulta).
+     *
+     * La semana N de un curso va del lunes de la semana de su fecha de inicio
+     * más N-1 semanas (mismo criterio que Curso::rangoSemana y las
+     * evaluaciones del esquema), hasta su total de semanas.
+     *
+     * @return array{cursos: list<array<string, mixed>>, sinFecha: list<array<string, mixed>>}|null
+     */
+    #[Computed]
+    public function semanaPorCurso(): ?array
+    {
+        if ($this->rol() !== 'profesor') {
+            return null;
+        }
+
+        $cursos = $this->cursos->keyBy('id');
+
+        $sinFecha = Quiz::query()
+            ->join('modulos', 'modulos.id', '=', 'quizzes.modulo_id')
+            ->whereIn('quizzes.curso_id', $cursos->keys())
+            ->whereNull('quizzes.fecha_limite')
+            ->whereNotNull('modulos.semana')
+            ->orderBy('quizzes.tema')
+            ->get(['quizzes.*', 'modulos.semana as semana_modulo'])
+            ->filter(fn (Quiz $q) => $cursos[$q->curso_id]?->fecha_inicio)
+            ->map(fn (Quiz $q) => [
+                'id' => 'quiz-'.$q->id,
+                'cursoId' => $q->curso_id,
+                'tipo' => 'quiz',
+                'titulo' => $q->tema,
+                'estado' => $q->etiquetaEstadoPublicacion(),
+                'inicioSemana' => $this->semanaDelCurso($cursos[$q->curso_id], (int) $q->semana_modulo)->toDateString(),
+                'url' => route('cursos.quizzes.show', [$q->curso_id, $q->id]),
+            ])
+            ->values()
+            ->all();
+
+        $secciones = $this->secciones;
+        $posiciones = $secciones->posiciones();
+
+        return [
+            // Muchos cursos: buscador, atajos, grupos colapsados y máximo 3 actividades por día (ver SeccionesProfesor::MUCHOS_CURSOS).
+            'muchos' => $secciones->hayMuchos(),
+            // Clave del navegador (localStorage) para recordar los cursos marcados de este profesor.
+            'claveSeleccion' => 'calendario-profesor-cursos-'.auth()->id(),
+            // En el orden de visualización (nombre, código); "grupo" reúne las secciones de una misma materia.
+            'cursos' => $cursos->sortBy(fn (Curso $c) => $posiciones[$c->id])->map(fn (Curso $c) => [
+                'id' => $c->id,
+                'nombre' => $secciones->nombreDeMateria($c->id),
+                'codigo' => $c->codigo,
+                'grupo' => $secciones->clave($c->id),
+                'seccion' => $secciones->codigo($c->id),
+                'variasSecciones' => $secciones->tieneVariasSecciones($c->id),
+                'busqueda' => $secciones->textoBusqueda($c->id),
+                'color' => $this->coloresCursos[$c->id] ?? self::COLORES_CURSO[0],
+                'inicio' => $c->fecha_inicio?->copy()->startOfWeek()->toDateString(),
+                // Mismo cálculo que Curso::totalSemanas(), con el máximo ya cargado.
+                'totalSemanas' => max((int) ($c->semanas_duracion ?: Curso::SEMANAS_PREDETERMINADAS), (int) $c->modulos_max_semana),
+                'urlCurso' => route('cursos.show', $c),
+            ])->values()->all(),
+            'sinFecha' => $sinFecha,
+        ];
     }
 
     /**
