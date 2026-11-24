@@ -17,8 +17,9 @@
 @endphp
 
 {{-- relative: ancestro posicionado para los textos sr-only (radios y buscadores), como en las demás pantallas del profesor. --}}
-<div class="relative mx-auto flex w-full max-w-[1320px] flex-col gap-4">
-    <livewire:profesor.cursos.encabezado-curso :curso="$curso" :compacto="true" activa="asistencia" :key="'encabezado-asistencia-'.$curso->id" />
+<div class="relative mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-8 sm:px-6 lg:px-8">
+    {{-- Mismo encabezado que las demás pantallas del curso: regreso al curso, título y la barra de pestañas. --}}
+    <x-gestion.volver :href="route('cursos.show', $curso)" :texto="$curso->nombre" class="self-start" />
 
     <x-gestion.alertas />
 
@@ -30,6 +31,7 @@
     @endif
 
     @if ($paseLista)
+        <x-gestion.pestanas-curso :curso="$curso" activa="asistencia" />
         @include('livewire.profesor.asistencia._pase-lista')
     @else
         @php
@@ -42,22 +44,18 @@
             ])->filter()->join(' · ');
         @endphp
 
-        <div class="mt-1.5 flex flex-wrap items-end justify-between gap-3">
-            <div class="min-w-0">
-                <h1 class="text-[30px] font-extrabold leading-tight tracking-[-0.02em] text-[var(--p900)]">Asistencia</h1>
-                <p class="mt-0.5 text-[14px] text-[#57524A]">{{ $subtitulo }}</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-2">
-                @if ($this->editable && ! $virtual)
-                    <button type="button" wire:click="$set('mostrarFormSesion', true)" class="{{ $botonContorno }} h-8 px-3 text-[12.5px]">
-                        <x-icono nombre="mas" class="h-3.5 w-3.5" /> Nueva clase
-                    </button>
-                @endif
-                <span class="inline-flex h-9 items-center rounded-full border-[1.5px] border-[#E0D8C8] bg-white px-4 text-[13px] font-bold text-[var(--p900)]">
-                    Modo: {{ $virtual ? 'sin lista por clase' : 'lista por clase' }}
-                </span>
-            </div>
-        </div>
+        <x-gestion.encabezado titulo="Asistencia" icono="calendario" :descripcion="$subtitulo">
+            @if ($this->editable && ! $virtual)
+                <button type="button" wire:click="$set('mostrarFormSesion', true)" class="{{ $botonContorno }} h-8 px-3 text-[12.5px]">
+                    <x-icono nombre="mas" class="h-3.5 w-3.5" /> Nueva clase
+                </button>
+            @endif
+            <span class="inline-flex h-9 items-center rounded-full border-[1.5px] border-[#E0D8C8] bg-white px-4 text-[13px] font-bold text-[var(--p900)]">
+                Modo: {{ $virtual ? 'sin lista por clase' : 'lista por clase' }}
+            </span>
+        </x-gestion.encabezado>
+
+        <x-gestion.pestanas-curso :curso="$curso" activa="asistencia" />
 
         @if ($mostrarFormSesion && $this->editable && ! $virtual)
             <section aria-labelledby="titulo-nueva-clase" class="{{ $tarjeta }} p-6">

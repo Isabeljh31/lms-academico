@@ -17,9 +17,10 @@
 {{-- relative (solo profesor; la vista se comparte con Supervisor): contiene las etiquetas sr-only (position: absolute)
      de cada grupo; sin esto se posicionaban respecto de <body> y estiraban la página. --}}
 <div @class(['py-8', 'relative' => auth()->user()->hasRole('profesor')])>
-    <div class="mx-auto max-w-7xl space-y-6 px-4 sm:px-6 lg:px-8">
+    <div class="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado :volver="route('cursos.show', $curso)" titulo="Grupos" icono="usuarios" :descripcion="$curso->nombre.', organiza a los estudiantes matriculados para los trabajos grupales.'" />
+        <x-gestion.encabezado :volver="route('cursos.show', $curso)" :volver-texto="$curso->nombre" titulo="Grupos" icono="usuarios" :descripcion="$curso->nombre.', organiza a los estudiantes matriculados para los trabajos grupales.'" />
+        <x-gestion.pestanas-curso :curso="$curso" activa="grupos" />
 
         <x-gestion.alertas />
 

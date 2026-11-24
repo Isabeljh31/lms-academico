@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Notifications\NuevaTareaAsignada;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
@@ -69,6 +70,8 @@ class TareasTest extends TestCase
 
     public function test_estudiante_inscrito_puede_entregar_una_tarea(): void
     {
+        // Disco simulado: la entrega no se escribe en el almacenamiento real de la app.
+        Storage::fake(config('archivos.disco'));
         [$profesor, $curso, $modulo] = $this->cursoConProfesor();
         $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
         $curso->inscripciones()->create(['estudiante_id' => $estudiante->id, 'fecha_inscripcion' => now()]);

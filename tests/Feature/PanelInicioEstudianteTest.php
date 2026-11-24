@@ -50,7 +50,8 @@ class PanelInicioEstudianteTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertDontSeeLivewire('estudiante.panel-inicio')
-            ->assertSee('Hola,')
+            // El saludo lleva el nombre en cursiva (<span>Hola</span>, <em>…</em>): se mira el texto visible.
+            ->assertSeeText('Hola,')
             ->assertSee('Rol:');
 
         $this->actingAs($admin)

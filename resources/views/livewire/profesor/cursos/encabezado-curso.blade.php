@@ -13,6 +13,7 @@
     $pestanas = [
         ['clave' => 'contenido', 'ruta' => route('cursos.show', $curso), 'texto' => 'Contenido'],
         ['clave' => 'actividades', 'ruta' => route('cursos.actividades', $curso), 'texto' => 'Actividades', 'cuenta' => $curso->tareas_count + $curso->quizzes_count],
+        ['clave' => 'evaluacion', 'ruta' => route('cursos.evaluacion', $curso), 'texto' => 'Evaluación'],
         ['clave' => 'matricula', 'ruta' => route('cursos.matriculas', $curso), 'texto' => 'Matrícula', 'cuenta' => $curso->inscripciones_activas_count],
         ['clave' => 'grupos', 'ruta' => route('cursos.grupos.index', $curso), 'texto' => 'Grupos', 'cuenta' => $curso->grupos_count],
         ['clave' => 'debates', 'ruta' => route('cursos.debates.index', $curso), 'texto' => 'Debates', 'cuenta' => $curso->debates_count],

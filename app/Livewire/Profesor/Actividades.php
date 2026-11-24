@@ -9,6 +9,7 @@ use App\Models\Quiz;
 use App\Models\RubroEvaluacion;
 use App\Models\Tarea;
 use App\Services\Evaluacion\AvanceEvaluaciones;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -54,6 +55,18 @@ class Actividades extends Component
 
     #[Url(as: 'q', except: '')]
     public string $busqueda = '';
+
+    /** Filtro de la lista por evaluación (id del rubro; '' = todas). */
+    #[Url(as: 'evaluacion', except: '')]
+    public string $filtroEvaluacion = '';
+
+    /**
+     * Pantalla del curso que se muestra: «actividades» (lista y banco) o
+     * «evaluacion» (nota final y tarjetas de cada evaluación). La fija la
+     * subclase Profesor\Evaluacion; ambas comparten el panel de cálculo.
+     */
+    #[Locked]
+    public string $seccion = 'actividades';
 
     public bool $mostrarConfirmacion = false;
 
@@ -389,7 +402,7 @@ class Actividades extends Component
 
     public function updated(string $propiedad): void
     {
-        if (in_array($propiedad, ['tipo', 'busqueda'], true)) {
+        if (in_array($propiedad, ['tipo', 'busqueda', 'filtroEvaluacion'], true)) {
             $this->normalizarFiltros();
             $this->resetPage('pagina');
         }
@@ -451,6 +464,15 @@ class Actividades extends Component
     {
         $this->pestana = array_key_exists($this->pestana, self::PESTANAS) ? $this->pestana : 'actividades';
         $this->tipo = array_key_exists($this->tipo, self::FILTROS) ? $this->tipo : 'todas';
+        $this->filtroEvaluacion = ctype_digit($this->filtroEvaluacion) ? $this->filtroEvaluacion : '';
+    }
+
+    /** Filtra las tareas o los quizzes del curso por la evaluación elegida en la lista. */
+    protected function deLaEvaluacionElegida(HasMany $consulta): HasMany
+    {
+        return $consulta->when($this->filtroEvaluacion !== '', fn ($q) => $q->whereHas(
+            'rubrosEvaluacion', fn ($rubro) => $rubro->where('rubros_evaluacion.id', (int) $this->filtroEvaluacion),
+        ));
     }
 
     /**
@@ -464,7 +486,7 @@ class Actividades extends Component
     {
         $busqueda = trim($this->busqueda);
 
-        $tareas = $this->tipo === 'quizzes' ? collect() : $this->curso->tareas()
+        $tareas = $this->tipo === 'quizzes' ? collect() : $this->deLaEvaluacionElegida($this->curso->tareas())
             ->with(['modulo', 'rubrosEvaluacion'])
             ->when($this->tipo === 'sin_evaluacion', fn ($q) => $q->whereDoesntHave('rubrosEvaluacion'))
             ->withCount(['entregas', 'entregas as por_calificar_count' => fn ($q) => $q->where('estado', '!=', 'calificado')])
@@ -481,6 +503,8 @@ class Actividades extends Component
                     ? 'Sin entregas'
                     : "{$tarea->por_calificar_count} por calificar de {$tarea->entregas_count} ".($tarea->entregas_count === 1 ? 'entrega' : 'entregas'),
                 'destacarDato' => $tarea->por_calificar_count > 0,
+                'porCalificar' => (int) $tarea->por_calificar_count,
+                'urlCalificar' => route('docente.por-calificar', ['tarea' => $tarea->id]),
                 'puedeEliminarse' => $tarea->entregas_count === 0 && $tarea->rubrosEvaluacion->isEmpty(),
                 'motivoNoEliminar' => $tarea->rubrosEvaluacion->isNotEmpty() ? 'Está incluida en una evaluación: desvincúlala antes de eliminar.' : 'Tiene entregas: no se puede eliminar (puedes ocultarla desde Tareas).',
                 'urlVer' => route('cursos.tareas.show', [$this->curso, $tarea]),
@@ -488,7 +512,7 @@ class Actividades extends Component
                 'evaluacion' => $this->evaluacionDe($tarea->rubrosEvaluacion->first()),
             ]);
 
-        $quizzes = $this->tipo === 'tareas' ? collect() : $this->curso->quizzes()
+        $quizzes = $this->tipo === 'tareas' ? collect() : $this->deLaEvaluacionElegida($this->curso->quizzes())
             ->with(['modulo', 'rubrosEvaluacion'])
             ->when($this->tipo === 'sin_evaluacion', fn ($q) => $q->whereDoesntHave('rubrosEvaluacion'))
             ->withCount('resultados')
@@ -503,6 +527,8 @@ class Actividades extends Component
                 'fecha' => $quiz->fecha_limite,
                 'dato' => count($quiz->preguntas ?? []).' preguntas · '.$quiz->resultados_count.' '.($quiz->resultados_count === 1 ? 'intento' : 'intentos'),
                 'destacarDato' => false,
+                'porCalificar' => 0,
+                'urlCalificar' => null,
                 'puedeEliminarse' => $quiz->resultados_count === 0 && $quiz->rubrosEvaluacion->isEmpty(),
                 'motivoNoEliminar' => $quiz->rubrosEvaluacion->isNotEmpty() ? 'Está incluido en una evaluación: desvincúlalo antes de eliminar.' : 'Tiene intentos de estudiantes: no se puede eliminar (puedes ocultarlo desde Quizzes).',
                 'urlVer' => route('cursos.quizzes.show', [$this->curso, $quiz]),
@@ -577,6 +603,9 @@ class Actividades extends Component
                 'sin_evaluacion' => (int) $conteos->tareas_sin_evaluacion_count + (int) $conteos->quizzes_sin_evaluacion_count,
             ],
             'editable' => ! $this->curso->estaFinalizado(),
-        ])->title("Actividades — {$this->curso->nombre}");
+        ])
+            // Explícito: la subclase Evaluacion no hereda el atributo #[Layout].
+            ->layout('layouts.app')
+            ->title(($this->seccion === 'evaluacion' ? 'Evaluación' : 'Actividades')." — {$this->curso->nombre}");
     }
 }

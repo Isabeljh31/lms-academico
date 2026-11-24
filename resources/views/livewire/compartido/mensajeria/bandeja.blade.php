@@ -1,12 +1,8 @@
 <x-gestion.pagina ancho="normal">
-    <x-gestion.volver :href="route('cursos.show', $curso)" class="-mb-3" />
+    <x-gestion.volver :href="route('cursos.show', $curso)" :texto="$curso->nombre" class="-mb-3" />
 
     <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
-            <a href="{{ route('cursos.show', $curso) }}" wire:navigate
-                class="inline-flex items-center gap-1 text-sm font-medium text-azul-oscuro hover:underline dark:text-azul-fondo">
-                <x-icono nombre="flecha-izquierda" class="h-4 w-4" /> Volver al curso
-            </a>
             <h1 class="text-2xl font-bold text-texto dark:text-slate-100 flex items-center gap-2 mt-1">
                 Mensajería de {{ $curso->nombre }}
                 @if($noLeidos > 0)
@@ -35,6 +31,7 @@
             </button>
         </div>
     </div>
+    <x-gestion.pestanas-curso :curso="$curso" activa="mensajeria" />
 
     @if(session('estado'))
     <div class="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 px-4 py-3 text-sm text-green-700 dark:text-green-400">

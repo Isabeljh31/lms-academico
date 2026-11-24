@@ -89,7 +89,9 @@ class AsistenciaProfesorTest extends TestCase
         $this->actingAs($this->profesor)->get(route('asistencia.index', $this->curso))
             ->assertOk()
             ->assertSee('Modo: lista por clase')
-            ->assertSee('Volver a Cursos')
+            // Mismo encabezado que las demás pantallas del curso: regreso al curso y la barra con Asistencia marcada.
+            ->assertSee(route('cursos.show', $this->curso), false)
+            ->assertSeeInOrder(['aria-label="Secciones del curso"', 'aria-current="page"', 'Asistencia'], false)
             ->assertSeeInOrder(['Semana 4', 'LUNES 9 NOV · 2 clases', 'Teoría 4', '08:00 – 10:00', 'Aula 204', 'Laboratorio 4', '10:00 – 12:00', 'Aún no se pasó lista'])
             // La descripción que no tiene el formato «Aula: X» no se muestra como aula.
             ->assertDontSee('Aula Laboratorio de cómputo 3')

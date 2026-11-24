@@ -3,10 +3,11 @@
 namespace Tests\Feature;
 
 use App\Enums\ModoCalculo;
-use App\Livewire\Profesor\Actividades;
-use App\Livewire\Supervisor\Cursos\EsquemaEvaluacion as EsquemaEvaluacionComponente;
 use App\Livewire\Compartido\Cursos\PracticasEvaluaciones;
 use App\Livewire\Compartido\Tareas\Formulario as FormularioTarea;
+use App\Livewire\Profesor\Actividades;
+use App\Livewire\Profesor\Evaluacion;
+use App\Livewire\Supervisor\Cursos\EsquemaEvaluacion as EsquemaEvaluacionComponente;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Models\EsquemaEvaluacion;
@@ -145,7 +146,7 @@ class PracticasEnEvaluacionesTest extends TestCase
         $practica = $this->practica($e['curso'], 1);
         $this->panel($e)->set('tramos', $this->tramos($rubros, [[1, 4, '30']]))->call('guardar')->assertHasNoErrors();
 
-        Livewire::actingAs($e['profesor'])->test(Actividades::class, ['curso' => $e['curso']])
+        Livewire::actingAs($e['profesor'])->test(Evaluacion::class, ['curso' => $e['curso']])
             ->assertSee('Prácticas de campo 1–4')
             ->call('configurarCalculo', $rubros[0]->id)
             ->assertSet('tareasCalculo', [])
@@ -166,7 +167,7 @@ class PracticasEnEvaluacionesTest extends TestCase
         // Con 3 de las 4 prácticas aún sin crear, su 30 % reservado completa el 100 %.
         $this->assertSame('lista', $rubros[0]->fresh()->load(['tareas', 'quizzes'])->estadoCalculo());
         // …pero la evaluación no tiene nota hasta que se preparen.
-        Livewire::actingAs($e['profesor'])->test(Actividades::class, ['curso' => $e['curso']])
+        Livewire::actingAs($e['profesor'])->test(Evaluacion::class, ['curso' => $e['curso']])
             ->assertSee('Prepara las 3 prácticas de campo que faltan del tramo')
             ->assertDontSee('Todos los alumnos tienen nota.');
 
