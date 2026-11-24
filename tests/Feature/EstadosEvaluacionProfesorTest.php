@@ -3,9 +3,10 @@
 namespace Tests\Feature;
 
 use App\Enums\ModoCalculo;
-use App\Livewire\Profesor\Actividades;
 use App\Livewire\Compartido\Quizzes\Formulario as FormularioQuiz;
 use App\Livewire\Compartido\Tareas\Formulario as FormularioTarea;
+use App\Livewire\Profesor\Actividades;
+use App\Livewire\Profesor\Evaluacion;
 use App\Models\Entrega;
 use App\Models\NotaRubro;
 use App\Models\Quiz;
@@ -32,7 +33,7 @@ class EstadosEvaluacionProfesorTest extends TestCase
         $e = $this->escenario();
         $this->esquemaValido($e['curso']);
 
-        Livewire::actingAs($e['profesor'])->test(Actividades::class, ['curso' => $e['curso']])
+        Livewire::actingAs($e['profesor'])->test(Evaluacion::class, ['curso' => $e['curso']])
             ->assertSee('Falta definir')
             ->assertSee('Aún no hay actividades que cuenten para esta evaluación.')
             ->assertSee('Asignar actividades')
@@ -56,14 +57,14 @@ class EstadosEvaluacionProfesorTest extends TestCase
         Entrega::factory()->create(['tarea_id' => $e['tarea']->id, 'estudiante_id' => $otro->id, 'estado' => 'entregado']);
         ResultadoQuiz::factory()->create(['quiz_id' => $e['quiz']->id, 'estudiante_id' => $e['estudiante']->id, 'puntaje' => 15, 'intento' => 1]);
 
-        Livewire::actingAs($e['profesor'])->test(Actividades::class, ['curso' => $e['curso']])
-            ->assertSee('En proceso (faltan 2 de 4)')
+        Livewire::actingAs($e['profesor'])->test(Evaluacion::class, ['curso' => $e['curso']])
+            ->assertSee('En proceso')->assertSee('2 de 4 notas registradas')
             ->assertSee('quien no entregue una tarea vencida queda con 0 en su parte');
 
         Entrega::where('estudiante_id', $otro->id)->update(['estado' => 'calificado', 'nota' => 12]);
         ResultadoQuiz::factory()->create(['quiz_id' => $e['quiz']->id, 'estudiante_id' => $otro->id, 'puntaje' => 10, 'intento' => 1]);
 
-        Livewire::actingAs($e['profesor'])->test(Actividades::class, ['curso' => $e['curso']])
+        Livewire::actingAs($e['profesor'])->test(Evaluacion::class, ['curso' => $e['curso']])
             ->assertSee('Todos los alumnos tienen nota.')
             ->assertSee('1 de 2 evaluaciones listas');
     }
@@ -76,13 +77,13 @@ class EstadosEvaluacionProfesorTest extends TestCase
         $rubro->tareas()->attach($e['tarea']->id, ['peso' => 100]);
         $e['tarea']->update(['fecha_entrega' => now()->addDay()]);
 
-        Livewire::actingAs($e['profesor'])->test(Actividades::class, ['curso' => $e['curso']])
-            ->assertSee('En proceso (faltan 1 de 1)');
+        Livewire::actingAs($e['profesor'])->test(Evaluacion::class, ['curso' => $e['curso']])
+            ->assertSee('En proceso')->assertSee('0 de 1 notas registradas');
 
         // Vencida y sin entrega: el alumno ya tiene su 0.
         $e['tarea']->update(['fecha_inicio' => now()->subDays(3), 'fecha_entrega' => now()->subDay()]);
 
-        Livewire::actingAs($e['profesor'])->test(Actividades::class, ['curso' => $e['curso']])
+        Livewire::actingAs($e['profesor'])->test(Evaluacion::class, ['curso' => $e['curso']])
             ->assertSee('Todos los alumnos tienen nota.');
     }
 
@@ -92,8 +93,8 @@ class EstadosEvaluacionProfesorTest extends TestCase
         $rubro = $this->esquemaValido($e['curso'])->rubros->first();
         $rubro->update(['modo_calculo' => ModoCalculo::Manual]);
 
-        Livewire::actingAs($e['profesor'])->test(Actividades::class, ['curso' => $e['curso']])
-            ->assertSee('En proceso (faltan 1 de 1)')
+        Livewire::actingAs($e['profesor'])->test(Evaluacion::class, ['curso' => $e['curso']])
+            ->assertSee('En proceso')->assertSee('0 de 1 notas registradas')
             ->assertSee('Regístralas en el libro de calificaciones.');
 
         NotaRubro::create(['rubro_id' => $rubro->id, 'estudiante_id' => $e['estudiante']->id, 'nota' => 14]);

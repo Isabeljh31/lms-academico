@@ -1,393 +1,493 @@
 {{--
-    Actividades del Profesor del curso: pestañas "Actividades" (tareas y
-    quizzes en una lista) y "Banco de preguntas". La pestaña, el filtro y la
-    búsqueda viven en el componente (y en la URL), así que sobreviven a los
-    re-renders. Alpine cambia de pestaña sin pedir al servidor.
+    Pantallas «Actividades» y «Evaluación» del curso (Profesor), mismo
+    componente ($seccion):
+    - Actividades: resumen de la nota final, la lista de tareas y quizzes
+      (filtros por tipo y evaluación, búsqueda, estado y menú por fila) y el
+      Banco de preguntas.
+    - Evaluación: la nota final con sus evaluaciones y una tarjeta por cada una
+      (actividades que cuentan, notas registradas y qué falta).
+    La pestaña, los filtros y la búsqueda viven en el componente (y en la URL).
 --}}
 @php
     $estiloTipo = [
-        'tarea' => ['etiqueta' => 'Tarea', 'icono' => 'tarea', 'caja' => 'bg-azul-oscuro/15 text-azul-oscuro dark:bg-azul-oscuro/25 dark:text-azul-fondo', 'insignia' => 'bg-azul-oscuro text-white dark:bg-azul-fondo'],
-        'quiz' => ['etiqueta' => 'Quiz', 'icono' => 'quiz', 'caja' => 'bg-cielo-claro text-imperial dark:bg-azul-borde-oscuro dark:text-cielo', 'insignia' => 'bg-cielo-claro text-imperial ring-1 ring-inset ring-azul-fondo/40 dark:bg-azul-borde-oscuro dark:text-cielo'],
+        'tarea' => ['etiqueta' => 'Tarea', 'icono' => 'check-circulo', 'insignia' => 'bg-azul-oscuro text-white'],
+        'quiz' => ['etiqueta' => 'Quiz', 'icono' => 'quiz', 'insignia' => 'bg-celeste text-texto'],
     ];
     $claseEstado = fn (string $estado) => match (true) {
         str_starts_with($estado, 'Publicado') => 'bg-exito-base/15 text-exito-oscuro',
-        str_starts_with($estado, 'Programado') => 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
-        default => 'bg-celeste text-slate-700 dark:bg-azul-borde-oscuro dark:text-slate-200',
+        str_starts_with($estado, 'Programado') => 'bg-amber-100 text-amber-800',
+        default => 'bg-celeste text-slate-700',
     };
     // Asistente «¿Qué quieres crear?»: el tipo abre el formulario existente mostrando solo lo necesario (?tipo=).
-    $neutra = 'bg-celeste text-slate-700 dark:bg-azul-borde-oscuro dark:text-slate-200';
+    $neutra = 'bg-celeste text-slate-700';
     $opcionesCrear = [
-        ['etiqueta' => 'Práctica calificada', 'icono' => 'tarea', 'descripcion' => 'Los alumnos suben archivos, solos o en grupo. Cuenta para una evaluación.', 'url' => route('cursos.tareas.crear', [$curso, 'desde' => 'actividades', 'tipo' => 'practica']), 'caja' => $estiloTipo['tarea']['caja']],
-        ['etiqueta' => 'Examen o quiz calificado', 'icono' => 'quiz', 'descripcion' => 'Preguntas que se califican solas (o una entrega). Cuenta para una evaluación.', 'url' => route('cursos.quizzes.crear', [$curso, 'desde' => 'actividades', 'tipo' => 'examen']), 'caja' => $estiloTipo['quiz']['caja']],
+        ['etiqueta' => 'Práctica calificada', 'icono' => 'tarea', 'descripcion' => 'Los alumnos suben archivos, solos o en grupo. Cuenta para una evaluación.', 'url' => route('cursos.tareas.crear', [$curso, 'desde' => 'actividades', 'tipo' => 'practica']), 'caja' => 'bg-azul-oscuro/10 text-azul-oscuro'],
+        ['etiqueta' => 'Examen o quiz calificado', 'icono' => 'quiz', 'descripcion' => 'Preguntas que se califican solas (o una entrega). Cuenta para una evaluación.', 'url' => route('cursos.quizzes.crear', [$curso, 'desde' => 'actividades', 'tipo' => 'examen']), 'caja' => 'bg-cielo-claro text-imperial'],
         ['etiqueta' => 'Quiz de práctica', 'icono' => 'bombilla', 'descripcion' => 'Para repasar. No cuenta para la nota.', 'url' => route('cursos.quizzes.crear', [$curso, 'desde' => 'actividades', 'tipo' => 'practica']), 'caja' => $neutra],
         ['etiqueta' => 'Entrega sin nota', 'icono' => 'documento', 'descripcion' => 'Solo para que suban material (ppt, informes). No lleva nota.', 'url' => route('cursos.tareas.crear', [$curso, 'desde' => 'actividades', 'tipo' => 'entrega']), 'caja' => $neutra],
     ];
     // Un color por evaluación (en el orden del esquema), igual en la barra, la tarjeta y las insignias de la lista.
     $paletaEvaluaciones = [
-        ['barra' => 'bg-azul-oscuro text-white', 'tenue' => 'bg-azul-oscuro/20 text-azul-oscuro dark:text-azul-fondo', 'borde' => 'border-t-azul-oscuro', 'peso' => 'text-azul-oscuro dark:text-azul-fondo', 'relleno' => 'bg-azul-oscuro dark:bg-azul-fondo', 'insignia' => 'border-azul-oscuro/30 bg-azul-oscuro/10 text-azul-oscuro dark:border-azul-fondo/40 dark:text-azul-fondo'],
-        ['barra' => 'bg-cielo text-imperial', 'tenue' => 'bg-cielo/25 text-imperial dark:text-cielo', 'borde' => 'border-t-cielo', 'peso' => 'text-imperial dark:text-cielo', 'relleno' => 'bg-cielo', 'insignia' => 'border-cielo/50 bg-cielo-claro text-imperial dark:bg-cielo/10 dark:text-cielo'],
-        ['barra' => 'bg-azul-fondo text-white', 'tenue' => 'bg-azul-fondo/20 text-azul-fondo', 'borde' => 'border-t-azul-fondo', 'peso' => 'text-azul-fondo', 'relleno' => 'bg-azul-fondo', 'insignia' => 'border-azul-fondo/30 bg-azul-fondo/10 text-azul-fondo'],
-        ['barra' => 'bg-imperial text-white', 'tenue' => 'bg-imperial/20 text-imperial dark:text-slate-200', 'borde' => 'border-t-imperial', 'peso' => 'text-imperial dark:text-slate-200', 'relleno' => 'bg-imperial dark:bg-slate-300', 'insignia' => 'border-imperial/30 bg-imperial/10 text-imperial dark:text-slate-200'],
+        ['barra' => 'bg-azul-oscuro', 'borde' => 'border-t-azul-oscuro', 'relleno' => 'bg-azul-oscuro'],
+        ['barra' => 'bg-cielo', 'borde' => 'border-t-cielo', 'relleno' => 'bg-cielo'],
+        ['barra' => 'bg-azul-fondo', 'borde' => 'border-t-azul-fondo', 'relleno' => 'bg-azul-fondo'],
+        ['barra' => 'bg-imperial', 'borde' => 'border-t-imperial', 'relleno' => 'bg-imperial'],
     ];
     $colorDeEvaluacion = fn (int $rubroId) => $paletaEvaluaciones[max(0, $rubros->search(fn ($rubro) => $rubro->id === $rubroId)) % count($paletaEvaluaciones)];
     // Estado de cada evaluación (App\Services\Evaluacion\AvanceEvaluaciones).
     $estadoEvaluacion = [
-        'lista' => 'bg-exito-base/15 text-exito-oscuro dark:text-green-300',
-        'en_proceso' => 'bg-cielo-claro text-imperial ring-1 ring-inset ring-azul-fondo/40 dark:bg-azul-borde-oscuro dark:text-cielo',
-        'falta_definir' => 'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+        'lista' => ['etiqueta' => 'Lista', 'pildora' => 'bg-exito-base/15 text-exito-oscuro', 'siguiente' => 'bg-exito-base/10 text-exito-oscuro'],
+        'en_proceso' => ['etiqueta' => 'En proceso', 'pildora' => 'bg-celeste text-texto', 'siguiente' => 'bg-celeste/70 text-texto'],
+        'falta_definir' => ['etiqueta' => 'Falta definir', 'pildora' => 'bg-amber-100 text-amber-800', 'siguiente' => 'bg-amber-50 text-amber-900'],
     ];
-    $etiquetaEvaluacion = fn (array $avance) => match ($avance['estado']) {
-        'lista' => 'Lista',
-        'en_proceso' => $avance['total'] > 0 && $avance['faltan'] > 0 ? "En proceso (faltan {$avance['faltan']} de {$avance['total']})" : 'En proceso',
-        default => 'Falta definir',
-    };
     $formatoPeso = fn (float $valor) => rtrim(rtrim(number_format($valor, 2, ',', ''), '0'), ',');
+    $pildoraDato = 'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold';
+    $listas = collect($avances)->where('estado', 'lista')->count();
+    $primeraSinDefinir = $rubros->first(fn ($rubro) => ($avances[$rubro->id]['estado'] ?? null) === 'falta_definir');
+    $resumenListas = $listas.' de '.$rubros->count().' '.($rubros->count() === 1 ? 'evaluación lista' : 'evaluaciones listas').' · Sobre 20';
 @endphp
 {{-- relative: contiene los textos sr-only (position: absolute) para que no estiren la página fuera de la columna con scroll. --}}
 <div class="relative py-8">
     <div class="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
-        <a href="{{ route('cursos.show', $curso) }}" wire:navigate class="inline-flex items-center gap-1 text-sm font-medium text-azul-oscuro hover:underline dark:text-azul-fondo">
-            <x-icono nombre="flecha-izquierda" class="h-4 w-4" /> {{ $curso->nombre }}
-        </a>
+        <x-gestion.volver :href="route('cursos.show', $curso)" :texto="$curso->nombre" class="-mb-3" />
 
-        <x-gestion.encabezado titulo="Actividades" icono="tarea"
-            descripcion="Tareas y quizzes del curso en un solo lugar, y el banco de preguntas para armar tus quizzes.">
-            @if ($editable)
-                {{-- Asistente sin ida al servidor (Alpine): Esc o clic fuera cierra y el foco vuelve al botón; flechas recorren las tarjetas. --}}
-                <div x-data="{ abierto: false, cerrar() { this.abierto = false; this.$nextTick(() => this.$refs.boton.focus()) } }"
-                    x-on:keydown.escape.window="if (abierto) cerrar()">
-                    <x-gestion.boton icono="mas" x-ref="boton" aria-haspopup="dialog" aria-controls="asistente-crear" aria-expanded="false" x-bind:aria-expanded="abierto.toString()"
-                        x-on:click="abierto = true; $nextTick(() => $focus.within($refs.tarjetas).first())">
-                        Crear actividad
-                    </x-gestion.boton>
-                    <div x-show="abierto" style="display: none" x-on:click.self="cerrar()"
-                        x-transition.opacity.duration.150ms
-                        class="fixed inset-0 z-50 flex items-end justify-center bg-stone-900/50 p-0 sm:items-center sm:p-4">
-                        <div id="asistente-crear" role="dialog" aria-modal="true" aria-labelledby="titulo-asistente-crear" x-trap.noscroll="abierto"
-                            class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white shadow-2xl dark:bg-azul-superficie-oscura sm:rounded-2xl">
-                            <div class="flex items-start justify-between gap-4 border-b border-celeste px-5 py-4 dark:border-azul-borde-oscuro">
-                                <div class="flex min-w-0 items-start gap-3">
-                                    <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-celeste text-azul-oscuro dark:bg-azul-borde-oscuro dark:text-azul-fondo">
-                                        <x-icono nombre="mas" class="h-5 w-5" />
-                                    </span>
-                                    <div class="min-w-0">
-                                        <h2 id="titulo-asistente-crear" class="text-lg font-bold text-texto dark:text-slate-100">¿Qué quieres crear?</h2>
-                                        <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Elige el tipo: el formulario mostrará solo lo necesario.</p>
+        @if ($seccion === 'evaluacion')
+            <x-gestion.encabezado titulo="Evaluación" icono="grafico"
+                descripcion="Cómo se calcula la nota final del curso. Los pesos los define el supervisor." />
+        @else
+            <x-gestion.encabezado titulo="Actividades" icono="check-circulo"
+                descripcion="Tareas y quizzes del curso en un solo lugar, y el banco de preguntas para armar tus quizzes.">
+                @if ($editable)
+                    {{-- Asistente sin ida al servidor (Alpine): Esc o clic fuera cierra y el foco vuelve al botón; flechas recorren las tarjetas. --}}
+                    <div x-data="{ abierto: false, cerrar() { this.abierto = false; this.$nextTick(() => this.$refs.boton.focus()) } }"
+                        x-on:keydown.escape.window="if (abierto) cerrar()">
+                        <x-gestion.boton icono="mas" x-ref="boton" aria-haspopup="dialog" aria-controls="asistente-crear" aria-expanded="false" x-bind:aria-expanded="abierto.toString()"
+                            x-on:click="abierto = true; $nextTick(() => $focus.within($refs.tarjetas).first())">
+                            Crear actividad
+                        </x-gestion.boton>
+                        <div x-show="abierto" style="display: none" x-on:click.self="cerrar()"
+                            x-transition.opacity.duration.150ms
+                            class="fixed inset-0 z-50 flex items-end justify-center bg-stone-900/50 p-0 sm:items-center sm:p-4">
+                            <div id="asistente-crear" role="dialog" aria-modal="true" aria-labelledby="titulo-asistente-crear" x-trap.noscroll="abierto"
+                                class="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl">
+                                <div class="flex items-start justify-between gap-4 border-b border-celeste px-5 py-4">
+                                    <div class="flex min-w-0 items-start gap-3">
+                                        <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-celeste text-azul-oscuro">
+                                            <x-icono nombre="mas" class="h-5 w-5" />
+                                        </span>
+                                        <div class="min-w-0">
+                                            <h2 id="titulo-asistente-crear" class="text-2xl text-texto">¿Qué quieres crear?</h2>
+                                            <p class="mt-1 text-xs text-slate-500">Elige el tipo: el formulario mostrará solo lo necesario.</p>
+                                        </div>
                                     </div>
+                                    <button type="button" x-on:click="cerrar()" aria-label="Cerrar"
+                                        class="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-celeste hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro">
+                                        <x-icono nombre="cerrar" class="h-5 w-5" />
+                                    </button>
                                 </div>
-                                <button type="button" x-on:click="cerrar()" aria-label="Cerrar"
-                                    class="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-celeste hover:text-slate-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro dark:hover:bg-azul-borde-oscuro">
-                                    <x-icono nombre="cerrar" class="h-5 w-5" />
-                                </button>
-                            </div>
-                            <ul x-ref="tarjetas" class="grid grid-cols-1 gap-3 px-5 py-4 sm:grid-cols-2"
-                                x-on:keydown.arrow-down.prevent="$focus.within($refs.tarjetas).wrap().next()"
-                                x-on:keydown.arrow-right.prevent="$focus.within($refs.tarjetas).wrap().next()"
-                                x-on:keydown.arrow-up.prevent="$focus.within($refs.tarjetas).wrap().previous()"
-                                x-on:keydown.arrow-left.prevent="$focus.within($refs.tarjetas).wrap().previous()">
-                                @foreach ($opcionesCrear as $opcion)
-                                    <li>
-                                        <a href="{{ $opcion['url'] }}" wire:navigate
-                                            class="flex h-full items-start gap-3 rounded-xl border border-celeste bg-white p-4 shadow-sm transition-colors hover:border-azul-oscuro hover:bg-fondo focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro motion-reduce:transition-none dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura dark:hover:border-azul-fondo dark:hover:bg-azul-pagina-oscura">
-                                            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl {{ $opcion['caja'] }}">
-                                                <x-icono :nombre="$opcion['icono']" stroke-width="2" class="h-6 w-6" />
-                                            </span>
-                                            <span class="min-w-0">
-                                                <span class="block font-semibold text-texto dark:text-slate-100">{{ $opcion['etiqueta'] }}</span>
-                                                <span class="mt-0.5 block text-sm text-slate-600 dark:text-slate-300">{{ $opcion['descripcion'] }}</span>
-                                            </span>
-                                        </a>
-                                    </li>
-                                @endforeach
-                            </ul>
-                            <p class="border-t border-celeste px-5 py-3 text-xs text-slate-500 dark:border-azul-borde-oscuro dark:text-slate-400">
-                                ¿Prefieres el formulario completo?
-                                <a href="{{ route('cursos.tareas.crear', [$curso, 'desde' => 'actividades']) }}" wire:navigate class="font-semibold text-azul-oscuro hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro dark:text-azul-fondo">Tarea</a>
-                                ·
-                                <a href="{{ route('cursos.quizzes.crear', [$curso, 'desde' => 'actividades']) }}" wire:navigate class="font-semibold text-azul-oscuro hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro dark:text-azul-fondo">Quiz</a>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            @endif
-        </x-gestion.encabezado>
-
-        <x-gestion.alertas />
-
-        @if ($rubros->isNotEmpty())
-            @php $listas = collect($avances)->where('estado', 'lista')->count(); @endphp
-            <section aria-labelledby="titulo-nota-final" class="space-y-4">
-                <x-gestion.tarjeta>
-                    <div class="flex flex-wrap items-baseline justify-between gap-2">
-                        <h2 id="titulo-nota-final" class="flex items-center gap-1.5 text-base font-semibold text-texto dark:text-slate-100">
-                            Nota final del curso
-                            <x-gestion.ayuda texto="El Supervisor fijó las evaluaciones y sus pesos. Tú decides qué actividades cuentan y cuánto pesa cada una dentro de la evaluación. Tus alumnos solo ven su nota." />
-                        </h2>
-                        <p class="text-sm text-slate-500 dark:text-slate-400">{{ $listas }} de {{ $rubros->count() }} {{ $rubros->count() === 1 ? 'evaluación lista' : 'evaluaciones listas' }} · Sobre 20</p>
-                    </div>
-                    <div class="mt-3 flex h-9 gap-1 overflow-hidden rounded-lg" aria-hidden="true">
-                        @foreach ($rubros as $rubro)
-                            @php $color = $colorDeEvaluacion($rubro->id); @endphp
-                            <div wire:key="barra-{{ $rubro->id }}" style="flex: {{ (float) $rubro->peso }} 1 0%"
-                                class="flex min-w-0 items-center px-3 text-xs font-bold {{ $avances[$rubro->id]['estado'] === 'falta_definir' ? $color['tenue'] : $color['barra'] }}">
-                                <span class="truncate">{{ $rubro->nombre }} · {{ (float) $rubro->peso }} %</span>
-                            </div>
-                        @endforeach
-                    </div>
-                </x-gestion.tarjeta>
-
-                <ul class="grid gap-4 md:grid-cols-2">
-                    @foreach ($rubros as $rubro)
-                        @php
-                            $color = $colorDeEvaluacion($rubro->id);
-                            $avance = $avances[$rubro->id];
-                            $faltaDefinir = $avance['estado'] === 'falta_definir';
-                            // Las prácticas de campo se muestran agrupadas en una línea (su tramo), no una por una.
-                            $idsPracticas = $rubro->tareas->whereNotNull('practica')->modelKeys();
-                            $vinculadas = $rubro->actividadesVinculadas()->reject(fn (array $vinculada) => $vinculada['tipo'] === 'tarea' && in_array($vinculada['id'], $idsPracticas, true))->values();
-                            $siguiente = match (true) {
-                                $faltaDefinir && $vinculadas->isNotEmpty() => 'Ajusta los pesos de sus actividades para que sumen 100 %.',
-                                $faltaDefinir => 'Asigna una práctica o un examen para que esta evaluación tenga nota. Sin eso, no aparecerá en la nota final.',
-                                $avance['estado'] === 'lista' => 'Todos los alumnos tienen nota.',
-                                $avance['practicas'] > 0 => "Prepara ".($avance['practicas'] === 1 ? 'la práctica de campo que falta' : "las {$avance['practicas']} prácticas de campo que faltan").' del tramo: hasta entonces esta evaluación no tiene nota.',
-                                $avance['total'] === 0 => 'Cuando haya alumnos matriculados podrás registrar sus notas.',
-                                $rubro->esAutomatico() => "Faltan {$avance['faltan']} ".($avance['faltan'] === 1 ? 'nota' : 'notas').'. Califica las entregas pendientes; quien no entregue una tarea vencida queda con 0 en su parte.',
-                                default => "Faltan {$avance['faltan']} ".($avance['faltan'] === 1 ? 'nota' : 'notas').'. Regístralas en el libro de calificaciones.',
-                            };
-                        @endphp
-                        <li wire:key="evaluacion-{{ $rubro->id }}"
-                            class="flex flex-col gap-3 rounded-xl border border-t-4 border-celeste bg-white p-4 shadow-sm dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura dark:shadow-none {{ $color['borde'] }}">
-                            <div class="flex items-start justify-between gap-3">
-                                <div class="min-w-0 space-y-1.5">
-                                    <h3 class="font-semibold text-texto dark:text-slate-100">{{ $rubro->nombre }}</h3>
-                                    <div class="flex flex-wrap items-center gap-1.5 text-xs">
-                                        <span class="rounded-full px-2 py-0.5 font-semibold {{ $estadoEvaluacion[$avance['estado']] }}">{{ $etiquetaEvaluacion($avance) }}</span>
-                                        @if ($rubro->modo_calculo)
-                                            <span class="rounded-full bg-celeste px-2 py-0.5 font-semibold text-slate-700 dark:bg-azul-borde-oscuro dark:text-slate-200">{{ $rubro->modo_calculo->etiqueta() }}</span>
-                                        @endif
-                                        <span class="text-slate-500 dark:text-slate-400">{{ $rubro->semana ? 'Semana '.$rubro->semana : 'Sin semana' }}</span>
-                                    </div>
-                                </div>
-                                <p class="shrink-0 text-right">
-                                    <span class="block text-2xl font-extrabold leading-none {{ $color['peso'] }}">{{ (float) $rubro->peso }} %</span>
-                                    <span class="text-xs text-slate-500 dark:text-slate-400">de la nota final</span>
-                                </p>
-                            </div>
-
-                            @if ($rubro->tienePracticas())
-                                <div class="space-y-1">
-                                    <div class="flex items-center gap-2 text-sm">
-                                        <span class="shrink-0 rounded-md bg-exito-base/15 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-exito-oscuro">Campo</span>
-                                        <span class="min-w-0 flex-1 truncate text-texto dark:text-slate-100">Prácticas de campo {{ $rubro->practica_desde }}{{ $rubro->practica_hasta !== $rubro->practica_desde ? '–'.$rubro->practica_hasta : '' }}</span>
-                                        <span class="shrink-0 font-semibold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso((float) $rubro->peso_practicas) }} %</span>
-                                    </div>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400">
-                                        Cada práctica vale {{ $formatoPeso((float) $rubro->peso_practicas / $rubro->cantidadPracticas()) }} % · {{ count($idsPracticas) }} de {{ $rubro->cantidadPracticas() }} con entrega preparada
-                                    </p>
-                                </div>
-                            @endif
-
-                            @if ($vinculadas->isNotEmpty())
-                                <ul class="space-y-2.5" aria-label="Actividades de {{ $rubro->nombre }}">
-                                    @foreach ($vinculadas as $vinculada)
-                                        <li wire:key="vinculada-{{ $rubro->id }}-{{ $vinculada['tipo'] }}-{{ $vinculada['id'] }}" class="flex items-center gap-2 text-sm">
-                                            <span class="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide {{ $estiloTipo[$vinculada['tipo']]['insignia'] }}">{{ $estiloTipo[$vinculada['tipo']]['etiqueta'] }}</span>
-                                            <span class="min-w-0 flex-1 truncate text-texto dark:text-slate-100">{{ $vinculada['titulo'] }}</span>
-                                            <span class="shrink-0 font-semibold tabular-nums text-texto dark:text-slate-100">{{ $formatoPeso($vinculada['peso']) }} %</span>
+                                <ul x-ref="tarjetas" class="grid grid-cols-1 gap-3 px-5 py-4 sm:grid-cols-2"
+                                    x-on:keydown.arrow-down.prevent="$focus.within($refs.tarjetas).wrap().next()"
+                                    x-on:keydown.arrow-right.prevent="$focus.within($refs.tarjetas).wrap().next()"
+                                    x-on:keydown.arrow-up.prevent="$focus.within($refs.tarjetas).wrap().previous()"
+                                    x-on:keydown.arrow-left.prevent="$focus.within($refs.tarjetas).wrap().previous()">
+                                    @foreach ($opcionesCrear as $opcion)
+                                        <li>
+                                            <a href="{{ $opcion['url'] }}" wire:navigate
+                                                class="flex h-full items-start gap-3 rounded-xl border border-celeste bg-white p-4 transition-colors hover:border-azul-oscuro hover:bg-fondo focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro motion-reduce:transition-none">
+                                                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl {{ $opcion['caja'] }}">
+                                                    <x-icono :nombre="$opcion['icono']" stroke-width="2" class="h-6 w-6" />
+                                                </span>
+                                                <span class="min-w-0">
+                                                    <span class="block font-semibold text-texto">{{ $opcion['etiqueta'] }}</span>
+                                                    <span class="mt-0.5 block text-sm text-slate-600">{{ $opcion['descripcion'] }}</span>
+                                                </span>
+                                            </a>
                                         </li>
                                     @endforeach
                                 </ul>
-                            @elseif (! $rubro->tienePracticas())
-                                <p class="rounded-lg border border-dashed border-celeste px-3 py-2.5 text-sm text-slate-600 dark:border-azul-borde-oscuro dark:text-slate-300">
-                                    {{ $faltaDefinir ? 'Aún no hay actividades que cuenten para esta evaluación.' : 'Su nota la escribes tú en el libro de calificaciones.' }}
+                                <p class="border-t border-celeste px-5 py-3 text-xs text-slate-500">
+                                    ¿Prefieres el formulario completo?
+                                    <a href="{{ route('cursos.tareas.crear', [$curso, 'desde' => 'actividades']) }}" wire:navigate class="font-semibold text-azul-oscuro hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro">Tarea</a>
+                                    ·
+                                    <a href="{{ route('cursos.quizzes.crear', [$curso, 'desde' => 'actividades']) }}" wire:navigate class="font-semibold text-azul-oscuro hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro">Quiz</a>
                                 </p>
-                            @endif
-
-                            <p class="flex items-start gap-1.5 rounded-lg bg-fondo px-3 py-2 text-xs text-slate-600 dark:bg-azul-pagina-oscura dark:text-slate-300">
-                                <x-icono nombre="flecha-derecha" class="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                                <span><span class="font-semibold text-texto dark:text-slate-100">Siguiente:</span> {{ $siguiente }}</span>
-                            </p>
-
-                            <div class="mt-auto flex flex-wrap gap-2">
-                                @if ($editable)
-                                    <x-gestion.boton :variante="$faltaDefinir ? 'primario' : 'secundario'" tamano="sm" :icono="$faltaDefinir ? 'mas' : 'lapiz'"
-                                        wire:click="configurarCalculo({{ $rubro->id }})" wire:loading.attr="disabled" wire:target="configurarCalculo({{ $rubro->id }})"
-                                        aria-label="{{ $faltaDefinir ? 'Asignar actividades a' : 'Cambiar reparto de' }} {{ $rubro->nombre }}">
-                                        {{ $faltaDefinir ? 'Asignar actividades' : 'Cambiar reparto' }}
-                                    </x-gestion.boton>
-                                @endif
-                                <x-gestion.boton variante="fantasma" tamano="sm" icono="lista" :href="route('cursos.libro-calificaciones', $curso)">
-                                    {{ $editable && ! $rubro->esAutomatico() ? 'Registrar notas' : 'Ver notas' }}
-                                </x-gestion.boton>
                             </div>
-                        </li>
-                    @endforeach
-                </ul>
-
-                @if ($curso->tienePracticasCampo())
-                    <livewire:compartido.cursos.practicas-evaluaciones :curso="$curso" :editable="$editable" :key="'practicas-evaluaciones-'.$curso->id" />
+                        </div>
+                    </div>
                 @endif
-            </section>
-        @else
-            <x-gestion.tarjeta titulo="Nota final del curso">
-                <p class="text-sm text-slate-600 dark:text-slate-300">El Supervisor todavía no definió las evaluaciones del curso. Cuando lo haga, aquí podrás asignar las actividades que cuentan para cada una.</p>
-            </x-gestion.tarjeta>
+            </x-gestion.encabezado>
         @endif
 
+        @include('livewire.profesor.cursos._pestanas-pildora', ['activa' => $seccion])
+
+        <x-gestion.alertas />
+
         @if (! $editable)
-            <div role="alert" class="flex items-start gap-3 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+            <div role="alert" class="flex items-start gap-3 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                 <x-icono nombre="archivo" class="h-5 w-5 shrink-0" />
                 <p>Curso archivado (finalizado): se puede consultar, pero no admite cambios.</p>
             </div>
         @endif
 
-        <div x-data="{
-                pestanas: @js(array_keys(\App\Livewire\Profesor\Actividades::PESTANAS)),
-                get activa() { return this.$wire.pestana },
-                elegir(clave, enfocar = false) {
-                    this.$wire.pestana = clave;
-                    if (enfocar) this.$nextTick(() => document.getElementById('pestana-' + clave)?.focus());
-                },
-                mover(paso) {
-                    const i = this.pestanas.indexOf(this.activa);
-                    this.elegir(this.pestanas[(i + paso + this.pestanas.length) % this.pestanas.length], true);
-                },
-            }">
-            <div role="tablist" aria-label="Apartados de Actividades" class="flex gap-1 border-b border-celeste dark:border-azul-borde-oscuro"
-                x-on:keydown.arrow-right.prevent="mover(1)" x-on:keydown.arrow-left.prevent="mover(-1)"
-                x-on:keydown.home.prevent="elegir(pestanas[0], true)" x-on:keydown.end.prevent="elegir(pestanas[pestanas.length - 1], true)">
-                @foreach (\App\Livewire\Profesor\Actividades::PESTANAS as $clave => $etiqueta)
-                    @php $esActiva = $pestana === $clave; @endphp
-                    <button type="button" role="tab" id="pestana-{{ $clave }}" aria-controls="panel-{{ $clave }}"
-                        aria-selected="{{ $esActiva ? 'true' : 'false' }}" x-bind:aria-selected="(activa === '{{ $clave }}').toString()"
-                        tabindex="{{ $esActiva ? '0' : '-1' }}" x-bind:tabindex="activa === '{{ $clave }}' ? 0 : -1"
-                        x-on:click="elegir('{{ $clave }}')"
-                        @class(['-mb-px inline-flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro',
-                            'border-azul-oscuro text-azul-oscuro dark:border-azul-fondo dark:text-azul-fondo' => $esActiva,
-                            'border-transparent text-slate-600 hover:text-azul-oscuro dark:text-slate-300' => ! $esActiva])
-                        x-bind:class="{
-                            'border-azul-oscuro text-azul-oscuro dark:border-azul-fondo dark:text-azul-fondo': activa === '{{ $clave }}',
-                            'border-transparent text-slate-600 hover:text-azul-oscuro dark:text-slate-300': activa !== '{{ $clave }}',
-                        }">
-                        <x-icono :nombre="$clave === 'banco' ? 'base-datos' : 'lista'" class="h-4 w-4" />
-                        {{ $etiqueta }}
-                    </button>
-                @endforeach
-            </div>
+        @if ($seccion === 'evaluacion' && $rubros->isEmpty())
+            <x-gestion.tarjeta titulo="Nota final del curso">
+                <p class="text-sm text-slate-600">El Supervisor todavía no definió las evaluaciones del curso. Cuando lo haga, aquí podrás asignar las actividades que cuentan para cada una.</p>
+            </x-gestion.tarjeta>
+        @elseif ($seccion === 'evaluacion')
+            {{-- ======================= EVALUACIÓN ======================= --}}
+            <section aria-labelledby="titulo-nota-final" class="rounded-2xl border border-celeste bg-white p-5 sm:p-6">
+                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <h2 id="titulo-nota-final" class="flex items-center gap-1.5 text-[28px] text-texto">
+                        Nota final del curso
+                        <x-gestion.ayuda texto="El Supervisor fijó las evaluaciones y sus pesos. Tú decides qué actividades cuentan y cuánto pesa cada una dentro de la evaluación. Tus alumnos solo ven su nota." />
+                    </h2>
+                    <p class="text-sm text-slate-500">{{ $resumenListas }}</p>
+                </div>
+                {{-- Barra proporcional a los pesos, con el nombre, peso, semana y estado de cada evaluación debajo. --}}
+                <ol class="mt-4 flex flex-col gap-4 sm:flex-row sm:gap-1">
+                    @foreach ($rubros as $rubro)
+                        @php $avance = $avances[$rubro->id]; $color = $colorDeEvaluacion($rubro->id); @endphp
+                        <li wire:key="segmento-{{ $rubro->id }}" style="flex: {{ (float) $rubro->peso }} 1 0%" class="min-w-0">
+                            <span class="block h-3.5 rounded-full {{ $avance['estado'] === 'falta_definir' ? 'bg-celeste' : $color['barra'] }}" aria-hidden="true"></span>
+                            <p class="mt-2.5 truncate text-sm font-semibold text-texto">{{ $rubro->nombre }}</p>
+                            <p class="text-sm text-slate-500">{{ (float) $rubro->peso }} % · {{ $rubro->semana ? 'Semana '.$rubro->semana : 'Sin semana' }}</p>
+                            <span class="mt-1.5 {{ $pildoraDato }} {{ $estadoEvaluacion[$avance['estado']]['pildora'] }}">{{ $estadoEvaluacion[$avance['estado']]['etiqueta'] }}</span>
+                        </li>
+                    @endforeach
+                </ol>
+            </section>
 
-            {{-- Pestaña Actividades --}}
-            <div id="panel-actividades" role="tabpanel" aria-labelledby="pestana-actividades" tabindex="0"
-                x-show="activa === 'actividades'" @unless ($pestana === 'actividades') style="display: none" @endunless
-                class="space-y-4 pt-5 focus:outline-none">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div role="group" aria-label="Filtrar actividades" class="inline-flex w-full flex-wrap rounded-lg border border-celeste bg-white p-1 dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura sm:w-auto">
-                        @foreach (\App\Livewire\Profesor\Actividades::FILTROS as $clave => $etiqueta)
-                            @php $cantidad = match ($clave) { 'tareas' => $totales['tareas'], 'quizzes' => $totales['quizzes'], 'sin_evaluacion' => $totales['sin_evaluacion'], default => $totales['tareas'] + $totales['quizzes'] }; @endphp
-                            <button type="button" wire:click="filtrar('{{ $clave }}')" aria-pressed="{{ $tipo === $clave ? 'true' : 'false' }}"
-                                @class(['flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro sm:flex-none',
-                                    'bg-azul-oscuro text-white dark:bg-azul-fondo' => $tipo === $clave,
-                                    'text-slate-700 hover:bg-celeste dark:text-slate-200 dark:hover:bg-azul-borde-oscuro' => $tipo !== $clave])>
-                                {{ $etiqueta }} <span class="ml-0.5 text-xs opacity-80">{{ $cantidad }}</span>
-                            </button>
+            <ul class="grid gap-5 md:grid-cols-2">
+                @foreach ($rubros as $rubro)
+                    @php
+                        $color = $colorDeEvaluacion($rubro->id);
+                        $avance = $avances[$rubro->id];
+                        $estado = $estadoEvaluacion[$avance['estado']];
+                        $faltaDefinir = $avance['estado'] === 'falta_definir';
+                        // Las prácticas de campo se muestran agrupadas en una línea (su tramo), no una por una.
+                        $idsPracticas = $rubro->tareas->whereNotNull('practica')->modelKeys();
+                        $vinculadas = $rubro->actividadesVinculadas()->reject(fn (array $vinculada) => $vinculada['tipo'] === 'tarea' && in_array($vinculada['id'], $idsPracticas, true))->values();
+                        $cantidadActividades = $vinculadas->count() + count($idsPracticas);
+                        $registradas = max(0, $avance['total'] - $avance['faltan']);
+                        $porcentajeNotas = $avance['total'] > 0 ? (int) round($registradas / $avance['total'] * 100) : 0;
+                        $siguiente = match (true) {
+                            $faltaDefinir && $vinculadas->isNotEmpty() => 'Ajusta los pesos de sus actividades para que sumen 100 %.',
+                            $faltaDefinir => 'Asigna una práctica o un examen para que esta evaluación tenga nota. Sin eso, no aparecerá en la nota final.',
+                            $avance['estado'] === 'lista' => 'Todos los alumnos tienen nota.',
+                            $avance['practicas'] > 0 => 'Prepara '.($avance['practicas'] === 1 ? 'la práctica de campo que falta' : "las {$avance['practicas']} prácticas de campo que faltan").' del tramo: hasta entonces esta evaluación no tiene nota.',
+                            $avance['total'] === 0 => 'Cuando haya alumnos matriculados podrás registrar sus notas.',
+                            $rubro->esAutomatico() => "Faltan {$avance['faltan']} ".($avance['faltan'] === 1 ? 'nota' : 'notas').'. Califica las entregas pendientes; quien no entregue una tarea vencida queda con 0 en su parte.',
+                            default => "Faltan {$avance['faltan']} ".($avance['faltan'] === 1 ? 'nota' : 'notas').'. Regístralas en el libro de calificaciones.',
+                        };
+                    @endphp
+                    <li wire:key="evaluacion-{{ $rubro->id }}"
+                        class="flex flex-col gap-4 rounded-2xl border border-t-4 border-celeste bg-white p-5 {{ $faltaDefinir ? 'border-t-celeste' : $color['borde'] }}">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0 space-y-2">
+                                <h3 class="font-serif text-[28px] leading-tight text-texto">{{ $rubro->nombre }}</h3>
+                                <div class="flex flex-wrap items-center gap-1.5">
+                                    <span class="{{ $pildoraDato }} {{ $estado['pildora'] }}">{{ $estado['etiqueta'] }}</span>
+                                    @if ($rubro->modo_calculo)
+                                        <span class="{{ $pildoraDato }} bg-fondo text-slate-700 ring-1 ring-inset ring-celeste">{{ $rubro->modo_calculo->etiqueta() }}</span>
+                                    @endif
+                                    <span class="{{ $pildoraDato }} bg-fondo text-slate-700 ring-1 ring-inset ring-celeste">{{ $rubro->semana ? 'Semana '.$rubro->semana : 'Sin semana' }}</span>
+                                </div>
+                            </div>
+                            <p class="shrink-0 text-right">
+                                <span class="block text-[40px] font-bold leading-none tabular-nums text-texto">{{ (float) $rubro->peso }} %</span>
+                                <span class="text-sm text-slate-500">de la nota final</span>
+                            </p>
+                        </div>
+
+                        @if (! $faltaDefinir && $avance['total'] > 0)
+                            <div>
+                                <div class="flex items-center justify-between gap-2 text-sm">
+                                    <span class="font-semibold text-texto">{{ $registradas }} de {{ $avance['total'] }} notas registradas</span>
+                                    <span class="text-slate-500">{{ $porcentajeNotas }} %</span>
+                                </div>
+                                <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-celeste" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ $porcentajeNotas }}" aria-label="Notas registradas de {{ $rubro->nombre }}">
+                                    <div class="h-full rounded-full {{ $color['relleno'] }}" style="width: {{ $porcentajeNotas }}%"></div>
+                                </div>
+                            </div>
+                        @endif
+
+                        <div class="border-t border-celeste pt-4">
+                            <p class="rotulo mb-2.5 text-slate-500">Actividades que cuentan y su peso</p>
+                            @if ($rubro->tienePracticas())
+                                <div class="mb-2.5 space-y-1">
+                                    <div class="flex items-center gap-2 text-sm">
+                                        <span class="shrink-0 rounded-md bg-exito-base/15 px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-exito-oscuro">Campo</span>
+                                        <span class="min-w-0 flex-1 truncate text-texto">Prácticas de campo {{ $rubro->practica_desde }}{{ $rubro->practica_hasta !== $rubro->practica_desde ? '–'.$rubro->practica_hasta : '' }}</span>
+                                        <span class="shrink-0 font-semibold tabular-nums text-texto">{{ $formatoPeso((float) $rubro->peso_practicas) }} %</span>
+                                    </div>
+                                    <p class="text-xs text-slate-500">
+                                        Cada práctica vale {{ $formatoPeso((float) $rubro->peso_practicas / $rubro->cantidadPracticas()) }} % · {{ count($idsPracticas) }} de {{ $rubro->cantidadPracticas() }} con entrega preparada
+                                    </p>
+                                </div>
+                            @endif
+                            @if ($vinculadas->isNotEmpty())
+                                <ul class="space-y-2.5" aria-label="Actividades de {{ $rubro->nombre }}">
+                                    @foreach ($vinculadas as $vinculada)
+                                        <li wire:key="vinculada-{{ $rubro->id }}-{{ $vinculada['tipo'] }}-{{ $vinculada['id'] }}" class="flex items-center gap-2.5 text-[15px]">
+                                            <span class="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide {{ $estiloTipo[$vinculada['tipo']]['insignia'] }}">{{ $estiloTipo[$vinculada['tipo']]['etiqueta'] }}</span>
+                                            <span class="min-w-0 flex-1 truncate text-texto">{{ $vinculada['titulo'] }}</span>
+                                            <span class="shrink-0 font-semibold tabular-nums text-texto">{{ $formatoPeso($vinculada['peso']) }} %</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @elseif (! $rubro->tienePracticas())
+                                <p class="rounded-xl border border-dashed border-celeste px-4 py-3.5 text-center text-sm text-slate-600">
+                                    {{ $faltaDefinir ? 'Aún no hay actividades que cuenten para esta evaluación.' : 'Su nota la escribes tú en el libro de calificaciones.' }}
+                                </p>
+                            @endif
+                        </div>
+
+                        <p class="flex items-start gap-2 rounded-xl px-4 py-3 text-sm {{ $estado['siguiente'] }}">
+                            <x-icono nombre="flecha-derecha" class="mt-0.5 h-4 w-4 shrink-0" />
+                            <span><span class="font-semibold">Siguiente:</span> {{ $siguiente }}</span>
+                        </p>
+
+                        <div class="mt-auto flex flex-wrap gap-2">
+                            @if ($editable)
+                                <x-gestion.boton :variante="$faltaDefinir ? 'primario' : 'secundario'" :icono="$faltaDefinir ? 'mas' : 'lapiz'"
+                                    wire:click="configurarCalculo({{ $rubro->id }})" wire:loading.attr="disabled" wire:target="configurarCalculo({{ $rubro->id }})"
+                                    aria-label="{{ $faltaDefinir ? 'Asignar actividades a' : 'Cambiar reparto de' }} {{ $rubro->nombre }}">
+                                    {{ $faltaDefinir ? 'Asignar actividades' : 'Cambiar reparto' }}
+                                </x-gestion.boton>
+                            @endif
+                            <x-gestion.boton variante="secundario" :href="route('cursos.libro-calificaciones', $curso)">
+                                {{ $editable && ! $rubro->esAutomatico() ? 'Registrar notas' : 'Ver notas' }}
+                            </x-gestion.boton>
+                            @if ($cantidadActividades > 0)
+                                <x-gestion.boton variante="fantasma" :href="route('cursos.actividades', [$curso, 'evaluacion' => $rubro->id])">Ver actividades ({{ $cantidadActividades }})</x-gestion.boton>
+                            @endif
+                        </div>
+                    </li>
+                @endforeach
+            </ul>
+
+            @if ($curso->tienePracticasCampo())
+                <livewire:compartido.cursos.practicas-evaluaciones :curso="$curso" :editable="$editable" :key="'practicas-evaluaciones-'.$curso->id" />
+            @endif
+        @else
+            {{-- ======================= ACTIVIDADES ======================= --}}
+            @if ($rubros->isNotEmpty())
+            <section aria-labelledby="titulo-nota-final" class="flex flex-col gap-4 rounded-2xl border border-celeste bg-white px-5 py-4 lg:flex-row lg:items-center">
+                <div class="min-w-0 flex-1">
+                    <div class="flex flex-wrap items-baseline justify-between gap-2">
+                        <h2 id="titulo-nota-final" class="font-sans text-[15px] font-semibold text-texto">Nota final del curso</h2>
+                        <p class="text-sm text-slate-500">{{ $resumenListas }}</p>
+                    </div>
+                    <div class="mt-2 flex h-2.5 gap-1" aria-hidden="true">
+                        @foreach ($rubros as $rubro)
+                            <span wire:key="barra-{{ $rubro->id }}" style="flex: {{ (float) $rubro->peso }} 1 0%"
+                                class="rounded-full {{ $avances[$rubro->id]['estado'] === 'falta_definir' ? 'bg-celeste' : $colorDeEvaluacion($rubro->id)['barra'] }}"></span>
                         @endforeach
                     </div>
-                    <div class="w-full sm:max-w-xs">
-                        <label for="busqueda-actividades" class="sr-only">Buscar actividades</label>
-                        <x-gestion.control id="busqueda-actividades" type="search" icono="lupa" wire:model.live.debounce.300ms="busqueda" placeholder="Buscar por título" />
-                    </div>
+                </div>
+                <div class="flex shrink-0 flex-wrap items-center gap-2">
+                    @if ($primeraSinDefinir)
+                        <span class="{{ $pildoraDato }} bg-amber-100 py-1 text-sm text-amber-800">{{ $primeraSinDefinir->nombre }} sin actividades</span>
+                    @endif
+                    <x-gestion.boton variante="secundario" :href="route('cursos.evaluacion', $curso)">Ver evaluación <x-icono nombre="flecha-derecha" class="h-4 w-4" /></x-gestion.boton>
+                </div>
+            </section>
+            @endif
+
+            <div x-data="{
+                    pestanas: @js(array_keys(\App\Livewire\Profesor\Actividades::PESTANAS)),
+                    get activa() { return this.$wire.pestana },
+                    elegir(clave, enfocar = false) {
+                        this.$wire.pestana = clave;
+                        if (enfocar) this.$nextTick(() => document.getElementById('pestana-' + clave)?.focus());
+                    },
+                    mover(paso) {
+                        const i = this.pestanas.indexOf(this.activa);
+                        this.elegir(this.pestanas[(i + paso + this.pestanas.length) % this.pestanas.length], true);
+                    },
+                }">
+                <div role="tablist" aria-label="Apartados de Actividades" class="flex gap-6 border-b border-celeste"
+                    x-on:keydown.arrow-right.prevent="mover(1)" x-on:keydown.arrow-left.prevent="mover(-1)"
+                    x-on:keydown.home.prevent="elegir(pestanas[0], true)" x-on:keydown.end.prevent="elegir(pestanas[pestanas.length - 1], true)">
+                    @foreach (\App\Livewire\Profesor\Actividades::PESTANAS as $clave => $etiqueta)
+                        @php $esActiva = $pestana === $clave; @endphp
+                        <button type="button" role="tab" id="pestana-{{ $clave }}" aria-controls="panel-{{ $clave }}"
+                            aria-selected="{{ $esActiva ? 'true' : 'false' }}" x-bind:aria-selected="(activa === '{{ $clave }}').toString()"
+                            tabindex="{{ $esActiva ? '0' : '-1' }}" x-bind:tabindex="activa === '{{ $clave }}' ? 0 : -1"
+                            x-on:click="elegir('{{ $clave }}')"
+                            @class(['-mb-px inline-flex items-center gap-2 border-b-2 py-2.5 text-[15px] transition-colors motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro',
+                                'border-texto font-semibold text-texto' => $esActiva,
+                                'border-transparent text-slate-600 hover:text-texto' => ! $esActiva])
+                            x-bind:class="{
+                                'border-texto font-semibold text-texto': activa === '{{ $clave }}',
+                                'border-transparent font-normal text-slate-600 hover:text-texto': activa !== '{{ $clave }}',
+                            }">
+                            <x-icono :nombre="$clave === 'banco' ? 'base-datos' : 'lista'" class="h-[18px] w-[18px]" />
+                            {{ $etiqueta }}
+                        </button>
+                    @endforeach
                 </div>
 
-                @if ($actividades->isEmpty())
-                    <x-gestion.vacio icono="tarea"
-                        :titulo="trim($busqueda) !== '' || $tipo !== 'todas' ? 'Ninguna actividad coincide con los filtros' : 'Todavía no hay actividades en este curso'"
-                        :descripcion="trim($busqueda) !== '' || $tipo !== 'todas' ? 'Prueba con otro tipo o texto de búsqueda.' : 'Crea una tarea o un quiz con el botón «Crear actividad».'" />
-                @else
-                    <x-gestion.tarjeta :relleno="false">
-                        <ul class="divide-y divide-celeste dark:divide-azul-borde-oscuro">
+                {{-- Pestaña Actividades --}}
+                <div id="panel-actividades" role="tabpanel" aria-labelledby="pestana-actividades" tabindex="0"
+                    x-show="activa === 'actividades'" @unless ($pestana === 'actividades') style="display: none" @endunless
+                    class="space-y-4 pt-5 focus:outline-none">
+                    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                        <div role="group" aria-label="Filtrar actividades" class="flex flex-wrap gap-2">
+                            @foreach (\App\Livewire\Profesor\Actividades::FILTROS as $clave => $etiqueta)
+                                @php $cantidad = match ($clave) { 'tareas' => $totales['tareas'], 'quizzes' => $totales['quizzes'], 'sin_evaluacion' => $totales['sin_evaluacion'], default => $totales['tareas'] + $totales['quizzes'] }; @endphp
+                                <button type="button" wire:click="filtrar('{{ $clave }}')" aria-pressed="{{ $tipo === $clave ? 'true' : 'false' }}"
+                                    @class(['inline-flex min-h-10 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition-colors motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro',
+                                        'border-texto bg-texto text-white' => $tipo === $clave,
+                                        'border-celeste bg-white text-slate-700 hover:border-texto/40' => $tipo !== $clave])>
+                                    {{ $etiqueta }} <span class="font-normal opacity-70">{{ $cantidad }}</span>
+                                </button>
+                            @endforeach
+                        </div>
+                        <div class="flex flex-col gap-2 sm:flex-row">
+                            <label class="flex min-h-11 items-center gap-2 rounded-lg border border-celeste bg-white pl-3 text-sm focus-within:ring-2 focus-within:ring-azul-oscuro sm:w-64">
+                                <span class="shrink-0 text-slate-500">Evaluación</span>
+                                <select wire:model.live="filtroEvaluacion" class="min-w-0 flex-1 border-0 bg-transparent py-2 pl-1 pr-8 text-sm text-texto focus:ring-0">
+                                    <option value="">Todas</option>
+                                    @foreach ($rubros as $rubro)
+                                        <option value="{{ $rubro->id }}">{{ $rubro->nombre }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                            <div class="sm:w-72">
+                                <label for="busqueda-actividades" class="sr-only">Buscar actividades</label>
+                                <x-gestion.control id="busqueda-actividades" type="search" icono="lupa" wire:model.live.debounce.300ms="busqueda" placeholder="Buscar por título" class="min-h-11" />
+                            </div>
+                        </div>
+                    </div>
+
+                    @if ($actividades->isEmpty())
+                        <x-gestion.vacio icono="tarea"
+                            :titulo="trim($busqueda) !== '' || $tipo !== 'todas' || $filtroEvaluacion !== '' ? 'Ninguna actividad coincide con los filtros' : 'Todavía no hay actividades en este curso'"
+                            :descripcion="trim($busqueda) !== '' || $tipo !== 'todas' || $filtroEvaluacion !== '' ? 'Prueba con otro tipo, evaluación o texto de búsqueda.' : 'Crea una tarea o un quiz con el botón «Crear actividad».'" />
+                    @else
+                        <ul class="divide-y divide-celeste overflow-hidden rounded-2xl border border-celeste bg-white">
                             @foreach ($actividades as $fila)
-                                @php $estilo = $estiloTipo[$fila['tipo']]; @endphp
-                                <li wire:key="actividad-{{ $fila['tipo'] }}-{{ $fila['id'] }}" class="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
-                                    <div class="flex min-w-0 flex-1 items-start gap-3">
-                                        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl {{ $estilo['caja'] }}" aria-hidden="true">
-                                            <x-icono :nombre="$estilo['icono']" stroke-width="2" class="h-6 w-6" />
+                                @php
+                                    $estilo = $estiloTipo[$fila['tipo']];
+                                    $fecha = $fila['fecha'];
+                                    $esQuiz = $fila['tipo'] === 'quiz';
+                                    $prefijoFecha = $esQuiz ? ($fecha?->isPast() ? 'Cerró' : 'Cierra') : 'Vence';
+                                    // Días de calendario hasta el cierre (0 = hoy); null si ya cerró.
+                                    $diasRestantes = $fecha?->isFuture() ? (int) now()->startOfDay()->diffInDays($fecha->copy()->startOfDay()) : null;
+                                @endphp
+                                <li wire:key="actividad-{{ $fila['tipo'] }}-{{ $fila['id'] }}" class="flex flex-col gap-3 px-5 py-4 lg:flex-row lg:items-center lg:gap-6">
+                                    <div class="flex min-w-0 flex-1 items-start gap-3.5">
+                                        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-fondo text-texto" aria-hidden="true">
+                                            <x-icono :nombre="$estilo['icono']" class="h-6 w-6" />
                                         </span>
                                         <div class="min-w-0 flex-1">
                                             <div class="flex flex-wrap items-center gap-2">
                                                 <span class="rounded-md px-1.5 py-0.5 text-[11px] font-bold uppercase tracking-wide {{ $estilo['insignia'] }}">{{ $estilo['etiqueta'] }}</span>
-                                                <a href="{{ $fila['urlVer'] }}" wire:navigate class="truncate font-semibold text-texto hover:text-azul-oscuro hover:underline dark:text-slate-100">{{ $fila['titulo'] }}</a>
-                                                <span class="rounded-full px-2 py-0.5 text-xs font-medium {{ $claseEstado($fila['estado']) }}">{{ $fila['estado'] }}</span>
+                                                <a href="{{ $fila['urlVer'] }}" wire:navigate class="font-semibold text-texto hover:underline">{{ $fila['titulo'] }}</a>
+                                                <span class="rounded-full px-2 py-0.5 text-xs font-semibold {{ $claseEstado($fila['estado']) }}">{{ $fila['estado'] }}</span>
                                             </div>
-                                            <p class="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600 dark:text-slate-300">
-                                                <span class="inline-flex items-center gap-1">
-                                                    <x-icono nombre="calendario" class="h-3.5 w-3.5" />
-                                                    {{ $fila['fecha'] ? ($fila['tipo'] === 'tarea' ? 'Vence ' : 'Cierra ').$fila['fecha']->formatoFechaHora() : 'Sin fecha límite' }}
-                                                </span>
-                                                <span @class(['inline-flex items-center gap-1', 'font-semibold text-azul-oscuro dark:text-azul-fondo' => $fila['destacarDato']])>
-                                                    <x-icono :nombre="$fila['tipo'] === 'tarea' ? 'documento' : 'check-circulo'" class="h-3.5 w-3.5" /> {{ $fila['dato'] }}
-                                                </span>
-                                                @if ($fila['semana'])
-                                                    <span>{{ $fila['semana'] }}</span>
-                                                @endif
+                                            <p class="mt-1 text-sm text-slate-500">
+                                                {{ collect([
+                                                    $fecha ? $prefijoFecha.' '.$fecha->formatoFechaHora() : 'Sin fecha límite',
+                                                    $esQuiz ? $fila['dato'] : null,
+                                                    $fila['semana'],
+                                                ])->filter()->join(' · ') }}
                                             </p>
                                         </div>
                                     </div>
-                                    <div class="flex shrink-0 items-center gap-1.5 pl-14 sm:pl-0">
+
+                                    {{-- Estado: lo que falta calificar, cuánto falta para el cierre o al día. --}}
+                                    <div class="shrink-0 pl-[62px] lg:w-44 lg:pl-0">
+                                        @if ($fila['porCalificar'] > 0)
+                                            <a href="{{ $fila['urlCalificar'] }}" wire:navigate
+                                                class="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-celeste bg-white px-4 text-sm font-semibold text-texto hover:border-texto/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro">
+                                                <span class="text-terracota-oscuro">{{ $fila['porCalificar'] }}</span> por calificar
+                                            </a>
+                                        @elseif ($diasRestantes !== null)
+                                            <span class="text-sm text-slate-500">{{ $esQuiz ? 'Cierra' : 'Vence' }} {{ match ($diasRestantes) { 0 => 'hoy', 1 => 'mañana', default => "en {$diasRestantes} días" } }}</span>
+                                        @else
+                                            <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-exito-oscuro"><x-icono nombre="check-circulo" class="h-4 w-4" /> Al día</span>
+                                        @endif
+                                    </div>
+
+                                    {{-- Evaluación a la que aporta (o asignarla). --}}
+                                    <div class="flex shrink-0 items-center gap-1.5 pl-[62px] lg:w-64 lg:pl-0">
                                         @if ($fila['evaluacion'])
-                                            <span class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1 text-xs font-bold {{ $colorDeEvaluacion($fila['evaluacion']['id'])['insignia'] }}">
-                                                <span class="h-2 w-2 rounded-sm {{ $colorDeEvaluacion($fila['evaluacion']['id'])['relleno'] }}" aria-hidden="true"></span>
+                                            <span class="inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-celeste bg-white px-3.5 py-1.5 text-sm font-semibold text-texto"
+                                                title="Aporta {{ $formatoPeso($fila['evaluacion']['aporte']) }} % de la nota final">
+                                                <span class="h-2.5 w-2.5 rounded-sm {{ $colorDeEvaluacion($fila['evaluacion']['id'])['relleno'] }}" aria-hidden="true"></span>
                                                 {{ $fila['evaluacion']['nombre'] }} · {{ $fila['evaluacion']['examen'] ? 'Examen' : $formatoPeso($fila['evaluacion']['peso']).' %' }}
                                             </span>
-                                            <x-gestion.ayuda :texto="'Aporta '.$formatoPeso($fila['evaluacion']['aporte']).' % de la nota final.'" />
                                         @elseif ($editable && $rubros->isNotEmpty())
                                             <div class="relative" x-data="{ abierto: false }" x-on:click.outside="abierto = false" x-on:keydown.escape.stop="abierto = false">
                                                 <button type="button" x-on:click="abierto = ! abierto" aria-haspopup="menu" x-bind:aria-expanded="abierto.toString()" aria-expanded="false"
                                                     aria-label="{{ $fila['titulo'] }} no cuenta para la nota. Asignarla a una evaluación"
-                                                    class="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-dashed border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-600 hover:border-azul-oscuro hover:text-azul-oscuro focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro dark:border-slate-600 dark:text-slate-300">
+                                                    class="inline-flex items-center gap-1 whitespace-nowrap rounded-full border border-dashed border-slate-300 px-3.5 py-1.5 text-sm font-semibold text-slate-600 hover:border-texto hover:text-texto focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro">
                                                     No cuenta para la nota · Asignar <x-icono nombre="flecha-abajo" class="h-3.5 w-3.5" />
                                                 </button>
                                                 <div x-show="abierto" style="display: none" role="menu" aria-label="Asignar {{ $fila['titulo'] }} a una evaluación"
-                                                    class="absolute right-0 z-30 mt-1 w-56 rounded-xl border border-celeste bg-white p-1.5 shadow-lg dark:border-azul-borde-oscuro dark:bg-azul-superficie-oscura">
+                                                    class="absolute right-0 z-30 mt-1 w-60 rounded-xl border border-celeste bg-white p-1.5 shadow-lg">
                                                     @foreach ($rubros as $rubro)
                                                         <button type="button" role="menuitem" wire:key="asignar-{{ $fila['tipo'] }}-{{ $fila['id'] }}-{{ $rubro->id }}"
                                                             wire:click="configurarCalculo({{ $rubro->id }}, '{{ $fila['tipo'] }}-{{ $fila['id'] }}')" x-on:click="abierto = false"
-                                                            class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-texto hover:bg-celeste focus:bg-celeste focus:outline-none dark:text-slate-100 dark:hover:bg-azul-borde-oscuro dark:focus:bg-azul-borde-oscuro">
-                                                            <span class="h-2 w-2 shrink-0 rounded-sm {{ $colorDeEvaluacion($rubro->id)['relleno'] }}" aria-hidden="true"></span>
+                                                            class="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm text-texto hover:bg-fondo focus:bg-fondo focus:outline-none">
+                                                            <span class="h-2.5 w-2.5 shrink-0 rounded-sm {{ $colorDeEvaluacion($rubro->id)['relleno'] }}" aria-hidden="true"></span>
                                                             <span class="flex-1">{{ $rubro->nombre }}</span>
                                                             <span class="text-xs text-slate-500">{{ (float) $rubro->peso }} %</span>
                                                         </button>
                                                     @endforeach
                                                 </div>
                                             </div>
-                                            <x-gestion.ayuda texto="Pulsa «Asignar» y elige la evaluación a la que aporta para que su nota cuente." />
                                         @else
-                                            <span class="whitespace-nowrap rounded-lg border border-dashed border-slate-300 px-2.5 py-1 text-xs font-semibold text-slate-500 dark:border-slate-600 dark:text-slate-400">No cuenta para la nota</span>
+                                            <span class="whitespace-nowrap rounded-full border border-dashed border-slate-300 px-3.5 py-1.5 text-sm font-semibold text-slate-500">No cuenta para la nota</span>
                                         @endif
                                     </div>
-                                    @if ($editable)
-                                        <div class="flex shrink-0 gap-1 pl-14 sm:pl-0">
-                                            <x-gestion.boton variante="fantasma" tamano="sm" icono="lapiz" :href="$fila['urlEditar']" aria-label="Editar {{ $fila['titulo'] }}">Editar</x-gestion.boton>
-                                            @if ($fila['puedeEliminarse'])
-                                                <x-gestion.boton variante="fantasma-peligro" tamano="sm" icono="papelera" wire:click="confirmarEliminar('{{ $fila['tipo'] }}', {{ $fila['id'] }})" aria-label="Eliminar {{ $fila['titulo'] }}">Eliminar</x-gestion.boton>
-                                            @else
-                                                <x-gestion.boton variante="fantasma-peligro" tamano="sm" icono="papelera" disabled title="{{ $fila['motivoNoEliminar'] }}" aria-label="Eliminar {{ $fila['titulo'] }} (no disponible: {{ $fila['motivoNoEliminar'] }})">Eliminar</x-gestion.boton>
+
+                                    {{-- Menú ⋯: ver, editar y eliminar. --}}
+                                    <div class="relative shrink-0 self-end lg:self-auto" x-data="{ abierto: false }" x-on:click.outside="abierto = false" x-on:keydown.escape.stop="abierto = false; $refs.botonMenu.focus()">
+                                        <button type="button" x-ref="botonMenu" x-on:click="abierto = ! abierto" aria-haspopup="menu" aria-expanded="false" x-bind:aria-expanded="abierto.toString()"
+                                            aria-label="Opciones de {{ $fila['titulo'] }}"
+                                            class="flex h-10 w-10 items-center justify-center rounded-lg text-slate-500 hover:bg-fondo hover:text-texto focus:outline-none focus-visible:ring-2 focus-visible:ring-azul-oscuro">
+                                            <x-icono nombre="puntos" class="h-5 w-5" />
+                                        </button>
+                                        <div x-show="abierto" style="display: none" role="menu"
+                                            class="absolute right-0 z-30 mt-1 w-56 rounded-xl border border-celeste bg-white p-1.5 shadow-lg">
+                                            <a href="{{ $fila['urlVer'] }}" wire:navigate role="menuitem" class="flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm text-texto hover:bg-fondo focus:bg-fondo focus:outline-none">
+                                                <x-icono nombre="ojo" class="h-4 w-4" /> {{ $esQuiz ? 'Ver quiz' : 'Ver entregas' }}
+                                            </a>
+                                            @if ($editable)
+                                                <a href="{{ $fila['urlEditar'] }}" wire:navigate role="menuitem" class="flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm text-texto hover:bg-fondo focus:bg-fondo focus:outline-none">
+                                                    <x-icono nombre="lapiz" class="h-4 w-4" /> Editar
+                                                </a>
+                                                @if ($fila['puedeEliminarse'])
+                                                    <button type="button" role="menuitem" wire:click="confirmarEliminar('{{ $fila['tipo'] }}', {{ $fila['id'] }})" x-on:click="abierto = false"
+                                                        class="flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-red-700 hover:bg-red-50 focus:bg-red-50 focus:outline-none">
+                                                        <x-icono nombre="papelera" class="h-4 w-4" /> Eliminar
+                                                    </button>
+                                                @else
+                                                    <p class="flex items-start gap-2 px-3 py-2 text-xs text-slate-500">
+                                                        <x-icono nombre="papelera" class="h-4 w-4 shrink-0" /> {{ $fila['motivoNoEliminar'] }}
+                                                    </p>
+                                                @endif
                                             @endif
                                         </div>
-                                    @endif
+                                    </div>
                                 </li>
                             @endforeach
                         </ul>
-                    </x-gestion.tarjeta>
-                    <div>{{ $actividades->links() }}</div>
-                @endif
-            </div>
+                        <div>{{ $actividades->links() }}</div>
+                    @endif
+                </div>
 
-            {{-- Pestaña Banco de preguntas (componente propio: su estado no se pierde al cambiar de pestaña). --}}
-            <div id="panel-banco" role="tabpanel" aria-labelledby="pestana-banco" tabindex="0"
-                x-show="activa === 'banco'" @unless ($pestana === 'banco') style="display: none" @endunless
-                class="pt-5 focus:outline-none">
-                <livewire:profesor.banco-preguntas :curso="$curso" :incrustado="true" :key="'banco-'.$curso->id" />
+                {{-- Pestaña Banco de preguntas (componente propio: su estado no se pierde al cambiar de pestaña). --}}
+                <div id="panel-banco" role="tabpanel" aria-labelledby="pestana-banco" tabindex="0"
+                    x-show="activa === 'banco'" @unless ($pestana === 'banco') style="display: none" @endunless
+                    class="pt-5 focus:outline-none">
+                    <livewire:profesor.banco-preguntas :curso="$curso" :incrustado="true" :key="'banco-'.$curso->id" />
+                </div>
             </div>
-        </div>
+        @endif
     </div>
 
     @if ($mostrarConfirmacion)

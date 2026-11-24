@@ -10,6 +10,8 @@
     $primerNombre = \Illuminate\Support\Str::of((string) $usuario->name)->trim()->before(' ')->value() ?: (string) $usuario->name;
     $inicialesUsuario = collect(preg_split('/\s+/', trim((string) $usuario->name)) ?: [])
         ->filter()->take(2)->map(fn (string $parte) => mb_strtoupper(mb_substr($parte, 0, 1)))->join('');
+    // Enlace (firmado si el disco es Supabase) de la foto subida; null si no tiene foto.
+    $fotoUsuario = \App\Services\Multimedia\SubidorArchivos::enlace($usuario->avatar_url);
     $enfoque = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cielo focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--mint)]';
 
     $enlaces = [
@@ -81,9 +83,16 @@
                         <button type="button" x-ref="botonUsuario" x-on:click="abierto = ! abierto" x-bind:aria-expanded="abierto" aria-controls="menu-usuario"
                             aria-label="Menú de usuario de {{ $usuario->name }}"
                             class="flex items-center gap-2.5 rounded-xl py-1 pl-1 pr-1 text-left transition-colors hover:bg-[var(--sec2)]/60 motion-reduce:transition-none sm:pr-2.5 {{ $enfoque }}">
-                            <span class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--p700)] text-[13px] font-bold text-white" aria-hidden="true">{{ $inicialesUsuario }}</span>
+                            {{-- Foto de perfil si la tiene (iniciales si no); se refresca al guardar el perfil (evento profile-updated). --}}
+                            <span class="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-[var(--p700)] text-[13px] font-bold text-white" aria-hidden="true"
+                                x-data="{{ json_encode(['foto' => $fotoUsuario]) }}"
+                                x-on:profile-updated.window="if ($event.detail.avatar_url && ! $event.detail.avatar_url.includes('ui-avatars.com')) foto = $event.detail.avatar_url">
+                                <img x-show="foto" x-bind:src="foto" @if ($fotoUsuario) src="{{ $fotoUsuario }}" @else style="display: none" @endif alt="" class="h-full w-full object-cover">
+                                <span x-show="! foto" @if ($fotoUsuario) style="display: none" @endif>{{ $inicialesUsuario }}</span>
+                            </span>
                             <span class="hidden leading-tight sm:block" aria-hidden="true">
-                                <span class="block text-[13px] font-semibold text-[var(--ink)]">{{ $primerNombre }}</span>
+                                <span class="block text-[13px] font-semibold text-[var(--ink)]" x-data="{{ json_encode(['nombre' => $primerNombre]) }}" x-text="nombre"
+                                    x-on:profile-updated.window="if ($event.detail.name) nombre = $event.detail.name.trim().split(/\s+/)[0]">{{ $primerNombre }}</span>
                                 <span class="block text-[11.5px] text-[var(--muted)]">{{ $esProfesor ? 'Profesor' : 'Estudiante' }}</span>
                             </span>
                         </button>

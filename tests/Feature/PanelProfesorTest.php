@@ -83,6 +83,21 @@ class PanelProfesorTest extends TestCase
             ->assertSeeInOrder(['id="menu-usuario"', 'Rosaura Quispe Mamani', 'Rol: Profesor', 'Mi perfil', 'Cerrar sesión'], false);
     }
 
+    public function test_la_barra_muestra_la_foto_de_perfil_del_profesor_o_sus_iniciales_si_no_tiene(): void
+    {
+        $conFoto = $this->usuarioConRol('profesor', ['name' => 'Rosaura Quispe', 'avatar_url' => 'https://example.com/fotos/rosaura.jpg']);
+        $sinFoto = $this->usuarioConRol('profesor', ['name' => 'Julio Cáceres']);
+
+        $this->actingAs($conFoto)->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('src="https://example.com/fotos/rosaura.jpg"', false);
+
+        $this->actingAs($sinFoto)->get(route('dashboard'))
+            ->assertOk()
+            ->assertDontSee('fotos/rosaura.jpg')
+            ->assertSee('>JC</span>', false);
+    }
+
     public function test_el_estudiante_puro_comparte_el_layout_nuevo_y_el_supervisor_sigue_con_su_panel_de_siempre(): void
     {
         $escenario = $this->escenario();

@@ -13,6 +13,7 @@ use App\Models\Tarea;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -151,6 +152,8 @@ class GruposTest extends TestCase
 
     public function test_al_entregar_una_tarea_grupal_se_crea_una_entrega_para_cada_integrante(): void
     {
+        // Disco simulado: la entrega no se escribe en el almacenamiento real de la app.
+        Storage::fake(config('archivos.disco'));
         [$profesor, $curso, $modulo] = $this->cursoConProfesor();
         $tarea = Tarea::factory()->create(['curso_id' => $curso->id, 'modulo_id' => $modulo->id, 'tipo_entrega' => 'grupal']);
         $miembro1 = $this->inscribir($curso);

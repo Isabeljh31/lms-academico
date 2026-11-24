@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Enums\Rol;
 use App\Livewire\Estudiante\PanelInicio;
 use App\Models\Curso;
+use App\Models\Grupo;
 use App\Models\Modulo;
 use App\Models\Tarea;
 use App\Models\User;
+use App\Services\Reportes\ProgresoAcademicoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
@@ -50,7 +52,8 @@ class PanelInicioEstudianteTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertDontSeeLivewire('estudiante.panel-inicio')
-            ->assertSee('Hola,')
+            // El saludo lleva el nombre en cursiva (<span>Hola</span>, <em>…</em>): se mira el texto visible.
+            ->assertSeeText('Hola,')
             ->assertSee('Rol:');
 
         $this->actingAs($admin)
@@ -119,24 +122,24 @@ class PanelInicioEstudianteTest extends TestCase
         $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
         $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
 
-     $curso = Curso::factory()->create([
-        'profesor_id' => $profesor->id,
+        $curso = Curso::factory()->create([
+            'profesor_id' => $profesor->id,
         ]);
 
         $modulo = Modulo::factory()->create([
-        'curso_id' => $curso->id,
+            'curso_id' => $curso->id,
         ]);
 
         $curso->inscripciones()->create([
-        'estudiante_id' => $estudiante->id,
-        'fecha_inscripcion' => now(),
-        'estado' => 'activo',
-        'activo_local' => true,
+            'estudiante_id' => $estudiante->id,
+            'fecha_inscripcion' => now(),
+            'estado' => 'activo',
+            'activo_local' => true,
         ]);
 
-        $otroGrupo = \App\Models\Grupo::create([
-        'curso_id' => $curso->id,
-        'nombre' => 'Grupo de otros estudiantes',
+        $otroGrupo = Grupo::create([
+            'curso_id' => $curso->id,
+            'nombre' => 'Grupo de otros estudiantes',
         ]);
 
         Tarea::factory()->create([
@@ -186,7 +189,7 @@ class PanelInicioEstudianteTest extends TestCase
             'activo_local' => true,
         ]);
 
-        $grupo = \App\Models\Grupo::create([
+        $grupo = Grupo::create([
             'curso_id' => $curso->id,
             'nombre' => 'Grupo del estudiante',
         ]);
@@ -239,7 +242,7 @@ class PanelInicioEstudianteTest extends TestCase
             'activo_local' => true,
         ]);
 
-        $otroGrupo = \App\Models\Grupo::create([
+        $otroGrupo = Grupo::create([
             'curso_id' => $curso->id,
             'nombre' => 'Otro grupo',
         ]);
@@ -268,7 +271,7 @@ class PanelInicioEstudianteTest extends TestCase
             'fecha_entrega' => now()->addDays(3),
         ]);
 
-        $progreso = app(\App\Services\Reportes\ProgresoAcademicoService::class)
+        $progreso = app(ProgresoAcademicoService::class)
             ->avance($estudiante, $curso);
 
         $this->assertSame(100, $progreso);

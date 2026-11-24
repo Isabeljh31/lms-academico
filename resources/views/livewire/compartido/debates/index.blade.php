@@ -1,12 +1,12 @@
 <div class="py-8">
-    <div class="mx-auto max-w-4xl space-y-6 px-4 sm:px-6 lg:px-8">
+    <div class="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
 
-        <x-gestion.encabezado titulo="Debates" icono="chat" descripcion="{{ $curso->nombre }}">
-            <x-gestion.boton variante="secundario" icono="flecha-izquierda" :href="route('cursos.show', $curso)">Volver al curso</x-gestion.boton>
+        <x-gestion.encabezado :volver="route('cursos.show', $curso)" :volver-texto="$curso->nombre" titulo="Debates" icono="chat" descripcion="{{ $curso->nombre }}">
             @if ($puedeGestionar)
                 <x-gestion.boton icono="mas" wire:click="abrirNuevo">Nuevo debate</x-gestion.boton>
             @endif
         </x-gestion.encabezado>
+        <x-gestion.pestanas-curso :curso="$curso" activa="debates" />
 
         <x-gestion.alertas />
 

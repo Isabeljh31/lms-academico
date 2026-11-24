@@ -20,7 +20,7 @@ use Livewire\Component;
 class EncabezadoCurso extends Component
 {
     /** Pestañas del curso que puede marcar como activa una subpantalla. */
-    public const PESTANAS = ['contenido', 'actividades', 'matricula', 'grupos', 'debates', 'asistencia', 'libro', 'mensajeria'];
+    public const PESTANAS = ['contenido', 'actividades', 'evaluacion', 'matricula', 'grupos', 'debates', 'asistencia', 'libro', 'mensajeria'];
 
     public Curso $curso;
 

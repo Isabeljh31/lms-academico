@@ -14,6 +14,7 @@ use App\Livewire\Compartido\Tareas\Detalle;
 use App\Livewire\Estudiante\MiAsistencia;
 use App\Livewire\Profesor\Actividades;
 use App\Livewire\Profesor\BancoPreguntas;
+use App\Livewire\Profesor\Evaluacion;
 use App\Livewire\Supervisor\Cursos\Formulario;
 use Illuminate\Support\Facades\Route;
 
@@ -50,6 +51,10 @@ Route::middleware(['auth', 'verified'])
         Route::get('/{curso}/actividades', Actividades::class)
             ->middleware('role:profesor')
             ->name('actividades');
+        // Cómo se calcula la nota final del curso (mismo componente, otra vista).
+        Route::get('/{curso}/evaluacion', Evaluacion::class)
+            ->middleware('role:profesor')
+            ->name('evaluacion');
         // ERS RF-47: banco de preguntas por tema (Profesor del curso)
         Route::get('/{curso}/banco-preguntas', BancoPreguntas::class)
             ->middleware('role:profesor')
