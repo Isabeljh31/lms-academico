@@ -52,7 +52,7 @@
     <div class="rounded-2xl bg-[var(--ink)] px-[22px] py-5 text-white">
         <p class="rotulo text-[var(--lime)]">Tu siguiente clase</p>
         @if ($siguienteClase && $claseCurso)
-            <p class="mb-0.5 mt-2 font-serif text-[48px] leading-none tabular-nums">{{ $siguienteClase->fecha->format('H:i') }}</p>
+            <p class="mb-0.5 mt-2 text-[48px] font-extrabold leading-none tabular-nums">{{ $siguienteClase->fecha->format('H:i') }}</p>
             <p class="mt-2 break-words text-[17px] font-semibold">{{ $claseCurso->nombre }}</p>
             <p class="mt-0.5 break-words text-xs text-[var(--claro)]">{{ $detalleClase }}</p>
             <a href="{{ route('cursos.show', $claseCurso) }}" wire:navigate
@@ -62,7 +62,7 @@
                 <x-icono nombre="flecha-derecha" class="h-[14px] w-[14px]" />
             </a>
         @else
-            <p class="mt-2 font-serif text-[26px] leading-tight">Sin clases programadas</p>
+            <p class="mt-2 text-[22px] font-bold leading-tight">Sin clases programadas</p>
         @endif
     </div>
 </section>

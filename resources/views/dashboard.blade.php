@@ -1,8 +1,48 @@
-{{-- Panel del Profesor: layout propio con barra inferior (PanelProfesorLayout). Estudiante y
-     Supervisor siguen por la rama de siempre, sin cambios. --}}
-@if (auth()->user()->hasRole('profesor') && ! auth()->user()->hasAnyRole(['supervisor', 'estudiante']))
+{{-- Panel de Profesor/Estudiante "puros": layout propio con barra superior (PanelProfesorLayout,
+     mismo diseño para ambos roles). Supervisor, y cuentas con más de un rol, siguen por la rama
+     de siempre (x-app-layout), sin cambios. --}}
+@if (\App\View\Components\PanelProfesorLayout::usaLayoutCompartido(auth()->user()))
 <x-panel-profesor-layout>
-    <livewire:profesor.panel />
+    @if (auth()->user()->hasRole('profesor'))
+        <livewire:profesor.panel />
+    @else
+        @php
+            $comunicadosEstudiante = \App\Models\Comunicado::activos()
+                ->paraRol('estudiante')
+                ->latest()
+                ->take(2)
+                ->get();
+            $comunicadosLeidos = \App\Models\Comunicado::idsLeidosPor(auth()->user());
+        @endphp
+
+        @if ($comunicadosEstudiante->isNotEmpty())
+            <div class="space-y-3 mb-6">
+                @foreach ($comunicadosEstudiante as $comunicado)
+                    @php $leido = $comunicadosLeidos->contains($comunicado->id); @endphp
+                    <a href="{{ route('comunicados.show', $comunicado) }}" wire:navigate
+                        class="block rounded-xl border p-4 shadow-sm flex items-start gap-3.5 {{ $leido ? 'opacity-60' : '' }} {{ $comunicado->prioridad === 'urgente' ? 'bg-red-50 border-red-200 text-red-900' : 'bg-[var(--lime)] border-[var(--sec2)] text-[var(--ink)]' }}" wire:key="banner-com-est-{{ $comunicado->id }}">
+                        <span class="shrink-0 mt-0.5"><x-icono :nombre="$comunicado->prioridad === 'urgente' ? 'alerta' : 'megafono'" class="h-5 w-5" /></span>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold uppercase tracking-wide px-2 py-0.5 rounded-full {{ $comunicado->prioridad === 'urgente' ? 'bg-red-200 text-red-800' : 'bg-white text-[var(--p700)]' }}">
+                                    Comunicado Oficial {{ $comunicado->prioridad === 'urgente' ? 'Urgente' : '' }}
+                                </span>
+                                <span class="text-xs opacity-75">{{ $comunicado->created_at->diffForHumans() }}</span>
+                                @unless ($leido)
+                                    <span class="h-1.5 w-1.5 rounded-full bg-current shrink-0"></span>
+                                @endunless
+                            </div>
+                            <h4 class="font-bold text-sm mt-1">{{ $comunicado->titulo }}</h4>
+                            <p class="text-xs opacity-90 mt-0.5 whitespace-pre-line">{{ \Illuminate\Support\Str::limit($comunicado->contenido, 140) }}</p>
+                            <span class="text-xs font-semibold underline mt-1 inline-block">Leer más</span>
+                        </div>
+                    </a>
+                @endforeach
+            </div>
+        @endif
+
+        <livewire:estudiante.panel-inicio />
+    @endif
 </x-panel-profesor-layout>
 @else
 <x-app-layout>
@@ -13,10 +53,8 @@
     <x-slot name="header">@unless (auth()->user()->hasRole('estudiante')) Panel @endunless</x-slot>
 
     @if (auth()->user()->hasRole('estudiante'))
-        {{-- Rediseño visual del rol estudiante (ver ARQUITECTURA.md). El
-             panel de profesor/administrador que sigue abajo no se tocó. --}}
+        {{-- Cuenta con más de un rol (caso raro): conserva la pantalla compartida de siempre. --}}
         <div class="py-8">
-            {{-- Ancho de contenedor estandarizado (max-w-6xl) para todas las vistas del estudiante. --}}
             <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
 
                 @php

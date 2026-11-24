@@ -37,29 +37,32 @@
 }
 
 /*
- * Tema del Profesor (layouts/panel-profesor): papel crema, tinta casi negra,
- * títulos en serif y rótulos en monoespaciada. Redefine los tokens de marca y
- * las variables propias de las pantallas del Profesor (--p900, --mint…), así
- * todas sus pantallas toman el diseño sin cambiar su funcionamiento.
+ * Tema compartido por Profesor y Estudiante "puros" (layouts/panel-profesor.blade.php,
+ * ver PanelProfesorLayout::aplicaA). Paleta oficial LearnUp: verde petróleo + mostaza
+ * dorada como únicos colores de identidad, el resto son neutros (arena, blanco, carbón).
+ * El Supervisor conserva su propio tema (.tema-supervisor) sin cambios.
  */
 .tema-profesor {
-    --lu-azul-fondo: 58 55 49;     /* #3A3731 tinta suave (hover) */
-    --lu-azul-oscuro: 29 28 25;    /* #1D1C19 tinta (botones, activo) */
-    --lu-celeste: 232 226 213;     /* #E8E2D5 borde/papel tostado */
-    --lu-imperial: 29 28 25;
-    --lu-cielo: 47 90 68;          /* #2F5A44 verde de foco */
-    --lu-cielo-claro: 241 235 223; /* #F1EBDF */
-    --lu-fondo: 244 240 232;       /* #F4F0E8 papel crema */
-    --lu-texto: 29 28 25;
+    --lu-azul-fondo: 233 239 234;   /* #E9EFEA verde suave (hover) */
+    --lu-azul-oscuro: 23 79 70;     /* #174F46 petróleo (botones, activo) */
+    --lu-celeste: 229 231 235;      /* #E5E7EB borde */
+    --lu-imperial: 23 79 70;
+    --lu-cielo: 23 79 70;           /* #174F46 anillo de foco */
+    --lu-cielo-claro: 233 239 234;  /* #E9EFEA */
+    --lu-fondo: 243 241 235;        /* #F3F1EB arena */
+    --lu-texto: 37 43 41;
 
-    --p900: #1D1C19;
-    --p800: #3A3731;
-    --p700: #2F5A44;
-    --lime: #F2DFC8;
-    --sec2: #E8E2D5;
-    --mint: #F4F0E8;
-    --ink: #1D1C19;
-    --claro: #D9D3C7;
+    --p900: #103A33;
+    --p800: #174F46;
+    --p700: #174F46;
+    --mostaza: #D69A42;
+    --mostaza-suave: #F5E3C6;
+    --mostaza-oscura: #8A5A17;
+    --lime: #E9EFEA;
+    --sec2: #E5E7EB;
+    --mint: #F3F1EB;
+    --ink: #252B29;
+    --claro: #E5E7EB;
     --ok900: #2F5D37;
     --ok100: #E3EEDC;
     --warn800: #8A4A1A;
@@ -69,17 +72,23 @@
     --err100: #F8E3DC;
     --inf700: #23407A;
     --inf100: #E1E8F5;
-    --muted: #6B6559;
+    --muted: #64716C;
 }
 
-/* Títulos en serif (Instrument Serif solo tiene peso normal: sin negrita falsa). */
-:is(.tema-profesor, .tema-supervisor) :is(h1, h2):not(.font-sans) {
+/* Títulos en serif (Instrument Serif solo tiene peso normal: sin negrita falsa). Solo el
+   Supervisor conserva el serif editorial; Profesor y Estudiante usan Plus Jakarta Sans. */
+.tema-supervisor :is(h1, h2):not(.font-sans) {
     font-family: 'Instrument Serif', ui-serif, Georgia, serif;
     font-weight: 400;
     letter-spacing: -0.005em;
 }
-:is(.tema-profesor, .tema-supervisor) h1:not(.font-sans) {
+.tema-supervisor h1:not(.font-sans) {
     line-height: 1.1;
+}
+.tema-profesor :is(h1, h2):not(.font-serif) {
+    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.01em;
 }
 
 /* Rótulo monoespaciado en mayúsculas (fechas, códigos, etiquetas). */

@@ -20,6 +20,18 @@
         "value": "instrument serif",
         "createdAt": "2026-11-17T23:10:31.467Z",
         "reason": "Profesor theme: serif face matches the mockup the user asked to apply (2026-11-17)"
+      },
+      {
+        "rule": "design-system-font",
+        "value": "plus jakarta sans",
+        "createdAt": "2026-11-23T23:35:22.819Z",
+        "reason": "user confirmed: explicit design brief requires Plus Jakarta Sans as the global typeface for Profesor/Estudiante"
+      },
+      {
+        "rule": "overused-font",
+        "value": "plus jakarta sans",
+        "createdAt": "2026-11-23T23:57:57.210Z",
+        "reason": "user confirmed: explicit design brief names Plus Jakarta Sans as the required global typeface for Profesor/Estudiante"
       }
     ]
   }

@@ -2,9 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Livewire\Profesor\Panel;
-use App\Livewire\Estudiante\PanelInicio;
 use App\Livewire\Compartido\Reportes\PanelGestion;
+use App\Livewire\Estudiante\PanelInicio;
+use App\Livewire\Profesor\Panel;
 use App\Models\Comunicado;
 use App\Models\Curso;
 use App\Models\Entrega;
@@ -26,8 +26,9 @@ use Tests\TestCase;
  * Panel del Profesor con layout propio (barra inferior): indicadores,
  * "Para hacer ahora", "Lo que se viene" y "Comunicados" (la lista de cursos
  * está en la pantalla Cursos, enlazada desde el indicador), con
- * topes fijos que no crecen con la cantidad de cursos. Estudiante y
- * Supervisor siguen con su panel de siempre.
+ * topes fijos que no crecen con la cantidad de cursos. El Estudiante "puro"
+ * comparte este mismo layout (barra superior); el Supervisor sigue con su
+ * panel de siempre.
  */
 class PanelProfesorTest extends TestCase
 {
@@ -82,7 +83,7 @@ class PanelProfesorTest extends TestCase
             ->assertSeeInOrder(['id="menu-usuario"', 'Rosaura Quispe Mamani', 'Rol: Profesor', 'Mi perfil', 'Cerrar sesión'], false);
     }
 
-    public function test_estudiante_y_supervisor_siguen_con_su_panel_de_siempre(): void
+    public function test_el_estudiante_puro_comparte_el_layout_nuevo_y_el_supervisor_sigue_con_su_panel_de_siempre(): void
     {
         $escenario = $this->escenario();
 
@@ -90,8 +91,8 @@ class PanelProfesorTest extends TestCase
             ->assertOk()
             ->assertSeeLivewire(PanelInicio::class)
             ->assertDontSeeLivewire(Panel::class)
-            ->assertSee('sidebarAbierto')
-            ->assertDontSee('Navegación principal');
+            ->assertDontSee('sidebarAbierto')
+            ->assertSee('Navegación principal');
 
         $this->actingAs($escenario['supervisor'])->get(route('dashboard'))
             ->assertOk()
