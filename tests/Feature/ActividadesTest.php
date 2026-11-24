@@ -3,10 +3,11 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\Cursos\Actividades;
-use App\Livewire\Quizzes\Formulario as FormularioQuiz;
-use App\Livewire\Quizzes\Resolver;
-use App\Livewire\Tareas\Formulario as FormularioTarea;
+use App\Livewire\Compartido\Quizzes\Formulario as FormularioQuiz;
+use App\Livewire\Compartido\Quizzes\Resolver;
+use App\Livewire\Compartido\Tareas\Formulario as FormularioTarea;
+use App\Livewire\Profesor\Actividades;
+use App\Livewire\Profesor\Evaluacion;
 use App\Models\Entrega;
 use App\Models\Quiz;
 use App\Models\Tarea;
@@ -49,7 +50,9 @@ class ActividadesTest extends TestCase
         $this->componente($escenario)
             ->assertSee('Ensayo de lógica')
             ->assertSee('Quiz de conjuntos')
-            ->assertSee('1 por calificar de 1 entrega')
+            // Estado de la fila: lo que falta calificar enlaza a «Por calificar» de esa tarea.
+            ->assertSeeText('1 por calificar')
+            ->assertSee(route('docente.por-calificar', ['tarea' => $escenario['tarea']->id]), false)
             ->assertSee('0 intentos')
             ->call('filtrar', 'tareas')
             ->assertSet('tipo', 'tareas')
@@ -96,8 +99,8 @@ class ActividadesTest extends TestCase
 
         $this->componente($escenario)
             ->assertSee('Crear actividad')
-            ->assertSee('aria-haspopup="menu"', false)
-            ->assertSee('role="menuitem"', false)
+            ->assertSee('aria-haspopup="dialog"', false)
+            ->assertSee('role="dialog"', false)
             ->assertSee(e(route('cursos.tareas.crear', [$escenario['curso'], 'desde' => 'actividades'])), false)
             ->assertSee(e(route('cursos.quizzes.crear', [$escenario['curso'], 'desde' => 'actividades'])), false);
 
@@ -152,6 +155,57 @@ class ActividadesTest extends TestCase
         $this->actingAs($otroProfesor)->get($url)->assertForbidden();
         $this->actingAs($escenario['estudiante'])->get($url)->assertForbidden();
         $this->actingAs($escenario['supervisor'])->get($url)->assertForbidden();
+    }
+
+    public function test_la_pantalla_evaluacion_es_solo_del_profesor_del_curso(): void
+    {
+        $escenario = $this->escenario();
+        $url = route('cursos.evaluacion', $escenario['curso']);
+
+        $this->actingAs($escenario['profesor'])->get($url)->assertOk()
+            ->assertSee('Cómo se calcula la nota final del curso')
+            // Barra de pestañas del curso con la actual marcada.
+            ->assertSeeInOrder(['aria-label="Secciones del curso"', 'aria-current="page"', 'Evaluación'], false);
+        $this->actingAs($this->usuarioConRol(Rol::Profesor->value))->get($url)->assertForbidden();
+        $this->actingAs($escenario['estudiante'])->get($url)->assertForbidden();
+    }
+
+    public function test_la_lista_se_filtra_por_evaluacion_y_cada_tarjeta_enlaza_a_sus_actividades(): void
+    {
+        $escenario = $this->escenario();
+        $escenario['tarea']->update(['titulo' => 'Ensayo de lógica']);
+        $escenario['quiz']->update(['tema' => 'Quiz de conjuntos']);
+        $rubro = $this->esquemaValido($escenario['curso'])->rubros->first();
+        $rubro->tareas()->attach($escenario['tarea']->id, ['peso' => 100]);
+
+        $this->componente($escenario)
+            ->assertSee('Quiz de conjuntos')
+            ->set('filtroEvaluacion', (string) $rubro->id)
+            ->assertSee('Ensayo de lógica')
+            ->assertDontSee('Quiz de conjuntos')
+            // Un valor que no es un id vuelve a «Todas».
+            ->set('filtroEvaluacion', 'x')
+            ->assertSet('filtroEvaluacion', '');
+
+        Livewire::actingAs($escenario['profesor'])->test(Evaluacion::class, ['curso' => $escenario['curso']])
+            ->assertSee('Ver actividades (1)')
+            ->assertSee(route('cursos.actividades', [$escenario['curso'], 'evaluacion' => $rubro->id]), false);
+    }
+
+    public function test_cada_fila_muestra_cuanto_falta_para_el_cierre_o_que_esta_al_dia(): void
+    {
+        $this->travelTo(now()->setDate(2026, 11, 23)->setTime(10, 0));
+        $escenario = $this->escenario();
+        $escenario['tarea']->update(['fecha_entrega' => now()->setDate(2026, 12, 11)->setTime(23, 59)]);
+        $escenario['quiz']->update(['fecha_limite' => now()->subDay()]);
+
+        // Días de calendario, como en el mockup: del 23/11 al 11/12 son 18.
+        $this->componente($escenario)
+            ->assertSee('Vence en 18 días')
+            ->assertSee('Al día');
+
+        $escenario['tarea']->update(['fecha_entrega' => now()->setTime(23, 59)]);
+        $this->componente($escenario)->assertSee('Vence hoy');
     }
 
     public function test_la_lista_se_carga_sin_consultas_repetidas_y_con_paginacion(): void

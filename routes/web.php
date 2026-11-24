@@ -3,13 +3,16 @@
 use App\Http\Controllers\LeccionesSemanaController;
 use App\Livewire\Actions\Logout;
 use App\Livewire\Auth\CambiarPasswordPrimerLogin;
-use App\Livewire\Cursos\BoletaEstudiante;
-use App\Livewire\Cursos\EsquemaEvaluacion;
-use App\Livewire\Cursos\GestionMatricula;
-use App\Livewire\Docente\PorCalificar\Index as PorCalificarIndex;
-use App\Livewire\EventoCalendario\Index;
-use App\Livewire\Mensajeria\Selector as MensajeriaSelector;
-use App\Livewire\Usuarios\ImportarCSV;
+use App\Livewire\Compartido\Calendario\Index;
+use App\Livewire\Compartido\Comunicados\Show as ComunicadoShow;
+use App\Livewire\Compartido\Cursos\GestionMatricula;
+use App\Livewire\Compartido\Mensajeria\Selector as MensajeriaSelector;
+use App\Livewire\Compartido\Notificaciones\Index as NotificacionesIndex;
+use App\Livewire\Estudiante\BoletaCurso;
+use App\Livewire\Estudiante\MisCalificaciones;
+use App\Livewire\Profesor\PorCalificar\Index as PorCalificarIndex;
+use App\Livewire\Supervisor\Cursos\EsquemaEvaluacion;
+use App\Livewire\Supervisor\Estudiantes\ImportarCSV as EstudiantesImportarCsv;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -34,10 +37,36 @@ Route::get('/evento-calendario', Index::class)
     ->middleware(['auth', 'verified'])
     ->name('evento-calendario.index');
 
+// Extensión fuera del ERS: historial completo de notificaciones (la campanita solo muestra las últimas 8).
+Route::get('/notificaciones', NotificacionesIndex::class)
+    ->middleware(['auth', 'verified'])
+    ->name('notificaciones.index');
+
+// Extensión fuera del ERS: detalle completo de un comunicado/anuncio (texto largo e imagen).
+Route::get('/comunicados/{comunicado}', ComunicadoShow::class)
+    ->middleware(['auth', 'verified'])
+    ->name('comunicados.show');
+
 // ERS RF-49: bandeja de entregas por calificar del profesor
 Route::get('/por-calificar', PorCalificarIndex::class)
     ->middleware(['auth', 'verified', 'role:profesor'])
+    ->name('profesor.por-calificar');
+// Alias de la rama de José (varias de sus vistas y tests llaman a este nombre).
+// URL propia: dos rutas con la misma URL+método pero distinto nombre hacen que
+// Laravel descarte en silencio el nombre de la primera al resolver route().
+Route::get('/docente/por-calificar', PorCalificarIndex::class)
+    ->middleware(['auth', 'verified', 'role:profesor'])
     ->name('docente.por-calificar');
+
+// Alias de la rama de José: su ruta de importación de estudiantes no vivía bajo /admin.
+Route::get('/usuarios/importar', EstudiantesImportarCsv::class)
+    ->middleware(['auth', 'verified', 'role:supervisor'])
+    ->name('usuarios.importar');
+
+// Extensión fuera del ERS: resumen de notas de todos los cursos matriculados del estudiante.
+Route::get('/mis-calificaciones', MisCalificaciones::class)
+    ->middleware(['auth', 'verified', 'role:estudiante'])
+    ->name('mis-calificaciones');
 
 require __DIR__.'/auth.php';
 require __DIR__.'/admin.php';
@@ -57,18 +86,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('cursos.esquema');
 
     // ERS RF-59: boleta de notas por rubro del estudiante
-    Route::get('cursos/{curso}/boleta', BoletaEstudiante::class)
+    Route::get('cursos/{curso}/boleta', BoletaCurso::class)
         ->name('cursos.boleta');
 
     // ERS RF-26 a RF-33: matrícula del curso (el Profesor solo consulta)
     Route::get('cursos/{curso}/matriculas', GestionMatricula::class)
         ->middleware('role:supervisor|profesor')
         ->name('cursos.matriculas');
-
-    // ERS RF-11 a RF-13: importación masiva de usuarios (solo Supervisor)
-    Route::get('usuarios/importar', ImportarCSV::class)
-        ->middleware('role:supervisor')
-        ->name('usuarios.importar');
 
     // Compatibilidad: la antigua pantalla de lecciones de una semana lleva a la pantalla del curso,
     // donde ahora se gestiona el contenido (ERS RF-35 a RF-38).
@@ -77,7 +101,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('lecciones.index');
 
     // ERS RF-70, RF-71, RF-73: registro de asistencia (Profesor del curso)
-    Route::get('cursos/{curso}/asistencia', App\Livewire\Asistencia\Index::class)
+    Route::get('cursos/{curso}/asistencia', App\Livewire\Compartido\Asistencia\Index::class)
         ->middleware('role:profesor|supervisor')
         ->name('asistencia.index');
 

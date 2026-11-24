@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use App\Enums\Rol;
 use App\Livewire\BotSugerencias\Widget;
-use App\Livewire\PanelAdmin\Configuracion;
-use App\Livewire\PanelAdmin\Metricas;
+use App\Livewire\Supervisor\Configuracion;
+use App\Livewire\Supervisor\DashboardInstitucional\Index as Metricas;
 use App\Models\Curso;
 use App\Models\Modulo;
 use App\Models\Tarea;
@@ -34,8 +34,8 @@ class PanelAdminTest extends TestCase
     {
         $admin = User::factory()->create()->assignRole(Rol::Supervisor->value);
 
-        $this->actingAs($admin)->get(route('admin.metricas'))->assertOk();
-        $this->actingAs($admin)->get(route('admin.configuracion'))->assertOk();
+        $this->actingAs($admin)->get(route('supervisor.dashboard-institucional'))->assertOk();
+        $this->actingAs($admin)->get(route('supervisor.configuracion'))->assertOk();
     }
 
     public function test_profesor_y_estudiante_no_pueden_ver_el_panel_admin(): void
@@ -43,8 +43,8 @@ class PanelAdminTest extends TestCase
         $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
         $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
 
-        $this->actingAs($profesor)->get(route('admin.metricas'))->assertForbidden();
-        $this->actingAs($estudiante)->get(route('admin.configuracion'))->assertForbidden();
+        $this->actingAs($profesor)->get(route('supervisor.dashboard-institucional'))->assertForbidden();
+        $this->actingAs($estudiante)->get(route('supervisor.configuracion'))->assertForbidden();
     }
 
     public function test_las_metricas_reflejan_los_cursos_con_atraso(): void

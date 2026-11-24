@@ -3,13 +3,16 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\Cursos\Formulario;
-use App\Livewire\Cursos\GestionMatricula;
-use App\Livewire\Cursos\Index;
-use App\Livewire\Cursos\Show;
+use App\Livewire\Compartido\Cursos\GestionMatricula;
+use App\Livewire\Compartido\Cursos\Index;
+use App\Livewire\Compartido\Cursos\Show;
+use App\Livewire\Supervisor\Cursos\Formulario;
 use App\Models\Curso;
 use App\Models\EsquemaEvaluacion;
+use App\Models\Facultad;
 use App\Models\RubroEvaluacion;
+use App\Models\Salon;
+use App\Models\Sede;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -75,6 +78,59 @@ class CursosTest extends TestCase
         $this->assertDatabaseMissing('cursos', ['nombre' => 'Curso presencial sin aula']);
     }
 
+    public function test_con_sedes_registradas_el_curso_presencial_elige_sede_facultad_y_salones_de_esa_sede(): void
+    {
+        $supervisor = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $sede = Sede::factory()->create();
+        $salon = Salon::factory()->create(['sede_id' => $sede->id, 'codigo' => 'LO-101']);
+        $deOtraSede = Salon::factory()->create(['codigo' => 'SI-202']);
+        $facultad = Facultad::factory()->create(['sede_id' => $sede->id]);
+        $facultadAjena = Facultad::factory()->create();
+
+        $formulario = Livewire::actingAs($supervisor)->test(Formulario::class)
+            ->set('nombre', 'Curso con sede')
+            ->set('profesor_id', $profesor->id)
+            ->set('fecha_inicio', '2026-10-22')
+            ->set('semanas_duracion', '2')
+            ->set('horarioBloques', [['dia' => '1', 'hora_inicio' => '08:00', 'hora_fin' => '09:30', 'aula' => 'LO-101']])
+            ->call('guardar')
+            ->assertHasErrors(['sede_id' => 'required'])
+            // El aula debe ser un salón de la sede elegida, y la facultad, de esa sede.
+            ->set('sede_id', (string) $sede->id)
+            ->set('horarioBloques', [['dia' => '1', 'hora_inicio' => '08:00', 'hora_fin' => '09:30', 'aula' => $deOtraSede->codigo]])
+            ->set('facultad_id', (string) $facultadAjena->id)
+            ->call('guardar')
+            ->assertHasErrors(['horarioBloques.0.aula' => 'exists', 'facultad_id' => 'exists']);
+
+        $formulario->set('horarioBloques', [['dia' => '1', 'hora_inicio' => '08:00', 'hora_fin' => '09:30', 'aula' => 'LO-101']])
+            ->set('facultad_id', (string) $facultad->id)
+            ->call('guardar')
+            ->assertHasNoErrors();
+
+        $curso = Curso::where('nombre', 'Curso con sede')->firstOrFail();
+        $this->assertSame($sede->id, $curso->sede_id);
+        $this->assertSame($facultad->id, $curso->facultad_id);
+        // Las clases generadas nacen con su salón real (lo usa la reprogramación).
+        $this->assertSame([$salon->id], $curso->sesionesClase()->pluck('salon_id')->unique()->values()->all());
+    }
+
+    public function test_cambiar_de_sede_vacia_la_facultad_y_las_aulas_elegidas(): void
+    {
+        $supervisor = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $sede = Sede::factory()->create();
+        $facultad = Facultad::factory()->create(['sede_id' => $sede->id]);
+
+        Livewire::actingAs($supervisor)->test(Formulario::class)
+            ->set('sede_id', (string) $sede->id)
+            ->set('facultad_id', (string) $facultad->id)
+            ->set('horarioBloques', [['dia' => '1', 'hora_inicio' => '08:00', 'hora_fin' => '09:30', 'aula' => 'LO-101']])
+            ->set('sede_id', (string) Sede::factory()->create()->id)
+            ->assertSet('facultad_id', '')
+            ->assertSet('horarioBloques.0.aula', '')
+            ->assertSet('horarioBloques.0.hora_inicio', '08:00');
+    }
+
     public function test_virtual_no_pide_aula_ni_horario(): void
     {
         $supervisor = User::factory()->create()->assignRole(Rol::Supervisor->value);
@@ -89,6 +145,26 @@ class CursosTest extends TestCase
             ->assertHasNoErrors();
 
         $this->assertDatabaseHas('cursos', ['nombre' => 'Curso autoestudio', 'modalidad' => 'virtual', 'horario_bloques' => null]);
+    }
+
+    public function test_el_curso_virtual_guarda_un_horario_informativo_sin_generar_sesiones(): void
+    {
+        $supervisor = User::factory()->create()->assignRole(Rol::Supervisor->value);
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+
+        Livewire::actingAs($supervisor)->test(Formulario::class)
+            ->set('nombre', 'Curso virtual con horario')
+            ->set('profesor_id', $profesor->id)
+            ->set('modalidad', 'virtual')
+            ->set('fecha_inicio', '2026-10-22')
+            ->set('semanas_duracion', '2')
+            ->set('horarioBloques', [['dia' => '2', 'hora_inicio' => '19:00', 'hora_fin' => '20:00', 'aula' => '']])
+            ->call('guardar')
+            ->assertHasNoErrors();
+
+        $curso = Curso::where('nombre', 'Curso virtual con horario')->firstOrFail();
+        $this->assertSame('Mar 19:00-20:00', $curso->horarioResumen());
+        $this->assertSame(0, $curso->sesionesClase()->count());
     }
 
     public function test_genera_las_sesiones_de_clase_automaticamente_segun_el_horario(): void

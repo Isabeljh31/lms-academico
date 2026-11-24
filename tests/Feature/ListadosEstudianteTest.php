@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\Quizzes\Index as QuizzesIndex;
-use App\Livewire\Tareas\Index as TareasIndex;
+use App\Livewire\Compartido\Quizzes\Index as QuizzesIndex;
+use App\Livewire\Compartido\Tareas\Index as TareasIndex;
 use App\Models\Curso;
 use App\Models\Modulo;
 use App\Models\Quiz;

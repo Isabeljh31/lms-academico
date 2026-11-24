@@ -3,9 +3,10 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\Cursos\Show;
+use App\Livewire\Compartido\Cursos\Show;
 use App\Models\Leccion;
 use App\Models\Modulo;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -448,7 +449,7 @@ class LeccionesFormularioTest extends TestCase
         $this->assertSame([1], $this->semanasDesplegadas($componente->html()));
     }
 
-    public function test_vaciar_una_semana_o_quitar_las_practicas_pide_confirmacion_con_su_contenido(): void
+    public function test_vaciar_una_semana_pide_confirmacion_y_las_practicas_de_campo_no_se_quitan(): void
     {
         $escenario = $this->escenarioEnSemana1();
         $escenario['modulo']->lecciones()->create(['titulo' => 'Guía', 'estado' => 'publicado', 'orden' => 1, 'tipo_recurso' => 'recursos']);
@@ -464,12 +465,10 @@ class LeccionesFormularioTest extends TestCase
         $componente->call('ejecutarConfirmacion');
         $this->assertNull($escenario['modulo']->fresh());
 
-        $componente->call('confirmarVaciarModulo', $practicas->id)
-            ->assertSet('confirmacionTitulo', 'Quitar prácticas de campo')
-            ->assertSet('confirmacionTextoBoton', 'Quitar');
+        // Las prácticas de campo las define el Supervisor: el profesor no puede quitarlas.
+        $this->assertThrows(fn () => $componente->call('confirmarVaciarModulo', $practicas->id), ModelNotFoundException::class);
+        $this->assertThrows(fn () => $this->componente($escenario)->call('eliminarModulo', $practicas->id), ModelNotFoundException::class);
         $this->assertNotNull($practicas->fresh());
-        $componente->call('ejecutarConfirmacion');
-        $this->assertNull($practicas->fresh());
     }
 
     public function test_solo_el_profesor_del_curso_gestiona_el_contenido(): void
@@ -616,6 +615,13 @@ class LeccionesFormularioTest extends TestCase
     {
         $html = $componente->html();
         $valores = [];
+
+        // En la pantalla del Profesor el estado es el desplegable "Visibilidad para el estudiante" (x-docente.visibilidad).
+        if (preg_match('/id="visibilidad-estado-menu".*?<\/div>\s*<\/div>/s', $html, $menu)) {
+            preg_match_all('/data-opcion="([^"]+)"\s+tabindex="-1"\s+aria-checked="true"/', $menu[0], $marcados);
+            $this->assertCount(1, $marcados[1], 'La visibilidad debe tener exactamente una opción marcada.');
+            $valores['estado'] = $marcados[1][0];
+        }
 
         foreach (['estado', 'fuente', 'condicion_completitud'] as $grupo) {
             preg_match_all('/<input type="radio" name="leccion_'.$grupo.'" value="([^"]+)"[^>]*>/', $html, $radios, PREG_SET_ORDER);

@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Enums\Rol;
 use App\Livewire\Estudiante\PanelInicio;
 use App\Models\Curso;
+use App\Models\Grupo;
 use App\Models\Modulo;
 use App\Models\Tarea;
 use App\Models\User;
+use App\Services\Reportes\ProgresoAcademicoService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
@@ -50,7 +52,8 @@ class PanelInicioEstudianteTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertDontSeeLivewire('estudiante.panel-inicio')
-            ->assertSee('Hola,')
+            // El saludo lleva el nombre en cursiva (<span>Hola</span>, <em>…</em>): se mira el texto visible.
+            ->assertSeeText('Hola,')
             ->assertSee('Rol:');
 
         $this->actingAs($admin)
@@ -112,5 +115,165 @@ class PanelInicioEstudianteTest extends TestCase
             ->test(PanelInicio::class)
             ->assertSee('100%')
             ->assertSee('Sin entregas pendientes');
+    }
+
+    public function test_el_panel_no_muestra_tareas_asignadas_a_otro_grupo(): void
+    {
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+
+        $curso = Curso::factory()->create([
+            'profesor_id' => $profesor->id,
+        ]);
+
+        $modulo = Modulo::factory()->create([
+            'curso_id' => $curso->id,
+        ]);
+
+        $curso->inscripciones()->create([
+            'estudiante_id' => $estudiante->id,
+            'fecha_inscripcion' => now(),
+            'estado' => 'activo',
+            'activo_local' => true,
+        ]);
+
+        $otroGrupo = Grupo::create([
+            'curso_id' => $curso->id,
+            'nombre' => 'Grupo de otros estudiantes',
+        ]);
+
+        Tarea::factory()->create([
+            'curso_id' => $curso->id,
+            'modulo_id' => $modulo->id,
+            'titulo' => 'Actividad general visible',
+            'visible' => true,
+            'fecha_entrega' => now()->addDays(2),
+        ]);
+
+        Tarea::factory()->create([
+            'curso_id' => $curso->id,
+            'modulo_id' => $modulo->id,
+            'titulo' => 'Actividad privada de otro grupo',
+            'visible' => true,
+            'tipo_entrega' => 'grupal',
+            'grupo_asignado_id' => $otroGrupo->id,
+            'fecha_entrega' => now()->addDays(2),
+        ]);
+
+        Livewire::actingAs($estudiante)
+            ->test(PanelInicio::class)
+            ->assertSee('Actividad general visible')
+            ->assertDontSee('Actividad privada de otro grupo');
+    }
+
+    public function test_el_panel_muestra_tareas_del_grupo_y_oculta_las_programadas(): void
+    {
+        // Se fija la fecha para que ambas entregas caigan dentro del mes.
+        $this->travelTo(now()->startOfMonth()->addDay()->startOfDay());
+
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+
+        $curso = Curso::factory()->create([
+            'profesor_id' => $profesor->id,
+        ]);
+
+        $modulo = Modulo::factory()->create([
+            'curso_id' => $curso->id,
+        ]);
+
+        $curso->inscripciones()->create([
+            'estudiante_id' => $estudiante->id,
+            'fecha_inscripcion' => now(),
+            'estado' => 'activo',
+            'activo_local' => true,
+        ]);
+
+        $grupo = Grupo::create([
+            'curso_id' => $curso->id,
+            'nombre' => 'Grupo del estudiante',
+        ]);
+
+        $grupo->estudiantes()->attach($estudiante->id);
+
+        Tarea::factory()->create([
+            'curso_id' => $curso->id,
+            'modulo_id' => $modulo->id,
+            'titulo' => 'Actividad de mi grupo',
+            'visible' => true,
+            'tipo_entrega' => 'grupal',
+            'grupo_asignado_id' => $grupo->id,
+            'fecha_entrega' => now()->addDays(3),
+        ]);
+
+        Tarea::factory()->create([
+            'curso_id' => $curso->id,
+            'modulo_id' => $modulo->id,
+            'titulo' => 'Actividad programada privada',
+            'visible' => true,
+            'estado_contenido' => 'programado',
+            'publicar_en' => now()->addDay(),
+            'fecha_entrega' => now()->addDays(4),
+        ]);
+
+        Livewire::actingAs($estudiante)
+            ->test(PanelInicio::class)
+            ->assertSee('Actividad de mi grupo')
+            ->assertDontSee('Actividad programada privada');
+    }
+
+    public function test_el_progreso_no_cuenta_tareas_de_otro_grupo(): void
+    {
+        $profesor = User::factory()->create()->assignRole(Rol::Profesor->value);
+        $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
+
+        $curso = Curso::factory()->create([
+            'profesor_id' => $profesor->id,
+        ]);
+
+        $modulo = Modulo::factory()->create([
+            'curso_id' => $curso->id,
+        ]);
+
+        $curso->inscripciones()->create([
+            'estudiante_id' => $estudiante->id,
+            'fecha_inscripcion' => now(),
+            'estado' => 'activo',
+            'activo_local' => true,
+        ]);
+
+        $otroGrupo = Grupo::create([
+            'curso_id' => $curso->id,
+            'nombre' => 'Otro grupo',
+        ]);
+
+        $tareaGeneral = Tarea::factory()->create([
+            'curso_id' => $curso->id,
+            'modulo_id' => $modulo->id,
+            'titulo' => 'Tarea general completada',
+            'visible' => true,
+            'fecha_entrega' => now()->addDays(3),
+        ]);
+
+        $tareaGeneral->entregas()->create([
+            'estudiante_id' => $estudiante->id,
+            'archivo_url' => 'https://example.test/entrega.pdf',
+            'estado' => 'entregado',
+        ]);
+
+        Tarea::factory()->create([
+            'curso_id' => $curso->id,
+            'modulo_id' => $modulo->id,
+            'titulo' => 'Tarea exclusiva de otro grupo',
+            'visible' => true,
+            'tipo_entrega' => 'grupal',
+            'grupo_asignado_id' => $otroGrupo->id,
+            'fecha_entrega' => now()->addDays(3),
+        ]);
+
+        $progreso = app(ProgresoAcademicoService::class)
+            ->avance($estudiante, $curso);
+
+        $this->assertSame(100, $progreso);
     }
 }

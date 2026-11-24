@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\Grupos\Index as GruposIndex;
-use App\Livewire\Tareas\Detalle;
+use App\Livewire\Compartido\Grupos\Index as GruposIndex;
+use App\Livewire\Compartido\Tareas\Detalle;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Models\Grupo;
@@ -13,6 +13,7 @@ use App\Models\Tarea;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -52,17 +53,18 @@ class GruposTest extends TestCase
         [$profesor, $curso] = $this->cursoConProfesor();
         $estudiante = $this->inscribir($curso);
 
-        $componente = Livewire::actingAs($profesor)
+        Livewire::actingAs($profesor)
             ->test(GruposIndex::class, ['curso' => $curso])
             ->set('nuevoGrupoNombre', 'Grupo A')
+            ->set('integrantesIniciales', [$estudiante->id])
             ->call('crearGrupo')
             ->assertHasNoErrors();
 
-        $grupo = Grupo::where('curso_id', $curso->id)->where('nombre', 'Grupo A')->firstOrFail();
+        $grupo = Grupo::where('curso_id', $curso->id)
+            ->where('nombre', 'Grupo A')
+            ->firstOrFail();
 
-        $componente->call('mover', [$estudiante->id], $grupo->id)->assertHasNoErrors();
-
-        $this->assertTrue($grupo->fresh()->estudiantes->contains($estudiante));
+        $this->assertTrue($grupo->estudiantes->contains($estudiante));
     }
 
     public function test_cancelar_renombrado_descarta_el_nombre_y_los_errores_sin_modificar_el_grupo(): void
@@ -150,6 +152,8 @@ class GruposTest extends TestCase
 
     public function test_al_entregar_una_tarea_grupal_se_crea_una_entrega_para_cada_integrante(): void
     {
+        // Disco simulado: la entrega no se escribe en el almacenamiento real de la app.
+        Storage::fake(config('archivos.disco'));
         [$profesor, $curso, $modulo] = $this->cursoConProfesor();
         $tarea = Tarea::factory()->create(['curso_id' => $curso->id, 'modulo_id' => $modulo->id, 'tipo_entrega' => 'grupal']);
         $miembro1 = $this->inscribir($curso);
@@ -270,7 +274,9 @@ class GruposTest extends TestCase
         $entrega = Entrega::create(['tarea_id' => $tarea->id, 'estudiante_id' => $estudiante->id, 'grupo_id' => $grupo->id, 'estado' => 'entregado']);
 
         $componente = Livewire::actingAs($profesor)->test(GruposIndex::class, ['curso' => $curso])
+            ->set('motivoEliminacion', 'Reorganización de equipos')
             ->call('eliminarGrupo', $grupo->id)
+            ->assertHasNoErrors()
             ->assertSee('Grupo «Grupo 1» eliminado. Su integrante volvió a Sin grupo.');
         $this->assertDatabaseMissing('grupos', ['id' => $grupo->id]);
         $this->assertNull($entrega->fresh()->grupo_id);

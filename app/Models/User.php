@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -49,6 +50,9 @@ class User extends Authenticatable
         'correo_personal',
         'apoderado_nombre',
         'apoderado_celular',
+        // Sede y facultad propias del estudiante (listados del Supervisor).
+        'sede_id',
+        'facultad_id',
         'grado_academico',
         'colegiatura',
         'fecha_inicio_labores',
@@ -209,6 +213,18 @@ class User extends Authenticatable
     // ==========================================
     // RELACIONES ELOQUENT DEL LMS
     // ==========================================
+
+    /** Sede propia del estudiante (null mientras no se defina). */
+    public function sede(): BelongsTo
+    {
+        return $this->belongsTo(Sede::class);
+    }
+
+    /** Facultad propia del estudiante, de su sede (null mientras no se defina). */
+    public function facultad(): BelongsTo
+    {
+        return $this->belongsTo(Facultad::class);
+    }
 
     /** Cursos donde es profesor titular. */
     public function cursosComoProfesor(): HasMany

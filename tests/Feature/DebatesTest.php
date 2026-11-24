@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\Debates\Index as DebatesIndex;
-use App\Livewire\Debates\Show as DebatesShow;
+use App\Livewire\Compartido\Debates\Index as DebatesIndex;
+use App\Livewire\Compartido\Debates\Show as DebatesShow;
 use App\Models\Curso;
 use App\Models\Debate;
 use App\Models\DebateComentario;

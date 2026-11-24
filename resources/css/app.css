@@ -3,6 +3,109 @@
 @tailwind utilities;
 
 /*
+ * Tokens de marca (tailwind.config.js los lee como rgb(var(--lu-*))).
+ * Por defecto, la paleta azul LearnUp de Estudiante y Supervisor.
+ */
+:root {
+    --lu-azul-fondo: 23 104 172;   /* #1768AC */
+    --lu-azul-oscuro: 37 65 178;   /* #2541B2 */
+    --lu-celeste: 235 240 251;     /* #EBF0FB */
+    --lu-imperial: 3 37 108;       /* #03256C */
+    --lu-cielo: 6 190 225;         /* #06BEE1 */
+    --lu-cielo-claro: 224 247 253; /* #E0F7FD */
+    --lu-fondo: 245 247 250;       /* #F5F7FA */
+    --lu-texto: 31 41 55;          /* #1F2937 */
+    --lu-menta-fondo: 236 248 248; /* #ECF8F8 */
+    --lu-menta-base: 127 179 174;  /* #7FB3AE */
+    --lu-menta-oscuro: 60 122 117; /* #3C7A75 */
+    --lu-arena-claro: 238 228 225; /* #EEE4E1 */
+    --lu-arena-medio: 231 216 201; /* #E7D8C9 */
+}
+
+/*
+ * Tema del Supervisor (layouts/app.blade.php): el mismo diseño editorial del
+ * Profesor sobre su paleta (menta = acento, arena = papel y bordes). Las
+ * vistas siguen usando sus clases de siempre; solo cambian los valores.
+ */
+.tema-supervisor {
+    --lu-menta-fondo: 241 235 223; /* #F1EBDF papel tostado */
+    --lu-menta-base: 47 90 68;     /* #2F5A44 verde de foco */
+    --lu-menta-oscuro: 29 28 25;   /* #1D1C19 tinta (botones, activo) */
+    --lu-arena-claro: 244 240 232; /* #F4F0E8 papel crema */
+    --lu-arena-medio: 232 226 213; /* #E8E2D5 borde */
+    --muted: #6B6559;
+}
+
+/*
+ * Tema compartido por Profesor y Estudiante "puros" (layouts/panel-profesor.blade.php,
+ * ver PanelProfesorLayout::aplicaA). Paleta oficial LearnUp: verde petróleo + mostaza
+ * dorada como únicos colores de identidad, el resto son neutros (arena, blanco, carbón).
+ * El Supervisor conserva su propio tema (.tema-supervisor) sin cambios.
+ */
+.tema-profesor {
+    --lu-azul-fondo: 233 239 234;   /* #E9EFEA verde suave (hover) */
+    --lu-azul-oscuro: 23 79 70;     /* #174F46 petróleo (botones, activo) */
+    --lu-celeste: 229 231 235;      /* #E5E7EB borde */
+    --lu-imperial: 23 79 70;
+    --lu-cielo: 23 79 70;           /* #174F46 anillo de foco */
+    --lu-cielo-claro: 233 239 234;  /* #E9EFEA */
+    --lu-fondo: 243 241 235;        /* #F3F1EB arena */
+    --lu-texto: 37 43 41;
+
+    --p900: #103A33;
+    --p800: #174F46;
+    --p700: #174F46;
+    --mostaza: #D69A42;
+    --mostaza-suave: #F5E3C6;
+    --mostaza-oscura: #8A5A17;
+    --lime: #E9EFEA;
+    --sec2: #E5E7EB;
+    --mint: #F3F1EB;
+    --ink: #252B29;
+    --claro: #E5E7EB;
+    --ok900: #2F5D37;
+    --ok100: #E3EEDC;
+    --warn800: #8A4A1A;
+    --warn200: #F2DDBF;
+    --warn100: #FAF1E4;
+    --err700: #A33A2A;
+    --err100: #F8E3DC;
+    --inf700: #23407A;
+    --inf100: #E1E8F5;
+    --muted: #64716C;
+}
+
+/* Títulos en serif (Instrument Serif solo tiene peso normal: sin negrita falsa). Solo el
+   Supervisor conserva el serif editorial; Profesor y Estudiante usan Plus Jakarta Sans. */
+.tema-supervisor :is(h1, h2):not(.font-sans) {
+    font-family: 'Instrument Serif', ui-serif, Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.005em;
+}
+.tema-supervisor h1:not(.font-sans) {
+    line-height: 1.1;
+}
+.tema-profesor :is(h1, h2):not(.font-serif) {
+    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+/* Rótulo monoespaciado en mayúsculas (fechas, códigos, etiquetas). */
+.rotulo {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+/* Tarjeta de curso en tono pastel derivado de su color (--c): fondo claro y texto oscuro del mismo tono. */
+.tarjeta-curso {
+    background-color: color-mix(in srgb, var(--c) 13%, white);
+    color: color-mix(in srgb, var(--c) 80%, black);
+}
+
+/*
  * Flatpickr — tema con la paleta fría del rol Estudiante (ver
  * ARQUITECTURA.md § selector de fecha rediseñado). Flatpickr se carga bajo
  * demanda (window.cargarFlatpickr, resources/js/app.js) en el Calendario y en
@@ -187,7 +290,7 @@
  */
 .grupos-fantasma {
     opacity: 0.35;
-    outline: 2px dashed #2541B2;
+    outline: 2px dashed rgb(var(--lu-azul-oscuro));
     outline-offset: 2px;
 }
 .grupos-elegido {

@@ -3,15 +3,17 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\Admin\Comunicados\Index as ComunicadosIndex;
-use App\Livewire\Admin\Profesores\ImportarCsv;
-use App\Livewire\Admin\Profesores\Index as ProfesoresIndex;
-use App\Livewire\Admin\Profesores\Show as ProfesoresShow;
-use App\Livewire\Cursos\Formulario as CursoFormulario;
+use App\Livewire\Supervisor\Comunicados\Index as ComunicadosIndex;
+use App\Livewire\Supervisor\Cursos\Formulario as CursoFormulario;
+use App\Livewire\Supervisor\Profesores\ImportarCsv;
+use App\Livewire\Supervisor\Profesores\Index as ProfesoresIndex;
+use App\Livewire\Supervisor\Profesores\Show as ProfesoresShow;
 use App\Mail\BienvenidaMail;
 use App\Models\Comunicado;
 use App\Models\Curso;
 use App\Models\Entrega;
+use App\Models\Facultad;
+use App\Models\Sede;
 use App\Models\Tarea;
 use App\Models\User;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -49,7 +51,7 @@ class AdminProfesoresTest extends TestCase
     public function test_administrador_puede_acceder_al_directorio_de_profesores(): void
     {
         $this->actingAs($this->admin)
-            ->get(route('admin.profesores.index'))
+            ->get(route('supervisor.profesores.index'))
             ->assertOk()
             ->assertSee('Profesores y carga académica')
             ->assertSee($this->profesor->name);
@@ -184,11 +186,11 @@ class AdminProfesoresTest extends TestCase
     public function test_profesor_y_estudiante_no_pueden_acceder_a_admin_profesores(): void
     {
         $this->actingAs($this->profesor)
-            ->get(route('admin.profesores.index'))
+            ->get(route('supervisor.profesores.index'))
             ->assertForbidden();
 
         $this->actingAs($this->estudiante)
-            ->get(route('admin.profesores.index'))
+            ->get(route('supervisor.profesores.index'))
             ->assertForbidden();
     }
 
@@ -419,7 +421,7 @@ class AdminProfesoresTest extends TestCase
         $archivado = Curso::factory()->create(['profesor_id' => $this->profesor->id, 'nombre' => 'Curso viejo', 'estado' => 'archivado']);
 
         $this->actingAs($this->admin)
-            ->get(route('admin.profesores.show', $this->profesor))
+            ->get(route('supervisor.profesores.show', $this->profesor))
             ->assertOk()
             ->assertSee('Curso vigente')
             ->assertSee('Curso viejo')
@@ -454,11 +456,11 @@ class AdminProfesoresTest extends TestCase
     public function test_profesor_y_estudiante_no_pueden_gestionar_comunicados(): void
     {
         $this->actingAs($this->profesor)
-            ->get(route('admin.comunicados.index'))
+            ->get(route('supervisor.comunicados.index'))
             ->assertForbidden();
 
         $this->actingAs($this->estudiante)
-            ->get(route('admin.comunicados.index'))
+            ->get(route('supervisor.comunicados.index'))
             ->assertForbidden();
     }
 
@@ -551,11 +553,43 @@ class AdminProfesoresTest extends TestCase
     public function test_profesor_y_estudiante_no_pueden_importar_profesores(): void
     {
         $this->actingAs($this->profesor)
-            ->get(route('admin.profesores.importar'))
+            ->get(route('supervisor.profesores.importar'))
             ->assertForbidden();
 
         $this->actingAs($this->estudiante)
-            ->get(route('admin.profesores.importar'))
+            ->get(route('supervisor.profesores.importar'))
             ->assertForbidden();
+    }
+
+    public function test_con_facultades_los_profesores_se_listan_por_sede_y_facultad_y_aparte_los_virtuales(): void
+    {
+        $sede = Sede::factory()->create();
+        [$ingenieria, $letras] = Facultad::factory()->count(2)->create(['sede_id' => $sede->id]);
+        $presencial = User::factory()->create(['name' => 'Docente Presencial'])->assignRole(Rol::Profesor->value);
+        $virtual = User::factory()->create(['name' => 'Docente Virtual'])->assignRole(Rol::Profesor->value);
+        Curso::factory()->create(['profesor_id' => $presencial->id, 'modalidad' => 'presencial', 'sede_id' => $sede->id, 'facultad_id' => $ingenieria->id]);
+        Curso::factory()->create(['profesor_id' => $virtual->id, 'modalidad' => 'remoto', 'facultad_id' => $letras->id]);
+
+        Livewire::actingAs($this->admin)->test(ProfesoresIndex::class)
+            // Primero se elige la sede y luego la facultad.
+            ->assertSee('Elige la sede y la facultad')
+            ->assertDontSee('Docente Presencial')
+            ->set('sedeUbicacion', (string) $sede->id)
+            ->assertDontSee('Docente Presencial')
+            ->set('facultadUbicacion', (string) $ingenieria->id)
+            ->assertSee('Docente Presencial')
+            ->assertDontSee('Docente Virtual')
+            ->set('facultadUbicacion', (string) $letras->id)
+            ->assertDontSee('Docente Presencial')
+            // Los de cursos virtuales y remotos, en su propio listado con filtro por facultad.
+            ->call('verVistaUbicacion', 'virtual')
+            ->assertSee('Docente Virtual')
+            ->assertDontSee('Docente Presencial')
+            ->set('facultadUbicacion', (string) $ingenieria->id)
+            ->assertDontSee('Docente Virtual')
+            // Quien aún no tiene cursos no se pierde.
+            ->call('verVistaUbicacion', 'sin_cursos')
+            ->assertSee('Profesor Test')
+            ->assertDontSee('Docente Presencial');
     }
 }

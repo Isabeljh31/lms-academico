@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use App\Enums\Rol;
-use App\Livewire\Tareas\Detalle;
-use App\Livewire\Tareas\Formulario;
-use App\Livewire\Tareas\Index;
+use App\Livewire\Compartido\Tareas\Detalle;
+use App\Livewire\Compartido\Tareas\Formulario;
+use App\Livewire\Compartido\Tareas\Index;
 use App\Models\Curso;
 use App\Models\Entrega;
 use App\Models\Modulo;
@@ -15,6 +15,7 @@ use App\Notifications\NuevaTareaAsignada;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Role;
 use Tests\TestCase;
@@ -69,6 +70,8 @@ class TareasTest extends TestCase
 
     public function test_estudiante_inscrito_puede_entregar_una_tarea(): void
     {
+        // Disco simulado: la entrega no se escribe en el almacenamiento real de la app.
+        Storage::fake(config('archivos.disco'));
         [$profesor, $curso, $modulo] = $this->cursoConProfesor();
         $estudiante = User::factory()->create()->assignRole(Rol::Estudiante->value);
         $curso->inscripciones()->create(['estudiante_id' => $estudiante->id, 'fecha_inscripcion' => now()]);

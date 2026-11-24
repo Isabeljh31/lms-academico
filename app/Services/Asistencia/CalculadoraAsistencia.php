@@ -71,4 +71,27 @@ class CalculadoraAsistencia
     {
         return $this->porcentaje($this->historial($estudiante, $curso)->pluck('estado'));
     }
+
+    /**
+     * porcentajeDe() de varios estudiantes del mismo curso en dos consultas
+     * (mismo criterio: sesiones realizadas, sin registro = ausente).
+     *
+     * @param  Collection<int, int>  $estudianteIds
+     * @return array<int, float|null> estudiante_id => porcentaje
+     */
+    public function porcentajesDelCurso(Curso $curso, Collection $estudianteIds): array
+    {
+        $sesionIds = $curso->sesionesClase()->where('fecha', '<=', now())->pluck('id');
+        $registros = $sesionIds->isEmpty() || $estudianteIds->isEmpty()
+            ? collect()
+            : Asistencia::whereIn('sesion_id', $sesionIds)->whereIn('estudiante_id', $estudianteIds)
+                ->get(['sesion_id', 'estudiante_id', 'estado'])
+                ->groupBy('estudiante_id');
+
+        return $estudianteIds->mapWithKeys(function (int $estudianteId) use ($sesionIds, $registros) {
+            $estados = $registros->get($estudianteId, collect())->pluck('estado', 'sesion_id');
+
+            return [$estudianteId => $this->porcentaje($sesionIds->map(fn (int $sesionId) => $estados->get($sesionId) ?? 'ausente'))];
+        })->all();
+    }
 }

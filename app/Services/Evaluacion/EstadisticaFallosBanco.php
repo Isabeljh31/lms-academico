@@ -6,6 +6,7 @@ use App\Models\BancoPregunta;
 use App\Models\Curso;
 use App\Models\Quiz;
 use App\Models\ResultadoQuiz;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * Qué tanto fallan los estudiantes cada pregunta del banco (solo lectura).
@@ -31,9 +32,10 @@ class EstadisticaFallosBanco
     public const MINIMO_RESPUESTAS = 3;
 
     /**
+     * @param  Collection<int, Quiz>|null  $quizzes  quizzes del curso ya cargados (id y preguntas), para no volver a leerlos
      * @return array<int, array{respuestas: int, incorrectas: int, porcentaje: float|null}> id de la pregunta del banco => estadística
      */
-    public function paraCurso(Curso $curso): array
+    public function paraCurso(Curso $curso, ?Collection $quizzes = null): array
     {
         $banco = $curso->bancoPreguntasCurso()->get(['id', 'tema', 'pregunta', 'tipo', 'opciones', 'respuestas_correctas']);
         $estadistica = $banco->mapWithKeys(fn (BancoPregunta $p) => [$p->id => ['respuestas' => 0, 'incorrectas' => 0]])->all();
@@ -42,7 +44,7 @@ class EstadisticaFallosBanco
             return [];
         }
 
-        $origenes = $this->origenesPorQuiz($curso, $banco->keyBy('id')->all());
+        $origenes = $this->origenesPorQuiz($curso, $banco->keyBy('id')->all(), $quizzes);
 
         if ($origenes !== []) {
             $intentos = ResultadoQuiz::query()->whereIn('quiz_id', array_keys($origenes))->select(['id', 'quiz_id', 'respuestas']);
@@ -90,9 +92,10 @@ class EstadisticaFallosBanco
      * Para cada quiz con copias reconocibles: posición => [id del banco, pregunta del quiz].
      *
      * @param  array<int, BancoPregunta>  $banco
+     * @param  Collection<int, Quiz>|null  $quizzes
      * @return array<int, array<int, array{0: int, 1: array<string, mixed>}>>
      */
-    protected function origenesPorQuiz(Curso $curso, array $banco): array
+    protected function origenesPorQuiz(Curso $curso, array $banco, ?Collection $quizzes = null): array
     {
         $porClave = [];
         foreach ($banco as $item) {
@@ -101,7 +104,7 @@ class EstadisticaFallosBanco
 
         $origenes = [];
 
-        foreach ($curso->quizzes()->get(['id', 'preguntas']) as $quiz) {
+        foreach ($quizzes ?? $curso->quizzes()->get(['id', 'preguntas']) as $quiz) {
             foreach ($quiz->preguntas ?? [] as $indice => $pregunta) {
                 if (! is_array($pregunta) || ($pregunta['editada'] ?? false)) {
                     continue;

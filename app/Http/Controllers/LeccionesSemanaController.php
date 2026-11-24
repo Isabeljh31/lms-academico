@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Livewire\Cursos\Show;
+use App\Livewire\Compartido\Cursos\Show;
 use App\Models\Modulo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Gate;

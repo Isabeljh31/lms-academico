@@ -31,6 +31,18 @@ class ConfiguracionPlataforma
         'nombre_institucion' => 'LearnUp',
         'zona_horaria' => 'America/Lima',
         'formato_fecha' => 'd/m/Y',
+        // Horas mínimas de anticipación para que una reprogramación se aplique sola.
+        'reprogramacion_aviso_minimo_horas' => 24,
+        // Dominios admitidos para el enlace de las clases remotas (se aceptan también sus subdominios).
+        'enlace_remoto_dominios' => [
+            'teams.microsoft.com',
+            'teams.live.com',
+            'meet.google.com',
+            'zoom.us',
+            'meet.jit.si',
+            'whereby.com',
+            'webex.com',
+        ],
     ];
 
     /**
@@ -90,6 +102,36 @@ class ConfiguracionPlataforma
         $formato = (string) $this->obtener('formato_fecha');
 
         return array_key_exists($formato, self::FORMATOS_FECHA) ? $formato : self::PREDETERMINADOS['formato_fecha'];
+    }
+
+    /**
+     * Anticipación mínima (en horas) de la clase original y de la nueva para
+     * que una reprogramación se aplique sin revisión del Supervisor. Solo se
+     * cambia guardando la clave; no tiene pantalla.
+     */
+    public function avisoMinimoReprogramacionHoras(): int
+    {
+        return max(0, (int) $this->obtener('reprogramacion_aviso_minimo_horas'));
+    }
+
+    /**
+     * Dominios permitidos para el enlace de clases remotas, en minúsculas y
+     * sin vacíos. Si el valor guardado no es una lista, se usan los de fábrica.
+     *
+     * @return list<string>
+     */
+    public function dominiosEnlaceRemoto(): array
+    {
+        $dominios = $this->obtener('enlace_remoto_dominios');
+
+        if (! is_array($dominios)) {
+            $dominios = self::PREDETERMINADOS['enlace_remoto_dominios'];
+        }
+
+        return array_values(array_unique(array_filter(array_map(
+            fn (mixed $dominio) => is_string($dominio) ? mb_strtolower(trim($dominio)) : '',
+            $dominios,
+        ))));
     }
 
     public function formatoFechaHora(bool $conSegundos = false): string

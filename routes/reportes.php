@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\Reportes\BoletaPdfController;
-use App\Livewire\Reportes\Dashboard;
+use App\Livewire\Compartido\Reportes\Dashboard;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])
